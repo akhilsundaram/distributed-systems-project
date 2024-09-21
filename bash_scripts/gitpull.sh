@@ -18,15 +18,31 @@ VMS=(
 REPO_PATH="/home/code/g59"
 
 # Function to pull latest code on a VM
+# SSH user
+SSH_USER="anuragc3"
+
+# Sudo password (WARNING: Storing passwords in scripts is not secure)
+SUDO_PASSWORD="H1gh3rSt!dy2$"
+
+# Function to pull latest code on a VM as root
 pull_latest_code() {
   local vm=$1
-  echo "Pulling latest code on $vm"
-  ssh $vm "cd $REPO_PATH && git pull"
+  echo "Pulling latest code on $vm as root"
+  ssh -t $SSH_USER@$vm  << EOF
+    expect -c "
+      spawn sudo su -
+      expect \"password for $SSH_USER:\"
+      send \"$SUDO_PASSWORD\r\"
+      expect \"#\"
+      send \"cd $REPO_PATH && git pull\r\"
+      expect \"#\"
+      send \"exit\r\"
+      expect eof
+    "
+EOF
 }
-
 # Main loop to iterate through VMs
 for vm in "${VMS[@]}"; do
   pull_latest_code $vm
 done
 
-echo "Code update complete on all VMs"
