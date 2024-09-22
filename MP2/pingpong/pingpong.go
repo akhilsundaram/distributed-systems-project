@@ -3,6 +3,8 @@ package pingpong
 import (
 	"bufio"
 	"encoding/json"
+	"bufio"
+	"encoding/json"
 	"failure_detection/utility"
 	"net"
 	"math/rand"
@@ -20,9 +22,16 @@ type InputData struct {
 }
 
 func PingAck() {
+type InputData struct {
+	PingID string `json:"ping_id"`
+}
+
+func PingAck() {
 
 	// ip := net.IPv4(127, 0, 0, 1)
 
+	// opening the port for UDP connections
+	ack, err := net.Listen("udp", port)
 	// opening the port for UDP connections
 	ack, err := net.Listen("udp", port)
 	utility.LogMessage("Ping Ack is up")
