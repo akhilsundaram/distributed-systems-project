@@ -14,7 +14,7 @@ var (
 
 /////// MEMBERSHIP TABLE FUNCTIONS //////
 
-func CheckMember(member string) bool {
+func getMembership(member string) bool {
 	memLock.Lock()
 	defer memLock.Unlock()
 
@@ -26,7 +26,7 @@ func CheckMember(member string) bool {
 
 }
 
-func AddMember(member string) error {
+func AddMembership(member string) error {
 	memLock.Lock()
 	defer memLock.Unlock()
 
@@ -40,7 +40,7 @@ func AddMember(member string) error {
 	return nil
 }
 
-func DeleteMember(member string) error {
+func DeleteMembership(member string) error {
 	memLock.Lock()
 	defer memLock.Unlock()
 
