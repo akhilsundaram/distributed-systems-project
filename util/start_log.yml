@@ -1,0 +1,11 @@
+- name: Update Repository and Start Go Listener
+  hosts: all
+  become: true
+  tasks:
+    - name: Checkout main branch and pull changes
+      command: git checkout main && git pull
+      args:
+        chdir: '/home/code/g59'
+
+    - name: Start Go code in background
+      command: nohup go run /home/code/g59/MP1/Listener/main.go &
