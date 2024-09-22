@@ -1,13 +1,12 @@
 package main
 
 import (
-	"failure_detection/pingpong"
-	"os"
+	"failure_detection/utility"
 )
 
 func main() {
-	args := os.Args
-	pingpong.LogMessage(args[0])
+	// args := os.Args
+	utility.LogMessage("Starting execution")
 	// typeArg is either "machine" or "caller", otherwise invalid
 
 }
