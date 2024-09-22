@@ -74,11 +74,10 @@ func HostListener(portNo string) {
 				if jsonErr != nil {
 					println("Error Parsing data")
 				}
-				host_name, _ := os.Hostname()
 
 				//Get machine number and machine_log name
-				machine_number := strings.Split(host_name, ".")[0]
-				machine_log := "machine." + strings.Split(machine_number, "-")[2][2:] + ".log"
+
+				machine_log := "machine.log"
 
 				if parsedData.Type == "cmd" {
 					//Call Grep command
