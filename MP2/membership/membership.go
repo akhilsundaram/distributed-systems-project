@@ -67,7 +67,7 @@ func GetSuspicion(member string) (int, error) {
 	defer susLock.RUnlock()
 
 	if _, ok := suspicion_table[member]; ok {
-		suspicion_table[member] = state
+		return suspicion_table[member], nil
 	} else {
 		return -1, fmt.Errorf("error sus: member does not have suspicion.\n")
 	}
