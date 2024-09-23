@@ -2,19 +2,43 @@ package membership
 
 import (
 	"fmt"
+	"net"
 	"sync"
+	"time"
 )
+
+// Shared Buffer table element
+type BufferValue struct {
+	TimesSent int64
+	Data      []byte
+	CreatedAt time.Time
+}
+
+// Member type for memberhsip list
+type Member struct {
+	id                string
+	host              string
+	ip                net.IP
+	incarnationNumber string
+	timeStamp         time.Time
+}
 
 var (
-	membership_list map[string]bool
-	suspicion_table map[string]int
+	// Shared membership data
+	membership_list map[string]Member
 	memLock         sync.RWMutex
+
+	//Shared Suspicion table lists
+	suspicion_table map[string]int
 	susLock         sync.RWMutex
+
+	//Shared Buffer table
+	shared_buffer []BufferValue
 )
 
-/////// MEMBERSHIP TABLE FUNCTIONS //////
+/////// MEMBERSHIP TABLE FUNCTIONS ////////
 
-func getMembership(member string) bool {
+func GetMembership(member string) bool {
 	memLock.Lock()
 	defer memLock.Unlock()
 
