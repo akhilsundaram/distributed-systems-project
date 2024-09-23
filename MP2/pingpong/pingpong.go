@@ -3,12 +3,19 @@ package pingpong
 import (
 	"bufio"
 	"encoding/json"
+	"failure_detection/membership"
+	"failure_detection/suspicion"
 	"failure_detection/utility"
+	"math/rand"
 	"net"
+	"strconv"
+	"sync"
+	"time"
 )
 
 const (
-	port = "9090"
+	port    = "9090"
+	timeout = 10 * time.Millisecond
 )
 
 var LOGGER_FILE = "/home/log/machine.log"
@@ -23,6 +30,7 @@ func PingAck() {
 
 	// opening the port for UDP connections
 	ack, err := net.Listen("udp", port)
+
 	utility.LogMessage("Ping Ack is up")
 
 	if err != nil {
@@ -91,6 +99,109 @@ func handlePingAndSendAck(data []byte, remoteAddr string, c net.Conn) bool {
 	return true
 }
 
-func SendPing() {
+func SendPing(suspect bool, ping_id int) {
 
+	// store the 10 vms in a array
+	hostArray := []string{
+		"fa24-cs425-5901.cs.illinois.edu",
+		"fa24-cs425-5902.cs.illinois.edu",
+		"fa24-cs425-5903.cs.illinois.edu",
+		"fa24-cs425-5904.cs.illinois.edu",
+		"fa24-cs425-5905.cs.illinois.edu",
+		"fa24-cs425-5906.cs.illinois.edu",
+		"fa24-cs425-5907.cs.illinois.edu",
+		"fa24-cs425-5908.cs.illinois.edu",
+		"fa24-cs425-5909.cs.illinois.edu",
+		"fa24-cs425-5910.cs.illinois.edu",
+	}
+
+	// randomize the order of vms to send the pings to
+	randomizeHostArray := shuffleStringArray(hostArray)
+
+	var req = InputData{
+		PingID: strconv.Itoa(ping_id),
+	}
+
+	var wg sync.WaitGroup
+	for _, host := range randomizeHostArray {
+		if membership.GetMembership(host) == true {
+			wg.Add(1)
+			go func(host string) {
+				defer wg.Done()
+				sendUDPRequest(host, req)
+			}(host)
+		}
+
+	}
+	// check if the machine is up first then do send Pings
+
+	// wait for ack, if no ack then report it as Sus
+	wg.Wait()
+}
+
+func sendUDPRequest(host string, requestData InputData) {
+	ipAddr := utility.GetIPAddr(host)
+
+	conn, err := net.DialTimeout("udp", ipAddr.String()+":"+(port), timeout)
+	if err != nil {
+		utility.LogMessage("Error in connection to " + host + ": " + err.Error())
+		return
+	}
+	defer conn.Close()
+
+	message, err := json.Marshal(requestData)
+	if err != nil {
+		utility.LogMessage("Error marshaling request: " + err.Error())
+		return
+	}
+
+	_, err = conn.Write(message)
+	if err != nil {
+		utility.LogMessage("Error sending request to " + host + ": " + err.Error())
+		return
+	}
+
+	// Set read deadline
+	err = conn.SetReadDeadline(time.Now().Add(timeout))
+	if err != nil {
+		utility.LogMessage("Error setting read deadline: " + err.Error())
+		return
+	}
+
+	response := make([]byte, 1024)
+	n, err := conn.Read(response)
+	if err != nil {
+		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+			utility.LogMessage("Timeout waiting for response from " + host)
+
+			// Either mark node as FAIL or raise Suspicion message
+
+			suspicion.DeclareSuspicion(host)
+		} else {
+			utility.LogMessage("Error reading response from " + host + ": " + err.Error())
+		}
+		return
+	}
+	if string(response[:n]) != requestData.PingID {
+		utility.LogMessage("ERROR : Incorrect ack response recieved from " + host + ", Expected : " + requestData.PingID + ", Actual : " + string(response[:n]))
+	}
+	// utility.LogMessage("Received response from " + host + ": " + string(response[:n]))
+
+}
+
+func shuffleStringArray(arr []string) []string {
+	shuffled := make([]string, len(arr))
+	copy(shuffled, arr)
+
+	// Create a new source of randomness with the current time as seed
+	source := rand.NewSource(time.Now().UnixNano())
+	r := rand.New(source)
+
+	// Using Fisher-Yates shuffle algorithm for random permuatation
+	for i := len(shuffled) - 1; i > 0; i-- {
+		j := r.Intn(i + 1)
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+	}
+
+	return shuffled
 }
