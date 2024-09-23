@@ -1,13 +1,54 @@
 package suspicion
 
-import "time"
+import (
+	"failure_detection/membership"
+	"failure_detection/utility"
+	"fmt"
+	"time"
+)
 
 var (
 	suspicionTimeout = time.Microsecond * 10
+	faultyTimeout    = time.Microsecond * 10
 )
 
-// Declare a host as suspicious //
-func DeclareSuspicion() error {
+// Handles all incoming suspicion messages
+func SuspicionHandler(message string) {
+	// This should handle all incoming suspicion messages from listener
+	// SUS -alive
+	// SUS -faulty
+	// SUS -normal sus
+	// Handle messages of type sus here.
 
+}
+
+// Declare a host as suspicious //
+func DeclareSuspicion(hostname string) error {
+	// Only time our ping/ server ever reqs sus data.
+	// Declares aftertimer to handle states internally. Maybe even callable from the Handler
+	state, err := membership.GetSuspicion(hostname)
+	if err != nil {
+		if state == -2 {
+			utility.LogMessage("DeclareSuspicion error - " + err.Error())
+			return fmt.Errorf("DeclareSuspicion error - no member %s in membership list error", hostname)
+		}
+	}
+	if state == -1 || state == membership.Alive { //No suspicion exists, but host does
+		membership.UpdateSuspicion(hostname, membership.Suspicious)
+		time.AfterFunc(suspicionTimeout, func() { stateTransitionOnTimeout(hostname) })
+		// membership.WriteToBuffer() //Need to decide format for string/data output. Or handle it in membership ?
+		return nil
+	}
 	return nil
+}
+
+func stateTransitionOnTimeout(hostname string) {
+	state, err := membership.GetSuspicion(hostname)
+	if err != nil {
+		utility.LogMessage("DeclareSuspicion error - " + err.Error())
+	}
+	if state == membership.Suspicious {
+		membership.UpdateSuspicion(hostname, membership.Faulty)
+		// membership.WriteToBuffer() //Need to decide format for string/data output. Or handle it in membership ?
+	}
 }
