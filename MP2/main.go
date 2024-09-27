@@ -19,8 +19,15 @@ func main() {
 
 	file.Close()
 
-	utility.LogMessage("Starting execution")
-	// typeArg is either "machine" or "caller", otherwise invalid
+	
+	hostname, err := os.Hostname()
+    if err != nil {
+        fmt.Println("Error:", err)
+        return
+    }
+	utility.LogMessage("Starting execution on host:", hostname)
+
+	// if (hostname == INTRODUCER_HOST):
 
 	// check if node is introducer
 	// if yes then start introducer listener
