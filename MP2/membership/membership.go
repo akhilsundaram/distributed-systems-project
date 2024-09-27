@@ -129,7 +129,7 @@ func GetSuspicion(member string) (SuspicionState, error) {
 }
 
 // ///// BUFFER TABLE FUNCTIONS //////
-func WriteToBuffer(data string) {
+func WriteToBuffer(data []byte) {
 	buffLock.Lock()
 	defer buffLock.Unlock()
 
