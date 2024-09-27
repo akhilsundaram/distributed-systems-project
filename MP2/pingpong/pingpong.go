@@ -124,7 +124,7 @@ func SendPing(suspect bool, ping_id int) {
 
 	var wg sync.WaitGroup
 	for _, host := range randomizeHostArray {
-		if membership.GetMembership(host) == true {
+		if membership.IsMember(host) {
 			wg.Add(1)
 			go func(host string) {
 				defer wg.Done()
