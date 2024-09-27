@@ -1,6 +1,7 @@
 package suspicion
 
 import (
+	"encoding/json"
 	"failure_detection/membership"
 	"failure_detection/utility"
 	"fmt"
@@ -13,8 +14,47 @@ var (
 )
 
 // Handles all incoming suspicion messages
-func SuspicionHandler(message string) {
+func SuspicionHandler(packet []byte) {
+	var data map[string]interface{}
+	err := json.Unmarshal(packet, &data)
+	if err != nil {
+		utility.LogMessage("SuspicionHandler error - in json unmarshalling - possible incorrect type of data sent : " + err.Error())
+	}
+
 	// This should handle all incoming suspicion messages from listener
+	keys := make([]string, 0, len(data))
+	for i := 0; i < len(keys); i++ {
+		switch keys[i] {
+		case "f":
+			if hostname, ok := data[keys[i]].(string); ok {
+				membership.UpdateSuspicion(hostname, membership.Faulty)
+				time.AfterFunc(faultyTimeout, func() { stateTransitionOnTimeout(hostname) })
+			} else {
+				utility.LogMessage("SuspicionHandler error - in json unmarshalling - hostname is not a string ")
+			}
+
+			return
+		case "s":
+			if hostname, ok := data[keys[i]].(string); ok {
+				membership.UpdateSuspicion(hostname, membership.Suspicious)
+				time.AfterFunc(suspicionTimeout, func() { stateTransitionOnTimeout(hostname) })
+			} else {
+				utility.LogMessage("SuspicionHandler error - in json unmarshalling - hostname is not a string ")
+			}
+			return
+		case "a":
+			if hostname, ok := data[keys[i]].(string); ok {
+				membership.UpdateSuspicion(hostname, membership.Alive)
+				// time.AfterFunc(suspicionTimeout, func() { stateTransitionOnTimeout(hostname) })
+			} else {
+				utility.LogMessage("SuspicionHandler error - in json unmarshalling - hostname is not a string ")
+			}
+			return
+		default:
+			return
+
+		}
+	}
 	// SUS -alive
 	// SUS -faulty
 	// SUS -normal sus
@@ -36,7 +76,15 @@ func DeclareSuspicion(hostname string) error {
 	if state == -1 || state == membership.Alive { //No suspicion exists, but host does
 		membership.UpdateSuspicion(hostname, membership.Suspicious)
 		time.AfterFunc(suspicionTimeout, func() { stateTransitionOnTimeout(hostname) })
-		// membership.WriteToBuffer() //Need to decide format for string/data output. Or handle it in membership ?
+
+		data := make(map[string]interface{})
+		data["s"] = hostname // can I put ip address  and it will only be 4 bytes ?
+
+		jsonData, err := json.Marshal(data)
+		if err != nil {
+			return fmt.Errorf("DeclareSuspicion error - unable to marshall buffer json value")
+		}
+		membership.WriteToBuffer(jsonData) //Need to decide format for string/data output. Or handle it in membership ?
 		return nil
 	}
 	return nil
@@ -45,10 +93,17 @@ func DeclareSuspicion(hostname string) error {
 func stateTransitionOnTimeout(hostname string) {
 	state, err := membership.GetSuspicion(hostname)
 	if err != nil {
-		utility.LogMessage("DeclareSuspicion error - " + err.Error())
+		utility.LogMessage("StateTransitionOnTimeout error - " + err.Error())
 	}
 	if state == membership.Suspicious {
 		membership.UpdateSuspicion(hostname, membership.Faulty)
-		// membership.WriteToBuffer() //Need to decide format for string/data output. Or handle it in membership ?
+		data := make(map[string]interface{})
+		data["f"] = hostname
+
+		jsonData, err := json.Marshal(data)
+		if err != nil {
+			utility.LogMessage("StateTransitionOnTimeout error - unable to marshall buffer json value")
+		}
+		membership.WriteToBuffer(jsonData)
 	}
 }
