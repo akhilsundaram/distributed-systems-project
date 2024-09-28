@@ -171,8 +171,11 @@ func InitiateIntroducerRequest(hostname, port, node_id string) {
 
 	keys := make([]string, 0, len(membershipList))
 	for i := 0; i < len(keys); i++ {
+		utility.LogMessage("Printing key value of membershipList : " + keys[i])
 		membership.AddMember(membershipList[keys[i]].Node_id, keys[i])
 	}
+	utility.LogMessage("Printing membership list recieved from machine 1")
+	membership.PrintMembershipList()
 
 	// Process the response
 	// Response will be the membership list in the buffer
