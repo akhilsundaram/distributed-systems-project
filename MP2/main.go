@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"failure_detection/introducer"
-	"failure_detection/pingpong"
+	"failure_detection/ping"
 	"failure_detection/utility"
 	"strings"
 
@@ -52,7 +52,8 @@ func main() {
 	time.Sleep(time.Second * 2)
 
 	// starting ping listener on every node
-	go pingpong.PingAck()
+	// go pingpong.PingAck()
+	go ping.Listener()
 
 	// sending pings
 	go ContinouslySendPings()
@@ -107,6 +108,7 @@ func ContinouslySendPings() {
 		counter += 1
 		mu.Unlock()
 		ping_count = counter
-		pingpong.SendPing(status_sus, ping_count)
+		// pingpong.SendPing(status_sus, ping_count)
+		ping.Sender(status_sus, ping_count)
 	}
 }

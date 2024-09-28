@@ -1,7 +1,6 @@
 package suspicion
 
 import (
-	"encoding/json"
 	"failure_detection/membership"
 	"failure_detection/utility"
 	"fmt"
@@ -54,15 +53,7 @@ func DeclareSuspicion(hostname string) error {
 	if state == -1 || state == membership.Alive { //No suspicion exists, but host does
 		membership.UpdateSuspicion(hostname, membership.Suspicious)
 		time.AfterFunc(suspicionTimeout, func() { stateTransitionOnTimeout(hostname) })
-
-		data := make(map[string]interface{})
-		data["s"] = hostname // can I put ip address  and it will only be 4 bytes ?
-
-		jsonData, err := json.Marshal(data)
-		if err != nil {
-			return fmt.Errorf("DeclareSuspicion error - unable to marshall buffer json value")
-		}
-		membership.WriteToBuffer(jsonData) //Need to decide format for string/data output. Or handle it in membership ?
+		membership.WriteToBuffer("s", hostname) //Need to decide format for string/data output. Or handle it in membership ?
 		return nil
 	}
 	return nil
@@ -75,13 +66,6 @@ func stateTransitionOnTimeout(hostname string) {
 	}
 	if state == membership.Suspicious {
 		membership.UpdateSuspicion(hostname, membership.Faulty)
-		data := make(map[string]interface{})
-		data["f"] = hostname
-
-		jsonData, err := json.Marshal(data)
-		if err != nil {
-			utility.LogMessage("StateTransitionOnTimeout error - unable to marshall buffer json value")
-		}
-		membership.WriteToBuffer(jsonData)
+		membership.WriteToBuffer("f", hostname)
 	}
 }
