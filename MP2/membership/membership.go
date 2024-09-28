@@ -71,28 +71,34 @@ func IsMember(hostname string) bool {
 
 }
 
-func GetMemberHostname(member_id string) (string, error) {
-	memLock.Lock()
-	defer memLock.Unlock()
+func GetMemberID(hostname string) (string, error) {
+	if _, ok := membership_list[hostname]; ok {
+		return membership_list[hostname].Node_id, nil
+	} else {
+		return "", fmt.Errorf("no such member")
+	}
+}
 
+func GetMemberHostname(member_id string) string {
 	ip := strings.Split(member_id, "_")[0]
 	Hostname, err := net.LookupAddr(ip)
 	if err != nil {
 		utility.LogMessage("NewMemb error - getting hostname from " + ip + " due to - " + err.Error())
-		return "", fmt.Errorf("NewMemb error - getting hostname from ip due to - %v", err)
+		return ""
 	}
 
-	return Hostname[0], nil
-
+	return Hostname[0]
 }
 
-func AddMember(node_id string, hostname string) error {
+func AddMember(node_id string) error {
 	memLock.Lock()
 	defer memLock.Unlock()
+	hostname := GetMemberHostname(node_id)
 
 	//Add member to membership_list
 	if _, ok := membership_list[hostname]; ok {
-		return fmt.Errorf("error mem: member already exists")
+		// TODO timestamp check between node_ids- new and existing
+		return nil
 	} else {
 		//initialise new member
 		var new_member Member
@@ -148,21 +154,20 @@ func GetSuspicion(member string) (SuspicionState, error) {
 }
 
 // ///// BUFFER TABLE FUNCTIONS //////
-func WriteToBuffer(msg_type string, host string) {
+func WriteToBuffer(msg_type string, node_id string) {
 	buffLock.Lock()
 	defer buffLock.Unlock()
 
 	// Create byte buffer data block
 	bufferData := make(map[string]interface{})
-	bufferData[msg_type] = host
+	bufferData[msg_type] = node_id
 	jsonData, err := json.Marshal(bufferData)
 	if err != nil {
 		utility.LogMessage("write to buffer err " + err.Error())
 	}
-
-	// Add map to O(1) check if buffer element exists
 	BufferMap[string(jsonData)] = ""
 
+	// Append to buffer
 	var new_buffer_element BufferValue
 	new_buffer_element.CreatedAt = time.Now()
 	new_buffer_element.Data = []byte(jsonData)

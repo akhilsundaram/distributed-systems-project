@@ -2,6 +2,7 @@ package ping
 
 import (
 	"encoding/json"
+	"failure_detection/buffer"
 	"failure_detection/membership"
 	"failure_detection/suspicion"
 	"failure_detection/utility"
@@ -19,8 +20,8 @@ const (
 var LOGGER_FILE = "/home/log/machine.log"
 
 type InputData struct {
-	ID        string `json:"id"`
-	Piggyback string `json:"data"`
+	ID      string `json:"id"`
+	Node_id string `json:"data"`
 }
 
 func Listener() {
@@ -146,9 +147,13 @@ func sendUDPRequest(host string) {
 			if suspicion.Enabled {
 				suspicion.DeclareSuspicion(host)
 			} else {
-				membership.DeleteMember(host)
-				membership.WriteToBuffer("f", host)
-				utility.LogMessage(" node declares ping timeout & deleted host - " + host)
+				node_id, err := membership.GetMemberID(host)
+				if err != nil {
+					membership.DeleteMember(host)
+					buffer.WriteToBuffer("f", node_id, host)
+					utility.LogMessage(" node declares ping timeout & deleted host - " + host)
+				}
+
 			}
 		} else {
 			utility.LogMessage("Error reading response from " + host + ": " + err.Error())
@@ -165,8 +170,8 @@ func BufferSent() []byte {
 	var buffArray []InputData
 	//Append Ping
 	pingBuff := InputData{
-		ID:        "ping",
-		Piggyback: "",
+		ID:      "ping",
+		Node_id: "",
 	}
 
 	//Array to be sent
@@ -201,56 +206,67 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 
 	// Process the ping data here
 	for i := 0; i < len(parsedData); i++ {
-		if parsedData[i].ID == "ping" {
-			// membership.PrintMembershipList()
-			continue
-		}
 
-		//Get hostname of value
-		hostname, err := membership.GetMemberHostname(parsedData[i].Piggyback)
-		if err != nil {
-			utility.LogMessage(err.Error())
-		} else if !membership.IsMember(hostname) {
+		hostname := membership.GetMemberHostname(parsedData[i].Node_id)
+		if !membership.IsMember(hostname) {
 			// member does not exist and buffer data for it not a new join.
 			if parsedData[i].ID != "n" {
 				continue
 			}
 		}
-
-		//Do a check to see if in Buffer or not
-		buffer_value_bytes, err := json.Marshal(parsedData[i])
-		if err != nil {
-			utility.LogMessage("Handle ping and Ack - buffer value to bytes error - " + err.Error())
-		}
-		//If buffer value exists already, do nothing
-		if membership.CheckBuffer(buffer_value_bytes) {
+		switch parsedData[i].ID {
+		case "ping":
+			continue
+		case "f":
+			membership.DeleteMember(parsedData[i].Node_id)
+			buffer.WriteToBuffer("f", parsedData[i].Node_id, remoteAddr)
+			continue
+		case "n":
+			membership.AddMember(parsedData[i].Node_id)
+			buffer.WriteToBuffer("n", parsedData[i].Node_id, remoteAddr)
+			continue
+		default:
 			continue
 		}
+		// if parsedData[i].ID == "ping" {
+		// 	// membership.PrintMembershipList()
+		// 	continue
+		// }
 
-		if suspicion.Enabled {
-			suspicion.SuspicionHandler(parsedData[i].ID, parsedData[i].Piggyback)
-		} else {
-			// if membership.BufferMap[parsedData[i]] // check here
+		// //Do a check to see if in Buffer or not
+		// buffer_value_bytes, err := json.Marshal(parsedData[i])
+		// if err != nil {
+		// 	utility.LogMessage("Handle ping and Ack - buffer value to bytes error - " + err.Error())
+		// }
+		// //If buffer value exists already, do nothing
+		// if membership.CheckBuffer(buffer_value_bytes) {
+		// 	continue
+		// }
 
-			switch parsedData[i].ID {
-			case "n":
-				membership.AddMember(parsedData[i].Piggyback, hostname)
-				// membership.PrintMembershipList()
-				utility.LogMessage("New member added to Membership list, hostname :" + hostname + ", and member_id: " + parsedData[i].Piggyback)
-				membership.WriteToBuffer(parsedData[i].ID, hostname)
-				continue
-			case "f":
-				// if membership.IsMember(hostname){     //ADD CHECKKKKKKKKKKK
-				// 	parsedData[i].Piggyback
-				// }
-				membership.DeleteMember(parsedData[i].Piggyback)
-				utility.LogMessage("Deleted member added to Membership list, :" + hostname + "Deleted member_id: " + parsedData[i].Piggyback)
-				// membership.PrintMembershipList()
-				membership.WriteToBuffer(parsedData[i].ID, hostname)
-				continue
+		// if suspicion.Enabled {
+		// 	suspicion.SuspicionHandler(parsedData[i].ID, parsedData[i].Node_id)
+		// } else {
+		// 	// if membership.BufferMap[parsedData[i]] // check here
 
-			}
-		}
+		// 	switch parsedData[i].ID {
+		// 	case "n":
+		// 		membership.AddMember(parsedData[i].Node_id, parsedData[i].Node_id)
+		// 		// membership.PrintMembershipList()
+		// 		utility.LogMessage("New member added to Membership list, hostname :" + parsedData[i].Node_id + ", and member_id: " + parsedData[i].Node_id)
+		// 		membership.WriteToBuffer(parsedData[i].ID, parsedData[i].Node_id)
+		// 		continue
+		// 	case "f":
+		// 		// if membership.IsMember(hostname){     //ADD CHECKKKKKKKKKKK
+		// 		// 	parsedData[i].Node_id
+		// 		// }
+		// 		membership.DeleteMember(parsedData[i].Node_id)
+		// 		utility.LogMessage("Deleted member added to Membership list, :" + parsedData[i].Node_id)
+		// 		// membership.PrintMembershipList()
+		// 		membership.WriteToBuffer(parsedData[i].ID, parsedData[i].Node_id)
+		// 		continue
+
+		// 	}
+		// }
 
 	}
 

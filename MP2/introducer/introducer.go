@@ -2,6 +2,7 @@ package introducer
 
 import (
 	"encoding/json"
+	"failure_detection/buffer"
 	"failure_detection/membership"
 	"failure_detection/utility"
 	"fmt"
@@ -107,16 +108,16 @@ func AddNewMember(serverAddr, nodeID, timestamp string) error {
 	serverAddr = strings.Split(serverAddr, ":")[0]
 	new_node_id := serverAddr + "_" + "9090" + "_" + nodeID + "_" + timestamp
 	new_hostname := serverAddr
-	getHostname, err := net.LookupAddr(serverAddr)
-	if err != nil {
-		return fmt.Errorf("NewMemb error - getting hostname from ip due to - %v", err)
-	} else {
-		new_hostname = getHostname[0]
-	}
-	membership.AddMember(new_node_id, new_hostname)
+	// getHostname, err := net.LookupAddr(serverAddr)
+	// if err != nil {
+	// 	return fmt.Errorf("NewMemb error - getting hostname from ip due to - %v", err)
+	// } else {
+	// 	new_hostname = getHostname[0]
+	// }
+	membership.AddMember(new_node_id)
 
 	//Add membership to buffer for dissemination
-	membership.WriteToBuffer("n", new_hostname)
+	buffer.WriteToBuffer("n", new_node_id, new_hostname)
 
 	return nil // "Welcome, Machine " + new_hostname + "! Your version number is : " + nodeID + ". Your connection time was " + timestamp + ". Here's some config data: ...", nil
 }
@@ -169,9 +170,9 @@ func InitiateIntroducerRequest(hostname, port, node_id string) {
 		utility.LogMessage("InitiateIntroducerReq error: unmarshal membershiplist from introducer - " + err.Error())
 	}
 
-	for key, value := range membershipList {
+	for _, value := range membershipList {
 		// utility.LogMessage("Printing key value of membershipList : " + keys[i])
-		membership.AddMember(value.Node_id, key)
+		membership.AddMember(value.Node_id)
 	}
 	utility.LogMessage("Printing membership list recieved from machine 1")
 	membership.PrintMembershipList()
