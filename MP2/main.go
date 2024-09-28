@@ -74,8 +74,11 @@ func main() {
 	go func() {
 		defer wg.Done()
 		scanner := bufio.NewScanner(os.Stdin)
-		for scanner.Scan() {
+		for {
 			fmt.Print("Enter command: ")
+			if !scanner.Scan() {
+				break // Exit the loop if there's an error or EOF
+			}
 			cmd := strings.TrimSpace(scanner.Text())
 			if cmd == "exit" {
 				fmt.Println("Exiting program...")
