@@ -169,10 +169,9 @@ func InitiateIntroducerRequest(hostname, port, node_id string) {
 		utility.LogMessage("InitiateIntroducerReq error: unmarshal membershiplist from introducer - " + err.Error())
 	}
 
-	keys := make([]string, 0, len(membershipList))
-	for i := 0; i < len(keys); i++ {
-		utility.LogMessage("Printing key value of membershipList : " + keys[i])
-		membership.AddMember(membershipList[keys[i]].Node_id, keys[i])
+	for key, value := range membershipList {
+		// utility.LogMessage("Printing key value of membershipList : " + keys[i])
+		membership.AddMember(value.Node_id, key)
 	}
 	utility.LogMessage("Printing membership list recieved from machine 1")
 	membership.PrintMembershipList()
