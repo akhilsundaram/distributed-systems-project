@@ -1,9 +1,12 @@
 package main
 
 import (
+	"failure_detection/introducer"
+	"failure_detection/pingpong"
 	"failure_detection/utility"
 	"fmt"
 	"os"
+	"time"
 )
 
 var LOGGER_FILE = "/home/log/machine.log"
@@ -19,14 +22,30 @@ func main() {
 
 	file.Close()
 
-	utility.LogMessage("Starting execution")
-	// typeArg is either "machine" or "caller", otherwise invalid
+	hostname, err := os.Hostname()
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	utility.LogMessage("Starting execution on host:" + hostname)
 
-	// check if node is introducer
-	// if yes then start introducer listener
-	// else, send request to introducer to join the membership list
-	// start ping pong programs
-	// daemonize the program
-	// add signal to ensure that we handle changing of logic from ping to pingS
+	node_id := "0"
 
+	if hostname == INTRODUCER_HOST {
+		go introducer.IntroducerListener()
+		// adds itself to membership list, saves it to send to other nodes
+
+	} else {
+		introducer.InitiateIntroducerRequest(INTRODUCER_HOST, "7070", node_id)
+		// by now hoping that we have updated membership list
+	}
+
+	time.Sleep(time.Second * 2)
+
+	// starting ping listener on every node
+	go pingpong.PingAck()
+
+	ping_count := 0
+	// sending pings
+	pingpong.SendPing(false, ping_count)
 }
