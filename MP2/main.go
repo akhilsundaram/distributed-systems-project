@@ -1,16 +1,25 @@
 package main
 
 import (
+	"bufio"
 	"failure_detection/introducer"
 	"failure_detection/pingpong"
 	"failure_detection/utility"
+	"strings"
+
+	//"failure_detection/suspicion"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 )
 
-var LOGGER_FILE = "/home/log/machine.log"
-var INTRODUCER_HOST = "fa24-cs425-5901.cs.illinois.edu"
+var (
+	LOGGER_FILE     = "/home/log/machine.log"
+	INTRODUCER_HOST = "fa24-cs425-5901.cs.illinois.edu"
+	status_sus      = false //suspicion.DeclareSuspicion
+	ping_count      = 0
+)
 
 func main() {
 	// args := os.Args
@@ -45,7 +54,59 @@ func main() {
 	// starting ping listener on every node
 	go pingpong.PingAck()
 
-	ping_count := 0
 	// sending pings
-	pingpong.SendPing(false, ping_count)
+	go ContinouslySendPings()
+
+	// Create channel to receive signals
+	// sigChan := make(chan os.Signal, 1)
+	// signal.Notify(sigChan, syscall.SIGUSR1)
+
+	fmt.Println("Program running. PID:", os.Getpid())
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	// Start a goroutine to handle CLI input
+	go func() {
+		defer wg.Done()
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			cmd := strings.TrimSpace(scanner.Text())
+			if cmd == "exit" {
+				fmt.Println("Exiting program...")
+				return
+			}
+			switch cmd {
+			case "list_self":
+				fmt.Println("This Node's ID is : ")
+			case "list_mem":
+				fmt.Println("Current Membership list is : ")
+			case "leave":
+				fmt.Println("Node xyz is leaving the membership list")
+			case "toggle_sus":
+				fmt.Println("Current value of PingSus is : , change it to __")
+			case "status_sus":
+				fmt.Println("Status of PingSus : ")
+			case "sus_list":
+				fmt.Println("List of all nodes which are marked as Suspicious for the current node :")
+			default:
+				fmt.Printf("Unknown command: %s\n", cmd)
+			}
+		}
+	}()
+
+	wg.Wait()
+}
+
+func ContinouslySendPings() {
+	var mu sync.Mutex
+	var counter int
+
+	for {
+		mu.Lock()
+		counter += 1
+		mu.Unlock()
+		ping_count = counter
+		pingpong.SendPing(status_sus, ping_count)
+	}
 }
