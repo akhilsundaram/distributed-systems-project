@@ -270,7 +270,7 @@ func sendUDPRequest(host string, requestData []byte) {
 		return
 	}
 	if string(response[:n]) != requestData.ID {
-		utility.LogMessage("ERROR : Incorrect ack response recieved from " + host + ", Expected : " + requestData.PingID + ", Actual : " + string(response[:n]))
+		utility.LogMessage("ERROR : Incorrect ack response recieved from " + host + ", Expected : " + requestData.ID + ", Actual : " + string(response[:n]))
 	}
 	// utility.LogMessage("Received response from " + host + ": " + string(response[:n]))
 
