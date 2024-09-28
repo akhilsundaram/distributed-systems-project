@@ -41,6 +41,7 @@ func Listener() {
 	for {
 		buf := make([]byte, 1024)
 		n, remoteAddr, err := conn.ReadFromUDP(buf) // Accept blocks conn, go routine to process the message
+		utility.LogMessage("data read from incoming connection : " + string(buf))
 		if err != nil {
 			utility.LogMessage("Not able to accept incoming ping : " + err.Error())
 		}
@@ -109,12 +110,8 @@ func sendUDPRequest(host string) {
 		utility.LogMessage("Error resolving address:" + err.Error())
 		return
 	}
-	localAddr := &net.UDPAddr{
-		IP:   net.ParseIP("0.0.0.0"), // Use "0.0.0.0" to bind to all available interfaces
-		Port: 9091,
-	}
 
-	conn, err := net.DialUDP("udp", localAddr, serverAddr)
+	conn, err := net.DialUDP("udp", nil, serverAddr)
 	if err != nil {
 		utility.LogMessage("Error in connection to " + host + ": " + err.Error())
 		return
