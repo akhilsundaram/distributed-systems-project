@@ -176,12 +176,14 @@ func UpdateBufferGossipCounts() {
 	for i := 0; i < len(toDelete); i++ {
 		//Key
 		delete(BufferMap, string(shared_buffer[i].Data))
+	}
+
+	for i := 0; i < len(toDelete); i++ {
 		if len(toDelete) == 1 {
 			shared_buffer = shared_buffer[:len(toDelete)-1]
 		} else {
 			shared_buffer = append(shared_buffer[:i], shared_buffer[i+1:]...)
 		}
-
 	}
 }
 
