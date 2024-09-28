@@ -119,7 +119,7 @@ func sendUDPRequest(host string) {
 	defer conn.Close()
 
 	// Send the request
-	_, err = conn.WriteToUDP(nodeBuffer, serverAddr)
+	_, err = conn.Write(nodeBuffer)
 	if err != nil {
 		utility.LogMessage("error sending UDP request: " + err.Error())
 	}
