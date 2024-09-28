@@ -55,7 +55,8 @@ func Listener() {
 // INPUT -> connection, data from conn. TODO-> sends data back
 func HandleIncomingConnectionData(conn *net.UDPConn, addr *net.UDPAddr, data []byte) {
 	bufferData := BufferSent()
-	utility.LogMessage(string(data) + ":  " + addr.String())
+	// utility.LogMessage(string(data) + ":  " + addr.String())
+	membership.PrintMembershipList()
 	AddToNodeBuffer(data, addr.IP.String())
 
 	conn.SetWriteDeadline(time.Now().Add(120 * time.Millisecond))
