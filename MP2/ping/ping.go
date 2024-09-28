@@ -111,7 +111,7 @@ func sendUDPRequest(host string) {
 	}
 	localAddr := &net.UDPAddr{
 		IP:   net.ParseIP("0.0.0.0"), // Use "0.0.0.0" to bind to all available interfaces
-		Port: 9090,
+		Port: 9091,
 	}
 
 	conn, err := net.DialUDP("udp", localAddr, serverAddr)
