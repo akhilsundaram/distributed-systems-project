@@ -41,9 +41,6 @@ func Listener() {
 	buf := make([]byte, 1024)
 
 	for {
-
-		utility.LogMessage("data read from incoming connection : " + string(buf))
-
 		n, remoteAddr, err := conn.ReadFromUDP(buf) // Accept blocks conn, go routine to process the message
 		if err != nil {
 			utility.LogMessage("Not able to accept incoming ping : " + err.Error())
@@ -57,7 +54,6 @@ func Listener() {
 
 // INPUT -> connection, data from conn. TODO-> sends data back
 func HandleIncomingConnectionData(conn *net.UDPConn, addr *net.UDPAddr, data []byte) {
-	utility.LogMessage("Handling messages from - " + addr.String() + ", with data - " + string(data))
 	bufferData := BufferSent()
 	AddToNodeBuffer(data, addr.IP.String())
 
@@ -96,7 +92,8 @@ func Sender(suspect bool, ping_id int) {
 
 	for _, host := range randomizeHostArray {
 		if membership.IsMember(host) && !(my_hostname == host) {
-			sendUDPRequest(host)
+			go sendUDPRequest(host)
+			time.Sleep(300 * time.Millisecond)
 		}
 
 	}
