@@ -56,7 +56,7 @@ func Listener() {
 func HandleIncomingConnectionData(conn *net.UDPConn, addr *net.UDPAddr, data []byte) {
 	bufferData := BufferSent()
 	// utility.LogMessage(string(data) + ":  " + addr.String())
-	membership.PrintMembershipList()
+	// membership.PrintMembershipList()
 	AddToNodeBuffer(data, addr.IP.String())
 
 	conn.SetWriteDeadline(time.Now().Add(120 * time.Millisecond))
@@ -130,7 +130,7 @@ func sendUDPRequest(host string) {
 	}
 
 	// Set a timeout for receiving the response
-	err = conn.SetReadDeadline(time.Now().Add(1200 * time.Millisecond))
+	err = conn.SetReadDeadline(time.Now().Add(120 * time.Millisecond))
 	if err != nil {
 		utility.LogMessage("error setting read deadline: " + err.Error())
 	}
@@ -235,7 +235,7 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 			switch parsedData[i].ID {
 			case "n":
 				membership.AddMember(parsedData[i].Piggyback, hostname)
-				membership.PrintMembershipList()
+				// membership.PrintMembershipList()
 				utility.LogMessage("New member added to Membership list, hostname :" + hostname + ", and member_id: " + parsedData[i].Piggyback)
 				membership.WriteToBuffer(parsedData[i].ID, hostname)
 				continue
@@ -245,7 +245,7 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 				// }
 				membership.DeleteMember(parsedData[i].Piggyback)
 				utility.LogMessage("Deleted member added to Membership list, :" + hostname + "Deleted member_id: " + parsedData[i].Piggyback)
-				membership.PrintMembershipList()
+				// membership.PrintMembershipList()
 				membership.WriteToBuffer(parsedData[i].ID, hostname)
 				continue
 

@@ -78,7 +78,7 @@ func GetMemberHostname(member_id string) (string, error) {
 	ip := strings.Split(member_id, "_")[0]
 	Hostname, err := net.LookupAddr(ip)
 	if err != nil {
-		utility.LogMessage("NewMemb error - getting hostname from ip due to - " + err.Error())
+		utility.LogMessage("NewMemb error - getting hostname from " + ip + " due to - " + err.Error())
 		return "", fmt.Errorf("NewMemb error - getting hostname from ip due to - %v", err)
 	}
 
