@@ -109,8 +109,12 @@ func sendUDPRequest(host string) {
 		utility.LogMessage("Error resolving address:" + err.Error())
 		return
 	}
+	localAddr := &net.UDPAddr{
+		IP:   net.ParseIP("0.0.0.0"), // Use "0.0.0.0" to bind to all available interfaces
+		Port: 9090,
+	}
 
-	conn, err := net.DialUDP("udp", nil, serverAddr)
+	conn, err := net.DialUDP("udp", localAddr, serverAddr)
 	if err != nil {
 		utility.LogMessage("Error in connection to " + host + ": " + err.Error())
 		return
@@ -132,7 +136,7 @@ func sendUDPRequest(host string) {
 
 	// Read the response
 	response := make([]byte, 1024)
-	n, _, err := conn.ReadFromUDP(response)
+	n, err := conn.Read(response)
 	if err != nil {
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 			utility.LogMessage("Timeout waiting for response from " + host)
