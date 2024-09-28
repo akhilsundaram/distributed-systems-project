@@ -1,6 +1,7 @@
 package membership
 
 import (
+	"encoding/json"
 	"failure_detection/utility"
 	"fmt"
 	"maps"
@@ -137,16 +138,24 @@ func GetSuspicion(member string) (SuspicionState, error) {
 }
 
 // ///// BUFFER TABLE FUNCTIONS //////
-func WriteToBuffer(data []byte) {
+func WriteToBuffer(msg_type string, host string) {
 	buffLock.Lock()
 	defer buffLock.Unlock()
 
+	// Create byte buffer data block
+	bufferData := make(map[string]interface{})
+	bufferData[msg_type] = host
+	jsonData, err := json.Marshal(bufferData)
+	if err != nil {
+		utility.LogMessage("write to buffer err " + err.Error())
+	}
+
 	// Add map to O(1) check if buffer element exists
-	BufferMap[string(data)] = ""
+	BufferMap[string(jsonData)] = ""
 
 	var new_buffer_element BufferValue
 	new_buffer_element.CreatedAt = time.Now()
-	new_buffer_element.Data = []byte(data)
+	new_buffer_element.Data = []byte(jsonData)
 	new_buffer_element.TimesSent = 0
 
 	shared_buffer = append(shared_buffer, new_buffer_element)
