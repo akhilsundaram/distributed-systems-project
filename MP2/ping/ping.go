@@ -132,7 +132,7 @@ func sendUDPRequest(host string) {
 
 	// Read the response
 	response := make([]byte, 1024)
-	n, _, err := conn.ReadFromUDP(response)
+	n, err := conn.Read(response)
 	if err != nil {
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 			utility.LogMessage("Timeout waiting for response from " + host)
