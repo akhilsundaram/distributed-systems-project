@@ -2,6 +2,7 @@ package introducer
 
 import (
 	"encoding/json"
+	"failure_detection/membership"
 	"failure_detection/utility"
 	"fmt"
 	"net"
@@ -76,29 +77,52 @@ func handleConnection(conn net.Conn) {
 	// Process the ping data here
 	utility.LogMessage("Received connection  from " + serverAddr + " - Node ID: " + nodeID + ", Timestamp: " + timestamp)
 
-	// Process the data here, prepare and send response (add it to membership list)
-	response := prepareResponse(serverAddr, nodeID, timestamp)
+	/* Add new node to membership list */
+	err = addNewMember(serverAddr, nodeID, timestamp)
+	if err != nil {
+		utility.LogMessage("error from adding new member - " + err.Error())
+	}
+
+	json_bytes_membership_list, err := json.Marshal(membership.GetMembershipList())
+	if err != nil {
+		utility.LogMessage("error handleconnection: converting membership list - " + err.Error())
+	}
+
 	// Send a response back
-	_, err = conn.Write([]byte(response))
+	_, err = conn.Write(json_bytes_membership_list)
 	if err != nil {
 		utility.LogMessage("Error sending response: " + err.Error())
 		return
 	}
 
-	/*
-		bufW := bufio.NewWriter(c)
-		Write Membership list in buffer and send it back on same connection buffer
-
-	*/
-
 }
 
-func prepareResponse(serverHostname, nodeID, timestamp string) string {
+func addNewMember(serverAddr, nodeID, timestamp string) error {
 	// Add node to membership list and also add membership list to buffer, and send
 	// need a different buffer for this, or should we directly read membership buffer, append this data and send
 	// and write the entry in the buffer after this ? (to ensure the node gets data quickly)
 
-	return "Welcome, Machine " + serverHostname + "! Your version number is : " + nodeID + ". Your connection time was " + timestamp + ". Here's some config data: ..."
+	// Add new node to membership list
+	new_node_id := serverAddr + "_" + "9090" + "_" + nodeID + "_" + timestamp
+	new_hostname := serverAddr
+	getHostname, err := net.LookupAddr(serverAddr)
+	if err != nil {
+		return fmt.Errorf("NewMemb error - getting hostname from ip due to - %v", err)
+	} else {
+		new_hostname = getHostname[0]
+	}
+	membership.AddMember(new_node_id, new_hostname)
+
+	//Add membership to buffer for dissemination
+	data_buffer := make(map[string]interface{})
+	data_buffer[new_node_id] = new_hostname
+	jsonData, err := json.Marshal(data_buffer)
+	if err != nil {
+		return fmt.Errorf("NewMemb error - unable to marshall buffer json value")
+	}
+	membership.WriteToBuffer(jsonData)
+
+	return nil // "Welcome, Machine " + new_hostname + "! Your version number is : " + nodeID + ". Your connection time was " + timestamp + ". Here's some config data: ...", nil
 }
 
 func InitiateIntroducerRequest(hostname, port, node_id string) {
@@ -140,8 +164,19 @@ func InitiateIntroducerRequest(hostname, port, node_id string) {
 		return
 	}
 
-	response := string(buffer[:n])
-	utility.LogMessage("Received response from introducer: " + response)
+	response := buffer[:n]
+	utility.LogMessage("Received response from introducer")
+
+	var membershipList map[string]membership.Member
+	err = json.Unmarshal(response, &membershipList)
+	if err != nil {
+		utility.LogMessage("InitiateIntroducerReq error: unmarshal membershiplist from introducer - " + err.Error())
+	}
+
+	keys := make([]string, 0, len(membershipList))
+	for i := 0; i < len(keys); i++ {
+		membership.AddMember(membershipList[keys[i]].Node_id, keys[i])
+	}
 
 	// Process the response
 	// Response will be the membership list in the buffer
