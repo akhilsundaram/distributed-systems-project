@@ -3,7 +3,9 @@ package main
 import (
 	"bufio"
 	"failure_detection/introducer"
+	"failure_detection/membership"
 	"failure_detection/ping"
+	"failure_detection/suspicion"
 	"failure_detection/utility"
 	"strings"
 
@@ -73,6 +75,7 @@ func main() {
 		defer wg.Done()
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
+			fmt.Print("Enter command: ")
 			cmd := strings.TrimSpace(scanner.Text())
 			if cmd == "exit" {
 				fmt.Println("Exiting program...")
@@ -83,12 +86,13 @@ func main() {
 				fmt.Println("This Node's ID is : ")
 			case "list_mem":
 				fmt.Println("Current Membership list is : ")
+				membership.PrintMembershipList()
 			case "leave":
 				fmt.Println("Node xyz is leaving the membership list")
 			case "toggle_sus":
 				fmt.Println("Current value of PingSus is : , change it to __")
 			case "status_sus":
-				fmt.Println("Status of PingSus : ")
+				fmt.Println("Status of PingSus : ", suspicion.Enabled)
 			case "sus_list":
 				fmt.Println("List of all nodes which are marked as Suspicious for the current node :")
 			default:
