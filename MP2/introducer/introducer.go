@@ -114,13 +114,7 @@ func addNewMember(serverAddr, nodeID, timestamp string) error {
 	membership.AddMember(new_node_id, new_hostname)
 
 	//Add membership to buffer for dissemination
-	data_buffer := make(map[string]interface{})
-	data_buffer[new_node_id] = new_hostname
-	jsonData, err := json.Marshal(data_buffer)
-	if err != nil {
-		return fmt.Errorf("NewMemb error - unable to marshall buffer json value")
-	}
-	membership.WriteToBuffer(jsonData)
+	membership.WriteToBuffer("n", new_hostname)
 
 	return nil // "Welcome, Machine " + new_hostname + "! Your version number is : " + nodeID + ". Your connection time was " + timestamp + ". Here's some config data: ...", nil
 }
