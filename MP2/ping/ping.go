@@ -7,6 +7,7 @@ import (
 	"failure_detection/utility"
 	"math/rand"
 	"net"
+	"os"
 	"time"
 )
 
@@ -80,8 +81,15 @@ func Sender(suspect bool, ping_id int) {
 	// randomize the order of vms to send the pings to
 	randomizeHostArray := shuffleStringArray(hostArray)
 
+	//My hostname
+	my_hostname, e := os.Hostname()
+	if e != nil {
+		utility.LogMessage("os host name failed")
+	}
+	my_hostname += "."
+
 	for _, host := range randomizeHostArray {
-		if membership.IsMember(host) {
+		if membership.IsMember(host) && !(my_hostname == host) {
 			sendUDPRequest(host)
 		}
 
