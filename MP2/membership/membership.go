@@ -35,17 +35,17 @@ type Member struct {
 
 var (
 	// Shared membership data
-	membership_list map[string]Member
+	membership_list = map[string]Member{}
 	memLock         sync.RWMutex
 
 	//Shared Suspicion table lists
-	suspicion_table map[string]SuspicionState
+	suspicion_table = map[string]SuspicionState{}
 	susLock         sync.RWMutex
 
 	//Shared Buffer table
 	shared_buffer []BufferValue
 	buffLock      sync.RWMutex
-	BufferMap     map[string]string
+	BufferMap     = map[string]string{}
 	maxTimesSent  = 4
 )
 

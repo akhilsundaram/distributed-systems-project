@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -103,6 +104,7 @@ func addNewMember(serverAddr, nodeID, timestamp string) error {
 	// and write the entry in the buffer after this ? (to ensure the node gets data quickly)
 
 	// Add new node to membership list
+	serverAddr = strings.Split(serverAddr, ":")[0]
 	new_node_id := serverAddr + "_" + "9090" + "_" + nodeID + "_" + timestamp
 	new_hostname := serverAddr
 	getHostname, err := net.LookupAddr(serverAddr)
