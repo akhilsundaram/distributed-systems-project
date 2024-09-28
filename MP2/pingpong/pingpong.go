@@ -21,9 +21,11 @@ const (
 var LOGGER_FILE = "/home/log/machine.log"
 
 type InputData struct {
-	PingID string `json:"ping_id"`
+	ID        string `json:"id"`
+	Piggyback string `json:"data"`
 }
 
+/* Handles ping that come to host */
 func PingAck() {
 
 	// ip := net.IPv4(127, 0, 0, 1)
@@ -70,28 +72,94 @@ func PingAck() {
 
 }
 
+/*
+- Send back ACK
+- Send back buffer data
+*/
 func handlePingAndSendAck(data []byte, remoteAddr string, c net.Conn) bool {
-	var parsedData InputData
+	var parsedData []InputData
 	jsonErr := json.Unmarshal(data, &parsedData)
 	if jsonErr != nil {
 		utility.LogMessage("Error parsing JSON: " + jsonErr.Error())
 		return false
 	}
 
+	//Create a ping map to delete and check if ping data was back /??
+
 	// Process the ping data here
-	utility.LogMessage("Received ping from " + remoteAddr + ", ping id : " + string(data))
+	for i := 0; i < len(parsedData); i++ {
+		if parsedData[i].ID == "ping" {
+			utility.LogMessage("Received ping from " + remoteAddr + ", ping id : " + string(parsedData[i].Piggyback))
+			continue
+		}
+
+		//Get hostname of value
+		hostname, err := membership.GetMemberHostname(parsedData[i].Piggyback)
+		if err != nil {
+			utility.LogMessage(err.Error())
+		} else if !membership.IsMember(hostname) {
+			// member does not exist and buffer data for it not a new join.
+			if parsedData[i].ID != "n" {
+				continue
+			}
+		}
+
+		//Do a check to see if in Buffer or not
+		buffer_value_bytes, err := json.Marshal(parsedData[i])
+		if err != nil {
+			utility.LogMessage("Handle ping and Ack - buffer value to bytes error - " + err.Error())
+		}
+		//If buffer value exists already, do nothing
+		if membership.CheckBuffer(buffer_value_bytes) {
+			continue
+		}
+
+		if suspicion.Enabled {
+			suspicion.SuspicionHandler(parsedData[i].ID, parsedData[i].Piggyback)
+		} else {
+			// if membership.BufferMap[parsedData[i]] // check here
+
+			switch parsedData[i].ID {
+			case "n":
+				membership.AddMember(parsedData[i].Piggyback, hostname)
+				membership.WriteToBuffer(buffer_value_bytes)
+				continue
+			case "f":
+				// if membership.IsMember(hostname){     //ADD CHECKKKKKKKKKKK
+				// 	parsedData[i].Piggyback
+				// }
+				membership.DeleteMember(parsedData[i].Piggyback)
+				membership.WriteToBuffer(buffer_value_bytes)
+				continue
+
+			}
+		}
+
+	}
 
 	// Send a response back
 	bufW := bufio.NewWriter(c)
 
-	_, err := bufW.WriteString(parsedData.PingID)
-	if err != nil {
-		utility.LogMessage("Error writing ping id to conn buffer :" + err.Error())
-		return false
-	}
+	// var piggyback_data_elements []map[string]interface{}
+	// err := json.Unmarshal(parsedData.Piggyback, &piggyback_data_elements)
+	// if err != nil {
+	// 	utility.LogMessage("piggyback data unmardshall error 1 -" + err.Error())
+	// }
+	// for i, piggyback_data := range piggyback_data_elements {
+	// 	if suspicion.Enabled {
+	// 		suspicion.SuspicionHandler(piggyback_data)
+	// 	}
+	// 	continue
+	// }
+
+	// _, err = bufW.WriteString(parsedData.PingID)
+	// if err != nil {
+	// 	utility.LogMessage("Error writing ping id to conn buffer :" + err.Error())
+	// 	return false
+	// }
 
 	//Flush
-	err = bufW.Flush()
+	err := bufW.Flush()
 	if err != nil {
 		utility.LogMessage("Error on conn buffer flush :" + err.Error())
 		return false
@@ -118,8 +186,31 @@ func SendPing(suspect bool, ping_id int) {
 	// randomize the order of vms to send the pings to
 	randomizeHostArray := shuffleStringArray(hostArray)
 
-	var req = InputData{
-		PingID: strconv.Itoa(ping_id),
+	buff := membership.GetBufferElements()
+	var buffArray []InputData
+	//Append Ping
+	pingBuff := InputData{
+		ID:        strconv.Itoa(ping_id),
+		Piggyback: "",
+	}
+
+	//Array to be sent
+	buffArray = append(buffArray, pingBuff)
+
+	//For every buffer element, append to array
+	for i := 0; i < len(buff); i++ {
+		tp_io := InputData{}
+		err := json.Unmarshal(buff[i].Data, &tp_io)
+		if err == nil {
+			buffArray = append(buffArray, tp_io)
+		}
+	}
+
+	membership.UpdateBufferGossipCounts()
+
+	bytes_buffArray, err := json.Marshal(buffArray)
+	if err != nil {
+		utility.LogMessage("another error for marshall - send ping -" + err.Error())
 	}
 
 	var wg sync.WaitGroup
@@ -128,7 +219,7 @@ func SendPing(suspect bool, ping_id int) {
 			wg.Add(1)
 			go func(host string) {
 				defer wg.Done()
-				sendUDPRequest(host, req)
+				sendUDPRequest(host, bytes_buffArray)
 			}(host)
 		}
 
@@ -139,7 +230,7 @@ func SendPing(suspect bool, ping_id int) {
 	wg.Wait()
 }
 
-func sendUDPRequest(host string, requestData InputData) {
+func sendUDPRequest(host string, requestData []byte) {
 	ipAddr := utility.GetIPAddr(host)
 
 	conn, err := net.DialTimeout("udp", ipAddr.String()+":"+(port), timeout)
@@ -149,13 +240,7 @@ func sendUDPRequest(host string, requestData InputData) {
 	}
 	defer conn.Close()
 
-	message, err := json.Marshal(requestData)
-	if err != nil {
-		utility.LogMessage("Error marshaling request: " + err.Error())
-		return
-	}
-
-	_, err = conn.Write(message)
+	_, err = conn.Write(requestData)
 	if err != nil {
 		utility.LogMessage("Error sending request to " + host + ": " + err.Error())
 		return
@@ -176,13 +261,15 @@ func sendUDPRequest(host string, requestData InputData) {
 
 			// Either mark node as FAIL or raise Suspicion message
 
-			suspicion.DeclareSuspicion(host)
+			if suspicion.Enabled {
+				suspicion.DeclareSuspicion(host)
+			}
 		} else {
 			utility.LogMessage("Error reading response from " + host + ": " + err.Error())
 		}
 		return
 	}
-	if string(response[:n]) != requestData.PingID {
+	if string(response[:n]) != requestData.ID {
 		utility.LogMessage("ERROR : Incorrect ack response recieved from " + host + ", Expected : " + requestData.PingID + ", Actual : " + string(response[:n]))
 	}
 	// utility.LogMessage("Received response from " + host + ": " + string(response[:n]))

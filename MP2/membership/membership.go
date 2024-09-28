@@ -1,8 +1,11 @@
 package membership
 
 import (
+	"failure_detection/utility"
 	"fmt"
 	"maps"
+	"net"
+	"strings"
 	"sync"
 	"time"
 )
@@ -25,8 +28,8 @@ type BufferValue struct {
 
 // Member type for memberhsip list
 type Member struct {
-	node_id           string
-	incarnationNumber string
+	Node_id           string
+	IncarnationNumber string
 }
 
 var (
@@ -41,6 +44,8 @@ var (
 	//Shared Buffer table
 	shared_buffer []BufferValue
 	buffLock      sync.RWMutex
+	BufferMap     map[string]string
+	maxTimesSent  = 4
 )
 
 /////// MEMBERSHIP TABLE FUNCTIONS ////////
@@ -57,17 +62,20 @@ func IsMember(hostname string) bool {
 
 }
 
-// func GetMemberHostname(member_id string) (string, error) {
-// 	memLock.Lock()
-// 	defer memLock.Unlock()
+func GetMemberHostname(member_id string) (string, error) {
+	memLock.Lock()
+	defer memLock.Unlock()
 
-// 	if _, ok := membership_list[member_id]; ok {
-// 		return membership_list[member_id].hostname, nil
-// 	} else {
-// 		return "", fmt.Errorf("get hostname of member: No member exists of name %s", member_id)
-// 	}
+	ip := strings.Split(member_id, "_")[0]
+	Hostname, err := net.LookupAddr(ip)
+	if err != nil {
+		utility.LogMessage("NewMemb error - getting hostname from ip due to - " + err.Error())
+		return "", fmt.Errorf("NewMemb error - getting hostname from ip due to - %v", err)
+	}
 
-// }
+	return Hostname[0], nil
+
+}
 
 func AddMember(node_id string, hostname string) error {
 	memLock.Lock()
@@ -75,12 +83,12 @@ func AddMember(node_id string, hostname string) error {
 
 	//Add member to membership_list
 	if _, ok := membership_list[hostname]; ok {
-		return fmt.Errorf("error mem: member already exists.\n")
+		return fmt.Errorf("error mem: member already exists")
 	} else {
 		//initialise new member
 		var new_member Member
-		new_member.incarnationNumber = "0"
-		new_member.node_id = node_id
+		new_member.IncarnationNumber = "0"
+		new_member.Node_id = node_id
 
 		//Add to map
 		membership_list[hostname] = new_member
@@ -96,7 +104,7 @@ func DeleteMember(hostname string) error {
 	if _, ok := membership_list[hostname]; ok {
 		delete(membership_list, hostname)
 	} else {
-		return fmt.Errorf("error mem: member does not exist.\n")
+		return fmt.Errorf("error mem: member does not exist")
 	}
 
 	return nil
@@ -122,9 +130,9 @@ func GetSuspicion(member string) (SuspicionState, error) {
 	if _, ok := suspicion_table[member]; ok {
 		return suspicion_table[member], nil
 	} else if !IsMember(member) {
-		return -1, fmt.Errorf("error sus: member does not exist\n")
+		return -1, fmt.Errorf("error sus: member does not exist")
 	} else {
-		return -2, fmt.Errorf("error sus: member does not have suspicion.\n")
+		return -2, fmt.Errorf("error sus: member does not have suspicion")
 	}
 }
 
@@ -133,28 +141,49 @@ func WriteToBuffer(data []byte) {
 	buffLock.Lock()
 	defer buffLock.Unlock()
 
+	// Add map to O(1) check if buffer element exists
+	BufferMap[string(data)] = ""
+
 	var new_buffer_element BufferValue
 	new_buffer_element.CreatedAt = time.Now()
 	new_buffer_element.Data = []byte(data)
 	new_buffer_element.TimesSent = 0
 
 	shared_buffer = append(shared_buffer, new_buffer_element)
-	return
 }
 
-func UpdateBufferGossipCounts(count int) {
+func UpdateBufferGossipCounts() {
 	buffLock.Lock()
 	defer buffLock.Unlock()
+	var toDelete []int
 
-	for i := 0; i < count; i++ {
+	for i := 0; i < len(shared_buffer); i++ {
 		shared_buffer[i].TimesSent += 1
+		if shared_buffer[i].TimesSent > int64(maxTimesSent) {
+			toDelete = append(toDelete, i)
+		}
+	}
+
+	for i := 0; i < len(toDelete); i++ {
+		//Key
+		delete(BufferMap, string(shared_buffer[i].Data))
+		shared_buffer = append(shared_buffer[:i], shared_buffer[i+1:]...)
 	}
 }
 
-func GetBufferElements(count int) []BufferValue {
+func GetBufferElements() []BufferValue {
 	buffLock.RLock()
 	defer buffLock.RUnlock()
 	// Should I call UpdateBufferGossipCount here ? or should the pinger take this ?
-	return shared_buffer[count:] //careful of modifying data - race conditions
+	return shared_buffer //careful of modifying data - race conditions
 
+}
+
+func CheckBuffer(data []byte) bool {
+	buffLock.Lock()
+	defer buffLock.Unlock()
+	if _, ok := BufferMap[string(data)]; ok {
+		return true
+	}
+	return false
 }

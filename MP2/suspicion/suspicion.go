@@ -11,49 +11,27 @@ import (
 var (
 	suspicionTimeout = time.Microsecond * 10
 	faultyTimeout    = time.Microsecond * 10
+	Enabled          = false
 )
 
 // Handles all incoming suspicion messages
-func SuspicionHandler(packet []byte) {
-	var data map[string]interface{}
-	err := json.Unmarshal(packet, &data)
-	if err != nil {
-		utility.LogMessage("SuspicionHandler error - in json unmarshalling - possible incorrect type of data sent : " + err.Error())
-	}
+func SuspicionHandler(key string, value string) {
+	switch key {
+	case "f":
+		membership.UpdateSuspicion(value, membership.Faulty)
+		time.AfterFunc(faultyTimeout, func() { stateTransitionOnTimeout(value) })
+		return
+	case "s":
+		membership.UpdateSuspicion(value, membership.Suspicious)
+		time.AfterFunc(suspicionTimeout, func() { stateTransitionOnTimeout(value) })
+		return
+	case "a":
+		membership.UpdateSuspicion(value, membership.Alive)
+		// time.AfterFunc(suspicionTimeout, func() { stateTransitionOnTimeout(hostname) })
+		return
+	default:
+		return
 
-	// This should handle all incoming suspicion messages from listener
-	keys := make([]string, 0, len(data))
-	for i := 0; i < len(keys); i++ {
-		switch keys[i] {
-		case "f":
-			if hostname, ok := data[keys[i]].(string); ok {
-				membership.UpdateSuspicion(hostname, membership.Faulty)
-				time.AfterFunc(faultyTimeout, func() { stateTransitionOnTimeout(hostname) })
-			} else {
-				utility.LogMessage("SuspicionHandler error - in json unmarshalling - hostname is not a string ")
-			}
-
-			return
-		case "s":
-			if hostname, ok := data[keys[i]].(string); ok {
-				membership.UpdateSuspicion(hostname, membership.Suspicious)
-				time.AfterFunc(suspicionTimeout, func() { stateTransitionOnTimeout(hostname) })
-			} else {
-				utility.LogMessage("SuspicionHandler error - in json unmarshalling - hostname is not a string ")
-			}
-			return
-		case "a":
-			if hostname, ok := data[keys[i]].(string); ok {
-				membership.UpdateSuspicion(hostname, membership.Alive)
-				// time.AfterFunc(suspicionTimeout, func() { stateTransitionOnTimeout(hostname) })
-			} else {
-				utility.LogMessage("SuspicionHandler error - in json unmarshalling - hostname is not a string ")
-			}
-			return
-		default:
-			return
-
-		}
 	}
 	// SUS -alive
 	// SUS -faulty

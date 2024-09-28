@@ -1,6 +1,6 @@
 module failure_detection
 
-go 1.23.1
+go 1.21.11
 
 require (
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
