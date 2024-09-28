@@ -79,7 +79,7 @@ func handleConnection(conn net.Conn) {
 	utility.LogMessage("Received connection  from " + serverAddr + " - Node ID: " + nodeID + ", Timestamp: " + timestamp)
 
 	/* Add new node to membership list */
-	err = addNewMember(serverAddr, nodeID, timestamp)
+	err = AddNewMember(serverAddr, nodeID, timestamp)
 	if err != nil {
 		utility.LogMessage("error from adding new member - " + err.Error())
 	}
@@ -98,7 +98,7 @@ func handleConnection(conn net.Conn) {
 
 }
 
-func addNewMember(serverAddr, nodeID, timestamp string) error {
+func AddNewMember(serverAddr, nodeID, timestamp string) error {
 	// Add node to membership list and also add membership list to buffer, and send
 	// need a different buffer for this, or should we directly read membership buffer, append this data and send
 	// and write the entry in the buffer after this ? (to ensure the node gets data quickly)

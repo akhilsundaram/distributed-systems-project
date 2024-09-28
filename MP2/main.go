@@ -41,6 +41,7 @@ func main() {
 	node_id := "0"
 
 	if hostname == INTRODUCER_HOST {
+		introducer.AddNewMember(utility.GetIPAddr(INTRODUCER_HOST).String(), "0", time.Now().Format(time.RFC3339))
 		go introducer.IntroducerListener()
 		// adds itself to membership list, saves it to send to other nodes
 
