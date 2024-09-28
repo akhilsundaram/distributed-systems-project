@@ -51,6 +51,14 @@ var (
 
 /////// MEMBERSHIP TABLE FUNCTIONS ////////
 
+func PrintMembershipList() {
+	memLock.Lock()
+	defer memLock.Unlock()
+	for key, value := range membership_list {
+		utility.LogMessage("Hostname: " + key + ", member_id: " + value.Node_id)
+	}
+}
+
 func IsMember(hostname string) bool {
 	memLock.Lock()
 	defer memLock.Unlock()

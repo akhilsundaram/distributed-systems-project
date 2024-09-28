@@ -200,7 +200,6 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 	// Process the ping data here
 	for i := 0; i < len(parsedData); i++ {
 		if parsedData[i].ID == "ping" {
-			utility.LogMessage("Received ping from " + remoteAddr + ", ping id : " + string(parsedData[i].Piggyback))
 			continue
 		}
 
@@ -233,6 +232,8 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 			switch parsedData[i].ID {
 			case "n":
 				membership.AddMember(parsedData[i].Piggyback, hostname)
+				membership.PrintMembershipList()
+				utility.LogMessage("New member added to Membership list, hostname :" + hostname + ", and member_id: " + parsedData[i].Piggyback)
 				membership.WriteToBuffer(parsedData[i].ID, hostname)
 				continue
 			case "f":
@@ -240,6 +241,8 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 				// 	parsedData[i].Piggyback
 				// }
 				membership.DeleteMember(parsedData[i].Piggyback)
+				utility.LogMessage("Deleted member added to Membership list, :" + hostname + "Deleted member_id: " + parsedData[i].Piggyback)
+				membership.PrintMembershipList()
 				membership.WriteToBuffer(parsedData[i].ID, hostname)
 				continue
 
