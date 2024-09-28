@@ -40,8 +40,9 @@ func Listener() {
 
 	for {
 		buf := make([]byte, 1024)
-		n, remoteAddr, err := conn.ReadFromUDP(buf) // Accept blocks conn, go routine to process the message
 		utility.LogMessage("data read from incoming connection : " + string(buf))
+
+		n, remoteAddr, err := conn.ReadFromUDP(buf) // Accept blocks conn, go routine to process the message
 		if err != nil {
 			utility.LogMessage("Not able to accept incoming ping : " + err.Error())
 		}
