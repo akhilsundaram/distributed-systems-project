@@ -254,7 +254,7 @@ func sendUDPRequest(host string, requestData []byte) {
 	}
 
 	response := make([]byte, 1024)
-	n, err := conn.Read(response)
+	_, err = conn.Read(response)
 	if err != nil {
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 			utility.LogMessage("Timeout waiting for response from " + host)
@@ -268,9 +268,6 @@ func sendUDPRequest(host string, requestData []byte) {
 			utility.LogMessage("Error reading response from " + host + ": " + err.Error())
 		}
 		return
-	}
-	if string(response[:n]) != requestData.ID {
-		utility.LogMessage("ERROR : Incorrect ack response recieved from " + host + ", Expected : " + requestData.ID + ", Actual : " + string(response[:n]))
 	}
 	// utility.LogMessage("Received response from " + host + ": " + string(response[:n]))
 
