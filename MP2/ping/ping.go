@@ -57,6 +57,7 @@ func Listener() {
 
 // INPUT -> connection, data from conn. TODO-> sends data back
 func HandleIncomingConnectionData(conn *net.UDPConn, addr *net.UDPAddr, data []byte) {
+	utility.LogMessage("Handling messages from - " + addr.String() + ", with data - " + string(data))
 	bufferData := BufferSent()
 	AddToNodeBuffer(data, addr.IP.String())
 
