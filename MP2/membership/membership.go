@@ -101,6 +101,7 @@ func AddMember(node_id string, hostname string) error {
 
 		//Add to map
 		membership_list[hostname] = new_member
+		utility.LogMessage("New member added: " + hostname + " with member id: " + node_id)
 	}
 
 	return nil
@@ -112,6 +113,7 @@ func DeleteMember(hostname string) error {
 
 	if _, ok := membership_list[hostname]; ok {
 		delete(membership_list, hostname)
+		utility.LogMessage("Member Deleted: " + hostname)
 	} else {
 		return fmt.Errorf("error mem: member does not exist")
 	}

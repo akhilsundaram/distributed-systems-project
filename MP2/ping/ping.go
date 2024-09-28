@@ -202,7 +202,7 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 	// Process the ping data here
 	for i := 0; i < len(parsedData); i++ {
 		if parsedData[i].ID == "ping" {
-			membership.PrintMembershipList()
+			// membership.PrintMembershipList()
 			continue
 		}
 
