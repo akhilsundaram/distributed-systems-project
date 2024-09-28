@@ -36,10 +36,12 @@ func Listener() {
 	if err != nil {
 		utility.LogMessage("Error starting PingAck : " + err.Error())
 	}
-	defer func() { _ = conn.Close() }()
+	defer conn.Close()
+
+	buf := make([]byte, 1024)
 
 	for {
-		buf := make([]byte, 1024)
+
 		utility.LogMessage("data read from incoming connection : " + string(buf))
 
 		n, remoteAddr, err := conn.ReadFromUDP(buf) // Accept blocks conn, go routine to process the message
@@ -58,6 +60,7 @@ func HandleIncomingConnectionData(conn *net.UDPConn, addr *net.UDPAddr, data []b
 	bufferData := BufferSent()
 	AddToNodeBuffer(data, addr.IP.String())
 
+	conn.SetWriteDeadline(time.Now().Add(120 * time.Millisecond))
 	// Send the request
 	_, err := conn.WriteToUDP(bufferData, addr)
 	if err != nil {
