@@ -118,5 +118,6 @@ func ContinouslySendPings() {
 		ping_count = counter
 		// pingpong.SendPing(status_sus, ping_count)
 		ping.Sender(status_sus, ping_count)
+		time.Sleep(1000 * time.Millisecond)
 	}
 }
