@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"failure_detection/buffer"
 	"failure_detection/membership"
-	"failure_detection/suspicion"
 	"failure_detection/utility"
 	"math/rand"
 	"net"
@@ -98,8 +97,8 @@ func Sender(suspect bool, ping_id int) {
 
 	for _, host := range randomizeHostArray {
 		if membership.IsMember(host) && !(my_hostname == host) {
-			go sendUDPRequest(host)
-			time.Sleep(300 * time.Millisecond)
+			sendUDPRequest(host)
+			// time.Sleep(300 * time.Millisecond)
 		}
 
 	}
@@ -110,6 +109,8 @@ func sendUDPRequest(host string) {
 
 	//Data to be sent along with conn
 	nodeBuffer := BufferSent()
+
+	utility.LogMessage("SEND UDP CALLED FOR " + host + " at - " + time.Now().GoString())
 
 	ipAddr := utility.GetIPAddr(host)
 
@@ -134,7 +135,7 @@ func sendUDPRequest(host string) {
 	}
 
 	// Set a timeout for receiving the response
-	err = conn.SetReadDeadline(time.Now().Add(120 * time.Millisecond))
+	err = conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
 	if err != nil {
 		utility.LogMessage("error setting read deadline: " + err.Error())
 	}
@@ -143,26 +144,14 @@ func sendUDPRequest(host string) {
 	response := make([]byte, 1024)
 	n, err := conn.Read(response)
 	if err != nil {
-		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-			utility.LogMessage("Timeout waiting for response from " + host)
-			// IF NO PING RESPONSE
-			// Either mark node as FAIL or raise Suspicion message
-			if suspicion.Enabled {
-				suspicion.DeclareSuspicion(host)
-			} else {
-				node_id := membership.GetMemberID(host)
-				utility.LogMessage("Reached here && Hostname :" + host)
-				if node_id != "-1" {
-					membership.DeleteMember(node_id, host)
-					buffer.WriteToBuffer("f", node_id, host)
-					utility.LogMessage(" node declares ping timeout & deleted host - " + host)
-				} else {
-					membership.PrintMembershipList()
-				}
-
-			}
+		node_id := membership.GetMemberID(host)
+		utility.LogMessage("Reached here && Hostname :" + host)
+		if node_id != "-1" {
+			membership.DeleteMember(node_id, host)
+			buffer.WriteToBuffer("f", node_id, host)
+			utility.LogMessage(" node declares ping timeout & deleted host - " + host)
 		} else {
-			utility.LogMessage("Error reading response from " + host + ": " + err.Error())
+			membership.PrintMembershipList()
 		}
 	} else {
 		//IF PING / RESPONSE RECEIVED
