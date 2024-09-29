@@ -23,11 +23,19 @@ var maxTimesSent = 4
 func WriteToBuffer(Message, Node_id, Hostname string, incarnation_number ...int) {
 	bufferLock.Lock()
 	defer bufferLock.Unlock()
+
 	bval := BufferData{
-		Message:           Message,
-		Node_id:           Node_id,
-		TimesSent:         0,
-		IncarnationNumber: incarnation_number[0],
+		Message:   Message,
+		Node_id:   Node_id,
+		TimesSent: 0,
+	}
+	if len(incarnation_number) > 0 {
+		bval = BufferData{
+			Message:           Message,
+			Node_id:           Node_id,
+			TimesSent:         0,
+			IncarnationNumber: incarnation_number[0],
+		}
 	}
 
 	if _, ok := shared_buffer[Hostname]; ok {
