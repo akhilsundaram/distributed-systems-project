@@ -5,6 +5,7 @@ import (
 	"failure_detection/buffer"
 	"failure_detection/membership"
 	"failure_detection/utility"
+	"fmt"
 	"math/rand"
 	"net"
 	"os"
@@ -148,6 +149,7 @@ func sendUDPRequest(host string, self_name string) {
 			if membership.SuspicionEnabled {
 				DeclareSuspicion(host, node_id)
 			} else {
+				utility.LogMessage("Member? " + host + " to be deleted because it didnt reply to ping from " + self_name)
 				membership.DeleteMember(node_id, host)
 				buffer.WriteToBuffer("f", node_id, host)
 				utility.LogMessage(" node declares ping timeout & deleted host - " + host)
@@ -259,6 +261,7 @@ func SuspicionHandler(Message, Node_id, hostname string, incarnation int) {
 				membership.UpdateSuspicion(hostname, membership.Suspicious)
 				membership.SetMemberIncarnation(hostname, incarnation)
 				buffer.WriteToBuffer("s", Node_id, hostname, incarnation)
+				fmt.Printf("Marked %s as suspicious\n", hostname)
 				time.AfterFunc(membership.SuspicionTimeout, func() { stateTransitionOnTimeout(hostname, Node_id) })
 			}
 			if sus_state == membership.Suspicious {
@@ -304,6 +307,7 @@ func stateTransitionOnTimeout(hostname string, node_id string) {
 func DeclareSuspicion(hostname string, node_id string) error {
 	// Only time our ping/ server ever reqs sus data.
 	// Declares aftertimer to handle states internally. Maybe even callable from the Handler
+	fmt.Printf("Marked %s as suspicious\n", hostname)
 	state, _ := membership.GetSuspicion(hostname)
 	if state == -2 || state == membership.Alive { //No suspicion exists, but host does
 		inc := membership.GetMemberIncarnation(hostname)
