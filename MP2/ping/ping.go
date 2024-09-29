@@ -158,6 +158,7 @@ func sendUDPRequest(host string) {
 					buffer.WriteToBuffer("f", node_id, host)
 					utility.LogMessage(" node declares ping timeout & deleted host - " + host)
 				}
+				utility.LogMessage("SOME ERROR - " + err.Error())
 
 			}
 		} else {
