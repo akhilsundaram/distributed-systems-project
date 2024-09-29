@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"failure_detection/buffer"
 	"failure_detection/introducer"
 	"failure_detection/membership"
 	"failure_detection/ping"
@@ -107,7 +106,6 @@ func main() {
 					fmt.Println("Suspicion is already enabled !!! ")
 				} else {
 					membership.SuspicionEnabled = true
-					buffer.WriteToBuffer("sus", membership.GetMemberID(hostname), membership.My_hostname)
 					fmt.Println("Suspicion is set to = ", membership.SuspicionEnabled)
 				}
 			case "disable_sus":
@@ -116,7 +114,6 @@ func main() {
 					fmt.Println("Suspicion is already disabled !!! ")
 				} else {
 					membership.SuspicionEnabled = false
-					buffer.WriteToBuffer("nsus", membership.GetMemberID(hostname), membership.My_hostname)
 					fmt.Println("Suspicion is set to = ", membership.SuspicionEnabled)
 				}
 			case "status_sus":

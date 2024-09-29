@@ -172,10 +172,16 @@ func BufferSent() []byte {
 	//Get Buffer
 	buff := buffer.GetBuffer()
 
+	sus_status := ""
+	if membership.SuspicionEnabled{
+		sus_status = "y"
+	} else {
+		sus_status = "n"
+	}
 	//Append Ping
 	buffArray := buffer.BufferData{
 		Message: "ping",
-		Node_id: "-1",
+		Node_id: sus_status,
 	}
 	buff["MP2"] = buffArray
 
@@ -215,6 +221,11 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 		} else {
 			switch buffData.Message {
 			case "ping":
+				if buffData.Node_id == "y"{
+					membership.SuspicionEnabled = true
+				} else {
+					membership.SuspicionEnabled = false
+				}
 				continue
 			case "f":
 				utility.LogMessage("Fail signal seen in buffer for hostname " + hostname)
@@ -224,12 +235,6 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 			case "n":
 				membership.AddMember(buffData.Node_id, hostname)
 				buffer.WriteToBuffer("n", buffData.Node_id, hostname)
-				continue
-			case "sus":
-				if !membership.SuspicionEnabled{
-					membership.SuspicionEnabled = true
-					buffer.WriteToBuffer("sus", buffData.Node_id, hostname)
-				}
 				continue
 			default:
 				continue
@@ -243,11 +248,10 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 func SuspicionHandler(Message, Node_id, hostname string, incarnation int) {
 	switch Message {
 	case "ping":
-		return
-	case "nsus":
-		if membership.SuspicionEnabled{
+		if Node_id == "yes"{
+			membership.SuspicionEnabled = true
+		} else {
 			membership.SuspicionEnabled = false
-			buffer.WriteToBuffer("nsus", Node_id, hostname, incarnation)
 		}
 		return
 	case "n":
