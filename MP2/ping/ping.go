@@ -140,7 +140,7 @@ func sendUDPRequest(host string) {
 
 	// Read the response
 	response := make([]byte, 1024)
-	n, err := conn.Read(response)
+	n, _, err := conn.ReadFromUDP(response)
 	if err != nil {
 		node_id := membership.GetMemberID(host)
 		utility.LogMessage("Reached here && Hostname :" + host)
