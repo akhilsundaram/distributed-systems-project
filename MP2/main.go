@@ -81,6 +81,7 @@ func main() {
 		fmt.Println("  status_sus  - Show status of suspicion mode")
 		fmt.Println("  sus_list    - List suspicious nodes")
 		fmt.Println("  exit        - Exit the program")
+		fmt.Println("  rsus        - first node in list marked sus")
 		fmt.Println("************************************************")
 		scanner := bufio.NewScanner(os.Stdin)
 		for {
@@ -123,6 +124,11 @@ func main() {
 				fmt.Println("Status of PingSus : ", membership.SuspicionEnabled)
 			case "sus_list":
 				fmt.Println("List of all nodes which are marked as Suspicious for the current node :")
+			case "rsus":
+				for host, v := range membership.GetMembershipList() {
+					ping.DeclareSuspicion(host, v.Node_id)
+					break
+				}
 			default:
 				fmt.Printf("Unknown command: %s\n", cmd)
 			}
