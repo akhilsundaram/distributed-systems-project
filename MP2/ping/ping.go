@@ -154,7 +154,7 @@ func sendUDPRequest(host string) {
 				node_id := membership.GetMemberID(host)
 				utility.LogMessage("Reached here && Hostname :" + host)
 				if node_id != "-1" {
-					membership.DeleteMember(host)
+					membership.DeleteMember(node_id, host)
 					buffer.WriteToBuffer("f", node_id, host)
 					utility.LogMessage(" node declares ping timeout & deleted host - " + host)
 				} else {
@@ -218,55 +218,16 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 		case "ping":
 			continue
 		case "f":
-			membership.DeleteMember(buffData.Node_id)
+			membership.DeleteMember(buffData.Node_id, hostname)
 			buffer.WriteToBuffer("f", buffData.Node_id, remoteAddr)
 			continue
 		case "n":
-			membership.AddMember(buffData.Node_id)
+			membership.AddMember(buffData.Node_id, hostname)
 			buffer.WriteToBuffer("n", buffData.Node_id, remoteAddr)
 			continue
 		default:
 			continue
 		}
-		// if parsedData[i].Msg == "ping" {
-		// 	// membership.PrintMembershipList()
-		// 	continue
-		// }
-
-		// //Do a check to see if in Buffer or not
-		// buffer_value_bytes, err := json.Marshal(parsedData[i])
-		// if err != nil {
-		// 	utility.LogMessage("Handle ping and Ack - buffer value to bytes error - " + err.Error())
-		// }
-		// //If buffer value exists already, do nothing
-		// if membership.CheckBuffer(buffer_value_bytes) {
-		// 	continue
-		// }
-
-		// if suspicion.Enabled {
-		// 	suspicion.SuspicionHandler(parsedData[i].Msg, parsedData[i].Node_id)
-		// } else {
-		// 	// if membership.BufferMap[parsedData[i]] // check here
-
-		// 	switch parsedData[i].Msg {
-		// 	case "n":
-		// 		membership.AddMember(parsedData[i].Node_id, parsedData[i].Node_id)
-		// 		// membership.PrintMembershipList()
-		// 		utility.LogMessage("New member added to Membership list, hostname :" + parsedData[i].Node_id + ", and member_id: " + parsedData[i].Node_id)
-		// 		membership.WriteToBuffer(parsedData[i].Msg, parsedData[i].Node_id)
-		// 		continue
-		// 	case "f":
-		// 		// if membership.IsMember(hostname){     //ADD CHECKKKKKKKKKKK
-		// 		// 	parsedData[i].Node_id
-		// 		// }
-		// 		membership.DeleteMember(parsedData[i].Node_id)
-		// 		utility.LogMessage("Deleted member added to Membership list, :" + parsedData[i].Node_id)
-		// 		// membership.PrintMembershipList()
-		// 		membership.WriteToBuffer(parsedData[i].Msg, parsedData[i].Node_id)
-		// 		continue
-
-		// 	}
-		// }
 
 	}
 

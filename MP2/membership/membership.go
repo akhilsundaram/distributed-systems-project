@@ -90,10 +90,9 @@ func GetMemberHostname(member_id string) string {
 	return Hostname[0]
 }
 
-func AddMember(node_id string) error {
+func AddMember(node_id string, hostname string) error {
 	memLock.Lock()
 	defer memLock.Unlock()
-	hostname := GetMemberHostname(node_id)
 
 	//Add member to membership_list
 	if _, ok := membership_list[hostname]; ok {
@@ -113,11 +112,9 @@ func AddMember(node_id string) error {
 	return nil
 }
 
-func DeleteMember(node_id string) error {
+func DeleteMember(node_id string, hostname string) error {
 	memLock.Lock()
 	defer memLock.Unlock()
-
-	hostname := GetMemberHostname(node_id)
 
 	if _, ok := membership_list[hostname]; ok {
 		delete(membership_list, hostname)

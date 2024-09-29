@@ -114,7 +114,7 @@ func AddNewMember(serverAddr, nodeID, timestamp string) error {
 	// } else {
 	// 	new_hostname = getHostname[0]
 	// }
-	membership.AddMember(new_node_id)
+	membership.AddMember(new_node_id, new_hostname)
 
 	//Add membership to buffer for dissemination
 	buffer.WriteToBuffer("n", new_node_id, new_hostname)
@@ -170,9 +170,9 @@ func InitiateIntroducerRequest(hostname, port, node_id string) {
 		utility.LogMessage("InitiateIntroducerReq error: unmarshal membershiplist from introducer - " + err.Error())
 	}
 
-	for _, value := range membershipList {
+	for host_name, value := range membershipList {
 		// utility.LogMessage("Printing key value of membershipList : " + keys[i])
-		membership.AddMember(value.Node_id)
+		membership.AddMember(value.Node_id, host_name)
 	}
 	utility.LogMessage("Printing membership list recieved from machine 1")
 	membership.PrintMembershipList()
