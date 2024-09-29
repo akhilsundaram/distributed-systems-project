@@ -217,6 +217,7 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 		case "ping":
 			continue
 		case "f":
+			utility.LogMessage("Fail signal seen in buffer for hostname " + hostname)
 			membership.DeleteMember(buffData.Node_id, hostname)
 			buffer.WriteToBuffer("f", buffData.Node_id, hostname)
 			continue
