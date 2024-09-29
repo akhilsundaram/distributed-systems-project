@@ -280,7 +280,7 @@ func SuspicionHandler(Message, Node_id, hostname string, incarnation int) {
 				membership.UpdateSuspicion(hostname, membership.Suspicious)
 				membership.SetMemberIncarnation(hostname, incarnation)
 				buffer.WriteToBuffer("s", Node_id, hostname, incarnation)
-				fmt.Printf("Marked %s as suspicious\n", hostname)
+				fmt.Printf("\nSUSPICIOUS :: Host %s with MemberID %s\n", hostname, Node_id)
 				time.AfterFunc(membership.SuspicionTimeout, func() { stateTransitionOnTimeout(hostname, Node_id) })
 			}
 			if sus_state == membership.Suspicious {
@@ -326,9 +326,10 @@ func stateTransitionOnTimeout(hostname string, node_id string) {
 func DeclareSuspicion(hostname string, node_id string) error {
 	// Only time our ping/ server ever reqs sus data.
 	// Declares aftertimer to handle states internally. Maybe even callable from the Handler
-	fmt.Printf("Marked %s as suspicious\n", hostname)
+
 	state, _ := membership.GetSuspicion(hostname)
 	if state == -2 || state == membership.Alive { //No suspicion exists, but host does
+		fmt.Printf("\nSUSPICIOUS :: Host %s with MemberID %s\n", hostname, node_id)
 		inc := membership.GetMemberIncarnation(hostname)
 		membership.UpdateSuspicion(hostname, membership.Suspicious)
 		time.AfterFunc(membership.SuspicionTimeout, func() { stateTransitionOnTimeout(hostname, node_id) })
@@ -356,7 +357,7 @@ func shuffleStringArray(arr []string) []string {
 }
 
 func checkRandomDrop(numPassed int) bool {
-    randomNumber := rand.Intn(101)
-    //fmt.Printf("Generated random number: %d\n", randomNumber)  // Added for testing
-    return randomNumber <= numPassed
+	randomNumber := rand.Intn(101)
+	//fmt.Printf("Generated random number: %d\n", randomNumber)  // Added for testing
+	return randomNumber <= numPassed
 }
