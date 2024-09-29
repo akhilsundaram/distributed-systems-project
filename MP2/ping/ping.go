@@ -218,11 +218,11 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 			continue
 		case "f":
 			membership.DeleteMember(buffData.Node_id, hostname)
-			buffer.WriteToBuffer("f", buffData.Node_id, remoteAddr)
+			buffer.WriteToBuffer("f", buffData.Node_id, hostname)
 			continue
 		case "n":
 			membership.AddMember(buffData.Node_id, hostname)
-			buffer.WriteToBuffer("n", buffData.Node_id, remoteAddr)
+			buffer.WriteToBuffer("n", buffData.Node_id, hostname)
 			continue
 		default:
 			continue
