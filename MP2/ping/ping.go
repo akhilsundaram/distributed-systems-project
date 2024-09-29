@@ -120,7 +120,7 @@ func sendUDPRequest(host string) {
 		return
 	}
 
-	conn, err := net.DialUDP("udp", nil, serverAddr)
+	conn, err := net.ListenUDP("udp", serverAddr)
 	if err != nil {
 		utility.LogMessage("Error in connection to " + host + ": " + err.Error())
 		return
@@ -135,7 +135,7 @@ func sendUDPRequest(host string) {
 	}
 
 	// Set a timeout for receiving the response
-	err = conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+	err = conn.SetReadDeadline(time.Now().Add(2000 * time.Millisecond))
 	if err != nil {
 		utility.LogMessage("error setting read deadline: " + err.Error())
 	}
