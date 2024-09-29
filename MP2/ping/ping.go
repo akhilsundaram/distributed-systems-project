@@ -325,7 +325,7 @@ func DeclareSuspicion(hostname string, node_id string) error {
 
 	state, _ := membership.GetSuspicion(hostname)
 	if state == -2 || state == membership.Alive { //No suspicion exists, but host does
-		fmt.Printf("Marked %s as suspicious\n", hostname)
+		fmt.Printf("Host %s with MemmberID %s as suspicious\n", hostname, node_id)
 		inc := membership.GetMemberIncarnation(hostname)
 		membership.UpdateSuspicion(hostname, membership.Suspicious)
 		time.AfterFunc(membership.SuspicionTimeout, func() { stateTransitionOnTimeout(hostname, node_id) })
