@@ -76,16 +76,16 @@ func HandleIncomingConnectionData(conn *net.UDPConn, addr *net.UDPAddr, data []b
 func Sender(suspect bool, ping_id int) {
 	// store the 10 vms in a array
 	hostArray := []string{
-		"fa24-cs425-5901.cs.illinois.edu.",
-		"fa24-cs425-5902.cs.illinois.edu.",
-		"fa24-cs425-5903.cs.illinois.edu.",
-		"fa24-cs425-5904.cs.illinois.edu.",
-		"fa24-cs425-5905.cs.illinois.edu.",
-		"fa24-cs425-5906.cs.illinois.edu.",
-		"fa24-cs425-5907.cs.illinois.edu.",
-		"fa24-cs425-5908.cs.illinois.edu.",
-		"fa24-cs425-5909.cs.illinois.edu.",
-		"fa24-cs425-5910.cs.illinois.edu.",
+		"fa24-cs425-5901.cs.illinois.edu",
+		"fa24-cs425-5902.cs.illinois.edu",
+		"fa24-cs425-5903.cs.illinois.edu",
+		"fa24-cs425-5904.cs.illinois.edu",
+		"fa24-cs425-5905.cs.illinois.edu",
+		"fa24-cs425-5906.cs.illinois.edu",
+		"fa24-cs425-5907.cs.illinois.edu",
+		"fa24-cs425-5908.cs.illinois.edu",
+		"fa24-cs425-5909.cs.illinois.edu",
+		"fa24-cs425-5910.cs.illinois.edu",
 	}
 	// randomize the order of vms to send the pings to
 	randomizeHostArray := shuffleStringArray(hostArray)
