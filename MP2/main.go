@@ -5,7 +5,6 @@ import (
 	"failure_detection/introducer"
 	"failure_detection/membership"
 	"failure_detection/ping"
-	"failure_detection/suspicion"
 	"failure_detection/utility"
 	"fmt"
 	"os"
@@ -100,11 +99,11 @@ func main() {
 			case "leave":
 				fmt.Println("Node xyz is leaving the membership list")
 			case "toggle_sus":
-				curr_val := suspicion.Enabled
+				curr_val := membership.SuspicionEnabled
 				fmt.Println("Current value of PingSus is : ", (curr_val), ", change it to ", (!curr_val))
-				suspicion.Enabled = !suspicion.Enabled
+				membership.SuspicionEnabled = !membership.SuspicionEnabled
 			case "status_sus":
-				fmt.Println("Status of PingSus : ", suspicion.Enabled)
+				fmt.Println("Status of PingSus : ", membership.SuspicionEnabled)
 			case "sus_list":
 				fmt.Println("List of all nodes which are marked as Suspicious for the current node :")
 			default:
