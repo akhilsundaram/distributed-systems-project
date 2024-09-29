@@ -201,6 +201,10 @@ func lockedWrite(filename string) { // Reads from OUTPUT_FILE var which is a fil
 	// make a reader
 	input_reader := bufio.NewReader(file)
 	buf := make([]byte, 1024)
+	myString := "********** Log from " + filename + "***********\n"
+	m := len(myString)
+	copy(buf, []byte(myString))
+	WriteToFile(OUTPUT_FILE, buf[:m], true)
 
 	//Call write function
 	for {
