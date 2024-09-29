@@ -1,6 +1,7 @@
 package buffer
 
 import (
+	"failure_detection/membership"
 	"fmt"
 	"maps"
 	"strings"
@@ -9,16 +10,17 @@ import (
 )
 
 type BufferData struct {
-	Message   string
-	Node_id   string
-	TimesSent int
+	Message           string
+	Node_id           string
+	TimesSent         int
+	IncarnationNumber int
 }
 
 var shared_buffer = map[string]BufferData{} //Key is hostname
 var bufferLock sync.RWMutex
 var maxTimesSent = 4
 
-func WriteToBuffer(Message, Node_id, Hostname string) {
+func WriteToBuffer(Message, Node_id, Hostname string, incarnation_number ...int) {
 	bufferLock.Lock()
 	defer bufferLock.Unlock()
 	bval := BufferData{
@@ -50,19 +52,50 @@ func WriteToBuffer(Message, Node_id, Hostname string) {
 		} else {
 			// Check message type and priority
 			// Node id 1 == node id 2
-			switch Message {
-			case "f":
-				// fail always gets priority
-				shared_buffer[Hostname] = bval
-			case "n":
-				// new node
-				if shared_buffer[Hostname].Message == "n" {
-					// new node join gets priority
+			if membership.SuspicionEnabled {
+				if shared_buffer[Hostname].IncarnationNumber < incarnation_number[0] {
 					shared_buffer[Hostname] = bval
+					return // TODO TODO TODO TODO REWORKKKKKKKKK   - CASE A - check Faulty priority
 				}
-			case "ping":
-				// default, dont do anything.
-				break
+				state, _ := membership.GetSuspicion(Hostname)
+				switch Message {
+				case "f":
+					shared_buffer[Hostname] = bval
+				case "s":
+					if (state == -2) || (state == membership.Alive) { // if member exists or is in alive state
+						shared_buffer[Hostname] = bval
+					}
+				case "a":
+					if state != membership.Faulty { //Unless the current disemination is Faulty-confirm, alive >>
+						shared_buffer[Hostname] = bval
+					}
+
+				case "n":
+					if shared_buffer[Hostname].Message == "n" {
+						// new node join gets no priority over other messages
+						shared_buffer[Hostname] = bval
+					}
+				case "ping":
+					//default
+					break
+
+				}
+
+			} else {
+				switch Message {
+				case "f":
+					// fail always gets priority
+					shared_buffer[Hostname] = bval
+				case "n":
+					// new node
+					if shared_buffer[Hostname].Message == "n" {
+						// new node join gets priority
+						shared_buffer[Hostname] = bval
+					}
+				case "ping":
+					// default, dont do anything.
+					break
+				}
 			}
 
 		}
