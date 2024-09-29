@@ -62,6 +62,9 @@ func HandleIncomingConnectionData(conn *net.UDPConn, addr *net.UDPAddr, data []b
 	// membership.PrintMembershipList()
 
 	// Send the request
+	// if (checkRandomDrop(drop_rate_%)){
+	// utility.LogMessage("Inducing random drops in sending ack to requests")
+	//} // --> higher the number, higher chance of drop
 	_, err := conn.WriteToUDP(bufferData, addr)
 	if err != nil {
 		utility.LogMessage("error sending UDP request: " + err.Error())
@@ -334,4 +337,10 @@ func shuffleStringArray(arr []string) []string {
 	}
 
 	return shuffled
+}
+
+func checkRandomDrop(numPassed int) bool {
+    randomNumber := rand.Intn(101)
+    //fmt.Printf("Generated random number: %d\n", randomNumber)  // Added for testing
+    return randomNumber <= numPassed
 }
