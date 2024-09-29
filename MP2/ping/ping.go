@@ -86,20 +86,20 @@ func Sender(suspect bool) {
 		"fa24-cs425-5910.cs.illinois.edu",
 	}
 
+	//My hostname
+	my_hostname, e := os.Hostname()
+	if e != nil {
+		utility.LogMessage("os host name failed")
+	}
+
 	for {
 		// randomize the order of vms to send the pings to
 		randomizeHostArray := shuffleStringArray(hostArray)
 
-		//My hostname
-		my_hostname, e := os.Hostname()
-		if e != nil {
-			utility.LogMessage("os host name failed")
-		}
-
 		for _, host := range randomizeHostArray {
 			if membership.IsMember(host) && !(my_hostname == host) {
 				sendUDPRequest(host)
-				time.Sleep(300 * time.Millisecond)
+				time.Sleep(5 * time.Millisecond)
 			}
 		}
 
@@ -142,7 +142,6 @@ func sendUDPRequest(host string) {
 	// Read the response
 	response := make([]byte, 1024)
 	n, err := conn.Read(response)
-	time.Sleep(300 * time.Millisecond)
 	if err != nil {
 		node_id := membership.GetMemberID(host)
 		if node_id != "-1" {
