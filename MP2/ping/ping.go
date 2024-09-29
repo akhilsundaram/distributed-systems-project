@@ -95,7 +95,6 @@ func Sender(suspect bool, ping_id int) {
 	if e != nil {
 		utility.LogMessage("os host name failed")
 	}
-	my_hostname += "."
 
 	for _, host := range randomizeHostArray {
 		if membership.IsMember(host) && !(my_hostname == host) {
