@@ -98,7 +98,7 @@ func Sender(suspect bool) {
 
 		for _, host := range randomizeHostArray {
 			if membership.IsMember(host) && !(my_hostname == host) {
-				sendUDPRequest(host)
+				sendUDPRequest(host, my_hostname)
 				time.Sleep(50 * time.Millisecond)
 			}
 		}
@@ -107,7 +107,7 @@ func Sender(suspect bool) {
 	}
 }
 
-func sendUDPRequest(host string) {
+func sendUDPRequest(host string, self_name string) {
 
 	//Data to be sent along with conn
 	nodeBuffer := BufferSent()
@@ -146,6 +146,7 @@ func sendUDPRequest(host string) {
 	if err != nil {
 		node_id := membership.GetMemberID(host)
 		if node_id != "-1" {
+			utility.LogMessage("Member " + host + "to be deleted because it didnt reply to ping from " + self_name)
 			membership.DeleteMember(node_id, host)
 			buffer.WriteToBuffer("f", node_id, host)
 			utility.LogMessage(" node declares ping timeout & deleted host - " + host)
