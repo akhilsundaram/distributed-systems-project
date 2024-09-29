@@ -7,11 +7,9 @@ import (
 	"failure_detection/ping"
 	"failure_detection/suspicion"
 	"failure_detection/utility"
-	"strings"
-
-	//"failure_detection/suspicion"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -20,7 +18,6 @@ var (
 	LOGGER_FILE     = "/home/log/machine.log"
 	INTRODUCER_HOST = "fa24-cs425-5901.cs.illinois.edu"
 	status_sus      = false //suspicion.DeclareSuspicion
-	ping_count      = 0
 )
 
 func main() {
@@ -73,6 +70,16 @@ func main() {
 	// Start a goroutine to handle CLI input
 	go func() {
 		defer wg.Done()
+
+		fmt.Println("Available commands:")
+		fmt.Println("  list_self   - Display this node's ID")
+		fmt.Println("  list_mem    - Display current membership list")
+		fmt.Println("  leave       - Leave the membership list")
+		fmt.Println("  toggle_sus  - Toggle suspicion mode")
+		fmt.Println("  status_sus  - Show status of suspicion mode")
+		fmt.Println("  sus_list    - List suspicious nodes")
+		fmt.Println("  exit        - Exit the program")
+		fmt.Println("************************************************")
 		scanner := bufio.NewScanner(os.Stdin)
 		for {
 			fmt.Print("Enter command: ")
@@ -89,11 +96,13 @@ func main() {
 				fmt.Println("This Node's ID is : ")
 			case "list_mem":
 				fmt.Println("Current Membership list is : ")
-				membership.PrintMembershipList()
+				membership.PrintMembershipListStdOut()
 			case "leave":
 				fmt.Println("Node xyz is leaving the membership list")
 			case "toggle_sus":
-				fmt.Println("Current value of PingSus is : , change it to __")
+				curr_val := suspicion.Enabled
+				fmt.Println("Current value of PingSus is : ", (curr_val), ", change it to ", (!curr_val))
+				suspicion.Enabled = !suspicion.Enabled
 			case "status_sus":
 				fmt.Println("Status of PingSus : ", suspicion.Enabled)
 			case "sus_list":
