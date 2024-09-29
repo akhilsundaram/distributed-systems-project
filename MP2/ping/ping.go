@@ -20,8 +20,9 @@ const (
 var LOGGER_FILE = "/home/log/machine.log"
 
 type InputData struct {
-	ID      string `json:"id"`
-	Node_id string `json:"data"`
+	Msg      string `json:"msg"`
+	Node_id  string `json:"node_id"`
+	Hostname string `json:"hostname"`
 }
 
 func Listener() {
@@ -55,9 +56,13 @@ func Listener() {
 
 // INPUT -> connection, data from conn. TODO-> sends data back
 func HandleIncomingConnectionData(conn *net.UDPConn, addr *net.UDPAddr, data []byte) {
+	// buffer to send
 	bufferData := BufferSent()
 	// utility.LogMessage(string(data) + ":  " + addr.String())
 	// membership.PrintMembershipList()
+
+	// parse the incoming buffer in data, add it to your buffer
+
 	AddToNodeBuffer(data, addr.IP.String())
 
 	conn.SetWriteDeadline(time.Now().Add(120 * time.Millisecond))
@@ -166,31 +171,48 @@ func sendUDPRequest(host string) {
 }
 
 func BufferSent() []byte {
-	buff := membership.GetBufferElements()
+	buff := buffer.GetBuffer()
 	var buffArray []InputData
 	//Append Ping
 	pingBuff := InputData{
-		ID:      "ping",
-		Node_id: "",
+		Msg:      "ping",
+		Node_id:  "",
+		Hostname: "",
 	}
 
-	//Array to be sent
-	buffArray = append(buffArray, pingBuff)
+	// //Array to be sent
+	// buffArray = append(buffArray, pingBuff)
 
-	//For every buffer element, append to array
-	for i := 0; i < len(buff); i++ {
-		tp_io := InputData{}
-		err := json.Unmarshal(buff[i].Data, &tp_io)
-		if err == nil {
-			buffArray = append(buffArray, tp_io)
-		}
-	}
+	// //For every buffer element, append to array
+	// for i := 0; i < len(buff); i++ {
+	// 	tp_io := InputData{}
+	// 	err := json.Unmarshal(buff[i].Data, &tp_io)
+	// 	if err == nil {
+	// 		buffArray = append(buffArray, tp_io)
+	// 	}
+	// }
 
-	membership.UpdateBufferGossipCounts()
+	if len(buff) == 0 {
+        // If empty, just append the pingBuff
+        buffArray = append(buffArray, pingBuff)
+    } else {
+        // If not empty, process the contents of buff
+        for key, data := range buff {
+            var tp_io InputData
+            err := json.Unmarshal(buff, &tp_io)
+            if err == nil {
+                buffArray = append(buffArray, tp_io)
+            } else {
+                utility.LogMessage("Error unmarshalling buffer data: " + err.Error())
+            }
+        }
+    }
+
+	buffer.UpdateBufferGossipCount()
 
 	output, err := json.Marshal(buffArray)
 	if err != nil {
-		utility.LogMessage("another error for marshall - send ping -" + err.Error())
+		utility.LogMessage("another error for marshall - send ping - " + err.Error())
 	}
 	return output
 }
@@ -205,16 +227,18 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 	//Create a ping map to delete and check if ping data was back /??
 
 	// Process the ping data here
+
+	// directly check each key value pair for parsedData, and send it to WriteBuffer
 	for i := 0; i < len(parsedData); i++ {
 
 		hostname := membership.GetMemberHostname(parsedData[i].Node_id)
 		if !membership.IsMember(hostname) {
 			// member does not exist and buffer data for it not a new join.
-			if parsedData[i].ID != "n" {
+			if parsedData[i].Msg != "n" {
 				continue
 			}
 		}
-		switch parsedData[i].ID {
+		switch parsedData[i].Msg {
 		case "ping":
 			continue
 		case "f":
@@ -228,7 +252,7 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 		default:
 			continue
 		}
-		// if parsedData[i].ID == "ping" {
+		// if parsedData[i].Msg == "ping" {
 		// 	// membership.PrintMembershipList()
 		// 	continue
 		// }
@@ -244,16 +268,16 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 		// }
 
 		// if suspicion.Enabled {
-		// 	suspicion.SuspicionHandler(parsedData[i].ID, parsedData[i].Node_id)
+		// 	suspicion.SuspicionHandler(parsedData[i].Msg, parsedData[i].Node_id)
 		// } else {
 		// 	// if membership.BufferMap[parsedData[i]] // check here
 
-		// 	switch parsedData[i].ID {
+		// 	switch parsedData[i].Msg {
 		// 	case "n":
 		// 		membership.AddMember(parsedData[i].Node_id, parsedData[i].Node_id)
 		// 		// membership.PrintMembershipList()
 		// 		utility.LogMessage("New member added to Membership list, hostname :" + parsedData[i].Node_id + ", and member_id: " + parsedData[i].Node_id)
-		// 		membership.WriteToBuffer(parsedData[i].ID, parsedData[i].Node_id)
+		// 		membership.WriteToBuffer(parsedData[i].Msg, parsedData[i].Node_id)
 		// 		continue
 		// 	case "f":
 		// 		// if membership.IsMember(hostname){     //ADD CHECKKKKKKKKKKK
@@ -262,7 +286,7 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 		// 		membership.DeleteMember(parsedData[i].Node_id)
 		// 		utility.LogMessage("Deleted member added to Membership list, :" + parsedData[i].Node_id)
 		// 		// membership.PrintMembershipList()
-		// 		membership.WriteToBuffer(parsedData[i].ID, parsedData[i].Node_id)
+		// 		membership.WriteToBuffer(parsedData[i].Msg, parsedData[i].Node_id)
 		// 		continue
 
 		// 	}

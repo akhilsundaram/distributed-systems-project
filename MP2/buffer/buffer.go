@@ -14,7 +14,8 @@ type BufferData struct {
 }
 
 var shared_buffer = map[string]BufferData{} //Key is hostname
-var bufferLock sync.Mutex
+var bufferLock sync.RWMutex
+var maxTimesSent = 4
 
 func WriteToBuffer(Message, Node_id, Hostname string) {
 	bufferLock.Lock()
@@ -118,5 +119,26 @@ func compareTimeStamps(timestamp1, timestamp2 string) int {
 		return 1
 	} else {
 		return 2
+	}
+}
+
+func GetBuffer() map[string]BufferData {
+	bufferLock.RLock()
+	defer bufferLock.RUnlock()
+
+	return shared_buffer
+}
+
+func UpdateBufferGossipCount() {
+	bufferLock.Lock()
+	defer bufferLock.Unlock()
+	var toDelete []string
+
+	for key, data := range shared_buffer {
+		data.TimesSent++
+		shared_buffer[key] = data
+		if data.TimesSent >= maxTimesSent {
+			toDelete = append(toDelete, key)
+		}
 	}
 }
