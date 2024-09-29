@@ -99,7 +99,7 @@ func Sender(suspect bool) {
 		for _, host := range randomizeHostArray {
 			if membership.IsMember(host) && !(my_hostname == host) {
 				sendUDPRequest(host)
-				time.Sleep(5 * time.Millisecond)
+				time.Sleep(50 * time.Millisecond)
 			}
 		}
 		time.Sleep(2 * time.Second)
