@@ -93,7 +93,7 @@ func main() {
 			}
 			switch cmd {
 			case "list_self":
-				fmt.Println("This Node's ID is : ")
+				fmt.Println("Current Node ID is : ", membership.GetMemberID(hostname))
 			case "list_mem":
 				fmt.Println("Current Membership list is : ")
 				membership.PrintMembershipListStdOut()
