@@ -310,9 +310,10 @@ func stateTransitionOnTimeout(hostname string, node_id string) {
 func DeclareSuspicion(hostname string, node_id string) error {
 	// Only time our ping/ server ever reqs sus data.
 	// Declares aftertimer to handle states internally. Maybe even callable from the Handler
-	fmt.Printf("Marked %s as suspicious\n", hostname)
+
 	state, _ := membership.GetSuspicion(hostname)
 	if state == -2 || state == membership.Alive { //No suspicion exists, but host does
+		fmt.Printf("Marked %s as suspicious\n", hostname)
 		inc := membership.GetMemberIncarnation(hostname)
 		membership.UpdateSuspicion(hostname, membership.Suspicious)
 		time.AfterFunc(membership.SuspicionTimeout, func() { stateTransitionOnTimeout(hostname, node_id) })
