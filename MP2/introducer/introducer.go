@@ -57,7 +57,7 @@ func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
 	// Read incoming data
-	buffer := make([]byte, 1024)
+	buffer := make([]byte, 4096)
 	n, err := conn.Read(buffer)
 	serverAddr := conn.RemoteAddr().String()
 
@@ -160,7 +160,7 @@ func InitiateIntroducerRequest(hostname, port, node_id string) {
 	utility.LogMessage("Sent message to introducer: " + string(requestData))
 
 	// Wait for response
-	buffer := make([]byte, 1024)
+	buffer := make([]byte, 4096)
 	n, err := conn.Read(buffer)
 	if err != nil {
 		utility.LogMessage("Error reading response: " + err.Error())

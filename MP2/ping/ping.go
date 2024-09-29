@@ -40,7 +40,7 @@ func Listener() {
 	}
 	defer conn.Close()
 
-	buf := make([]byte, 1024)
+	buf := make([]byte, 4096)
 
 	for {
 		n, remoteAddr, err := conn.ReadFromUDP(buf) // Accept blocks conn, go routine to process the message
@@ -144,7 +144,7 @@ func sendUDPRequest(host string, self_name string) {
 	}
 
 	// Read the response
-	response := make([]byte, 1024)
+	response := make([]byte, 4096)
 	n, err := conn.Read(response)
 	if err != nil {
 		node_id := membership.GetMemberID(host)
