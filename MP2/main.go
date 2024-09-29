@@ -108,15 +108,7 @@ func main() {
 }
 
 func ContinouslySendPings() {
-	var mu sync.Mutex
-	var counter int
-
-	for {
-		mu.Lock()
-		counter += 1
-		mu.Unlock()
-		ping_count = counter
-		// pingpong.SendPing(status_sus, ping_count)
-		ping.Sender(status_sus, ping_count)
-	}
+	// pingpong.SendPing(status_sus, ping_count)
+	ping.Sender(status_sus)
+	// time.Sleep(300 * time.Millisecond)
 }

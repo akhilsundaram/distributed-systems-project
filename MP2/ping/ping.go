@@ -72,7 +72,7 @@ func HandleIncomingConnectionData(conn *net.UDPConn, addr *net.UDPAddr, data []b
 
 }
 
-func Sender(suspect bool, ping_id int) {
+func Sender(suspect bool) {
 	// store the 10 vms in a array
 	hostArray := []string{
 		"fa24-cs425-5901.cs.illinois.edu",
@@ -86,23 +86,25 @@ func Sender(suspect bool, ping_id int) {
 		"fa24-cs425-5909.cs.illinois.edu",
 		"fa24-cs425-5910.cs.illinois.edu",
 	}
-	// randomize the order of vms to send the pings to
-	randomizeHostArray := shuffleStringArray(hostArray)
 
-	//My hostname
-	my_hostname, e := os.Hostname()
-	if e != nil {
-		utility.LogMessage("os host name failed")
-	}
+	for {
+		// randomize the order of vms to send the pings to
+		randomizeHostArray := shuffleStringArray(hostArray)
 
-	for _, host := range randomizeHostArray {
-		if membership.IsMember(host) && !(my_hostname == host) {
-			sendUDPRequest(host)
-			// time.Sleep(300 * time.Millisecond)
+		//My hostname
+		my_hostname, e := os.Hostname()
+		if e != nil {
+			utility.LogMessage("os host name failed")
 		}
 
+		for _, host := range randomizeHostArray {
+			if membership.IsMember(host) && !(my_hostname == host) {
+				sendUDPRequest(host)
+				time.Sleep(300 * time.Millisecond)
+			}
+		}
+		time.Sleep(300 * time.Millisecond)
 	}
-
 }
 
 func sendUDPRequest(host string) {
@@ -133,7 +135,7 @@ func sendUDPRequest(host string) {
 	}
 
 	// Set a timeout for receiving the response
-	err = conn.SetReadDeadline(time.Now().Add(1000 * time.Millisecond))
+	err = conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
 	if err != nil {
 		utility.LogMessage("error setting read deadline: " + err.Error())
 	}
