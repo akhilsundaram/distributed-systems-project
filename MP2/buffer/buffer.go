@@ -24,9 +24,10 @@ func WriteToBuffer(Message, Node_id, Hostname string, incarnation_number ...int)
 	bufferLock.Lock()
 	defer bufferLock.Unlock()
 	bval := BufferData{
-		Message:   Message,
-		Node_id:   Node_id,
-		TimesSent: 0,
+		Message:           Message,
+		Node_id:           Node_id,
+		TimesSent:         0,
+		IncarnationNumber: incarnation_number[0],
 	}
 
 	if _, ok := shared_buffer[Hostname]; ok {
@@ -53,20 +54,21 @@ func WriteToBuffer(Message, Node_id, Hostname string, incarnation_number ...int)
 			// Check message type and priority
 			// Node id 1 == node id 2
 			if membership.SuspicionEnabled {
-				if shared_buffer[Hostname].IncarnationNumber < incarnation_number[0] {
-					shared_buffer[Hostname] = bval
-					return // TODO TODO TODO TODO REWORKKKKKKKKK   - CASE A - check Faulty priority
-				}
 				state, _ := membership.GetSuspicion(Hostname)
 				switch Message {
 				case "f":
 					shared_buffer[Hostname] = bval
 				case "s":
-					if (state == -2) || (state == membership.Alive) { // if member exists or is in alive state
+					if (state == membership.Alive) && incarnation_number[0] >= shared_buffer[Hostname].IncarnationNumber {
+						shared_buffer[Hostname] = bval
+					} else if state == -2 { // if member exists & 0 sus so far
+						shared_buffer[Hostname] = bval
+					} else if (state == membership.Suspicious) && (incarnation_number[0] > shared_buffer[Hostname].IncarnationNumber) {
 						shared_buffer[Hostname] = bval
 					}
+
 				case "a":
-					if state != membership.Faulty { //Unless the current disemination is Faulty-confirm, alive >>
+					if incarnation_number[0] > shared_buffer[Hostname].IncarnationNumber { //Unless the current disemination is Faulty-confirm, alive >>
 						shared_buffer[Hostname] = bval
 					}
 

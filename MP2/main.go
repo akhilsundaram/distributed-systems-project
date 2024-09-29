@@ -34,6 +34,7 @@ func main() {
 		fmt.Println("Error:", err)
 		return
 	}
+	membership.My_hostname = hostname
 	utility.LogMessage("Starting execution on host:" + hostname)
 
 	node_id := "0"
