@@ -102,6 +102,7 @@ func Sender(suspect bool) {
 				time.Sleep(5 * time.Millisecond)
 			}
 		}
+		time.Sleep(2 * time.Second)
 
 	}
 }
