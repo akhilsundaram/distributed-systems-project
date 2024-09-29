@@ -113,9 +113,11 @@ func AddMember(node_id string) error {
 	return nil
 }
 
-func DeleteMember(hostname string) error {
+func DeleteMember(node_id string) error {
 	memLock.Lock()
 	defer memLock.Unlock()
+
+	hostname := GetMemberHostname(node_id)
 
 	if _, ok := membership_list[hostname]; ok {
 		delete(membership_list, hostname)

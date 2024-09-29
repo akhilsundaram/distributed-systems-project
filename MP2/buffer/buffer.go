@@ -2,6 +2,7 @@ package buffer
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 	"sync"
 	"time"
@@ -126,7 +127,7 @@ func GetBuffer() map[string]BufferData {
 	bufferLock.RLock()
 	defer bufferLock.RUnlock()
 
-	return shared_buffer
+	return maps.Clone(shared_buffer)
 }
 
 func UpdateBufferGossipCount() {
@@ -140,5 +141,9 @@ func UpdateBufferGossipCount() {
 		if data.TimesSent >= maxTimesSent {
 			toDelete = append(toDelete, key)
 		}
+	}
+
+	for i := 0; i < len(toDelete); i++ {
+		delete(shared_buffer, toDelete[i])
 	}
 }

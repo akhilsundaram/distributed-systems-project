@@ -62,7 +62,6 @@ func HandleIncomingConnectionData(conn *net.UDPConn, addr *net.UDPAddr, data []b
 	// membership.PrintMembershipList()
 
 	// parse the incoming buffer in data, add it to your buffer
-
 	AddToNodeBuffer(data, addr.IP.String())
 
 	conn.SetWriteDeadline(time.Now().Add(120 * time.Millisecond))
@@ -163,62 +162,38 @@ func sendUDPRequest(host string) {
 		} else {
 			utility.LogMessage("Error reading response from " + host + ": " + err.Error())
 		}
+	} else {
+		//IF PING / RESPONSE RECEIVED
+		AddToNodeBuffer(response[:n], host)
 	}
-
-	//IF PING / RESPONSE RECEIVED
-	AddToNodeBuffer(response[:n], host)
 
 }
 
 func BufferSent() []byte {
+	//Get Buffer
 	buff := buffer.GetBuffer()
-	var buffArray []InputData
+
 	//Append Ping
-	pingBuff := InputData{
-		Msg:      "ping",
-		Node_id:  "",
-		Hostname: "",
+	buffArray := buffer.BufferData{
+		Message: "ping",
+		Node_id: "-1",
+	}
+	buff["MP2"] = buffArray
+
+	//to bytes
+	output, err := json.Marshal(buff)
+	if err != nil {
+		utility.LogMessage("err in marshalling mpap to bytes - send ping - " + err.Error())
 	}
 
-	// //Array to be sent
-	// buffArray = append(buffArray, pingBuff)
-
-	// //For every buffer element, append to array
-	// for i := 0; i < len(buff); i++ {
-	// 	tp_io := InputData{}
-	// 	err := json.Unmarshal(buff[i].Data, &tp_io)
-	// 	if err == nil {
-	// 		buffArray = append(buffArray, tp_io)
-	// 	}
-	// }
-
-	if len(buff) == 0 {
-        // If empty, just append the pingBuff
-        buffArray = append(buffArray, pingBuff)
-    } else {
-        // If not empty, process the contents of buff
-        for key, data := range buff {
-            var tp_io InputData
-            err := json.Unmarshal(buff, &tp_io)
-            if err == nil {
-                buffArray = append(buffArray, tp_io)
-            } else {
-                utility.LogMessage("Error unmarshalling buffer data: " + err.Error())
-            }
-        }
-    }
-
+	//update gossip after
 	buffer.UpdateBufferGossipCount()
 
-	output, err := json.Marshal(buffArray)
-	if err != nil {
-		utility.LogMessage("another error for marshall - send ping - " + err.Error())
-	}
 	return output
 }
 
 func AddToNodeBuffer(data []byte, remoteAddr string) {
-	var parsedData []InputData
+	var parsedData map[string]buffer.BufferData
 	jsonErr := json.Unmarshal(data, &parsedData)
 	if jsonErr != nil {
 		utility.LogMessage("Error parsing JSON: " + jsonErr.Error())
@@ -229,25 +204,23 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 	// Process the ping data here
 
 	// directly check each key value pair for parsedData, and send it to WriteBuffer
-	for i := 0; i < len(parsedData); i++ {
-
-		hostname := membership.GetMemberHostname(parsedData[i].Node_id)
+	for hostname, buffData := range parsedData {
 		if !membership.IsMember(hostname) {
 			// member does not exist and buffer data for it not a new join.
-			if parsedData[i].Msg != "n" {
+			if buffData.Message != "n" {
 				continue
 			}
 		}
-		switch parsedData[i].Msg {
+		switch buffData.Message {
 		case "ping":
 			continue
 		case "f":
-			membership.DeleteMember(parsedData[i].Node_id)
-			buffer.WriteToBuffer("f", parsedData[i].Node_id, remoteAddr)
+			membership.DeleteMember(buffData.Node_id)
+			buffer.WriteToBuffer("f", buffData.Node_id, remoteAddr)
 			continue
 		case "n":
-			membership.AddMember(parsedData[i].Node_id)
-			buffer.WriteToBuffer("n", parsedData[i].Node_id, remoteAddr)
+			membership.AddMember(buffData.Node_id)
+			buffer.WriteToBuffer("n", buffData.Node_id, remoteAddr)
 			continue
 		default:
 			continue
