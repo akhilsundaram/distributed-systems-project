@@ -226,7 +226,7 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 				buffer.WriteToBuffer("n", buffData.Node_id, hostname)
 				continue
 			case "sus":
-				if !membership.SuspicionEnabled{
+				if !membership.SuspicionEnabled {
 					membership.SuspicionEnabled = true
 					buffer.WriteToBuffer("sus", buffData.Node_id, hostname)
 				}
@@ -245,7 +245,7 @@ func SuspicionHandler(Message, Node_id, hostname string, incarnation int) {
 	case "ping":
 		return
 	case "nsus":
-		if membership.SuspicionEnabled{
+		if membership.SuspicionEnabled {
 			membership.SuspicionEnabled = false
 			buffer.WriteToBuffer("nsus", Node_id, hostname, incarnation)
 		}
@@ -264,7 +264,9 @@ func SuspicionHandler(Message, Node_id, hostname string, incarnation int) {
 		inc := membership.GetMemberIncarnation(hostname)
 		sus_state, _ := membership.GetSuspicion(hostname)
 		if membership.My_hostname == hostname {
+			utility.LogMessage("SELF SUSSED OUT!! Send Alive")
 			if inc == incarnation {
+				utility.LogMessage("Incarnation matches, will def add alive and increase inc")
 				membership.UpdateSuspicion(hostname, membership.Alive)
 				membership.SetMemberIncarnation(hostname)
 				buffer.WriteToBuffer("a", Node_id, hostname, inc+1)
