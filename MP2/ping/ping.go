@@ -264,7 +264,7 @@ func SuspicionHandler(Message, Node_id, hostname string, incarnation int) {
 				membership.UpdateSuspicion(hostname, membership.Suspicious)
 				membership.SetMemberIncarnation(hostname, incarnation)
 				buffer.WriteToBuffer("s", Node_id, hostname, incarnation)
-				fmt.Printf("Marked %s as suspicious\n", hostname)
+				fmt.Printf("Host %s with MemmberID %s as suspicious\n", hostname, Node_id)
 				time.AfterFunc(membership.SuspicionTimeout, func() { stateTransitionOnTimeout(hostname, Node_id) })
 			}
 			if sus_state == membership.Suspicious {
@@ -340,7 +340,7 @@ func shuffleStringArray(arr []string) []string {
 }
 
 func checkRandomDrop(numPassed int) bool {
-    randomNumber := rand.Intn(101)
-    //fmt.Printf("Generated random number: %d\n", randomNumber)  // Added for testing
-    return randomNumber <= numPassed
+	randomNumber := rand.Intn(101)
+	//fmt.Printf("Generated random number: %d\n", randomNumber)  // Added for testing
+	return randomNumber <= numPassed
 }
