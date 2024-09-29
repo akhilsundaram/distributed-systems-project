@@ -52,7 +52,7 @@ func main() {
 		// by now hoping that we have updated membership list
 	}
 
-	time.Sleep(time.Second * 2)
+	// time.Sleep(time.Second * 2)
 
 	// starting ping listener on every node
 	// go pingpong.PingAck()
