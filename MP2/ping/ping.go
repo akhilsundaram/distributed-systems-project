@@ -64,7 +64,7 @@ func HandleIncomingConnectionData(conn *net.UDPConn, addr *net.UDPAddr, data []b
 	// parse the incoming buffer in data, add it to your buffer
 	AddToNodeBuffer(data, addr.IP.String())
 
-	conn.SetWriteDeadline(time.Now().Add(120 * time.Millisecond))
+	conn.SetWriteDeadline(time.Now().Add(1200 * time.Millisecond))
 	// Send the request
 	_, err := conn.WriteToUDP(bufferData, addr)
 	if err != nil {
@@ -152,6 +152,7 @@ func sendUDPRequest(host string) {
 				suspicion.DeclareSuspicion(host)
 			} else {
 				node_id, err := membership.GetMemberID(host)
+				utility.LogMessage("Reached here && Hostname :" + host)
 				if err != nil {
 					membership.DeleteMember(host)
 					buffer.WriteToBuffer("f", node_id, host)
