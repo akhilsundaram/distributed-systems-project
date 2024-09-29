@@ -102,7 +102,7 @@ func Sender(suspect bool) {
 				time.Sleep(300 * time.Millisecond)
 			}
 		}
-		time.Sleep(300 * time.Millisecond)
+
 	}
 }
 
@@ -141,10 +141,10 @@ func sendUDPRequest(host string) {
 
 	// Read the response
 	response := make([]byte, 1024)
-	n, _, err := conn.ReadFromUDP(response)
+	n, err := conn.Read(response)
+	time.Sleep(300 * time.Millisecond)
 	if err != nil {
 		node_id := membership.GetMemberID(host)
-		utility.LogMessage("Reached here && Hostname :" + host)
 		if node_id != "-1" {
 			membership.DeleteMember(node_id, host)
 			buffer.WriteToBuffer("f", node_id, host)
