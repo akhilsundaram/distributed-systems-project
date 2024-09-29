@@ -110,8 +110,6 @@ func sendUDPRequest(host string) {
 	//Data to be sent along with conn
 	nodeBuffer := BufferSent()
 
-	utility.LogMessage("SEND UDP CALLED FOR " + host + " at - " + time.Now().GoString())
-
 	ipAddr := utility.GetIPAddr(host)
 
 	serverAddr, err := net.ResolveUDPAddr("udp", ipAddr.String()+":"+port)
@@ -135,7 +133,7 @@ func sendUDPRequest(host string) {
 	}
 
 	// Set a timeout for receiving the response
-	err = conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+	err = conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 	if err != nil {
 		utility.LogMessage("error setting read deadline: " + err.Error())
 	}
