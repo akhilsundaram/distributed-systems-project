@@ -63,7 +63,6 @@ func HandleIncomingConnectionData(conn *net.UDPConn, addr *net.UDPAddr, data []b
 	// parse the incoming buffer in data, add it to your buffer
 	AddToNodeBuffer(data, addr.IP.String())
 
-	conn.SetWriteDeadline(time.Now().Add(1200 * time.Millisecond))
 	// Send the request
 	_, err := conn.WriteToUDP(bufferData, addr)
 	if err != nil {
@@ -120,7 +119,7 @@ func sendUDPRequest(host string) {
 		return
 	}
 
-	conn, err := net.ListenUDP("udp", serverAddr)
+	conn, err := net.DialUDP("udp", nil, serverAddr)
 	if err != nil {
 		utility.LogMessage("Error in connection to " + host + ": " + err.Error())
 		return
