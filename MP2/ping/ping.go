@@ -60,14 +60,14 @@ func HandleIncomingConnectionData(conn *net.UDPConn, addr *net.UDPAddr, data []b
 	// utility.LogMessage(string(data) + ":  " + addr.String())
 	// membership.PrintMembershipList()
 
-	// parse the incoming buffer in data, add it to your buffer
-	AddToNodeBuffer(data, addr.IP.String())
-
 	// Send the request
 	_, err := conn.WriteToUDP(bufferData, addr)
 	if err != nil {
 		utility.LogMessage("error sending UDP request: " + err.Error())
 	}
+
+	// parse the incoming buffer in data, add it to your buffer
+	AddToNodeBuffer(data, addr.IP.String())
 
 }
 
