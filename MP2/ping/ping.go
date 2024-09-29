@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"failure_detection/buffer"
 	"failure_detection/membership"
+	"failure_detection/suspicion"
 	"failure_detection/utility"
 	"math/rand"
 	"net"
@@ -201,20 +202,24 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 				continue
 			}
 		}
-		switch buffData.Message {
-		case "ping":
-			continue
-		case "f":
-			utility.LogMessage("Fail signal seen in buffer for hostname " + hostname)
-			membership.DeleteMember(buffData.Node_id, hostname)
-			buffer.WriteToBuffer("f", buffData.Node_id, hostname)
-			continue
-		case "n":
-			membership.AddMember(buffData.Node_id, hostname)
-			buffer.WriteToBuffer("n", buffData.Node_id, hostname)
-			continue
-		default:
-			continue
+		if membership.SuspicionEnabled {
+			suspicion.SuspicionHandler(buffData.Message, buffData.Node_id, hostname) // Same kind of Switch statements but in SUS Handler
+		} else {
+			switch buffData.Message {
+			case "ping":
+				continue
+			case "f":
+				utility.LogMessage("Fail signal seen in buffer for hostname " + hostname)
+				membership.DeleteMember(buffData.Node_id, hostname)
+				buffer.WriteToBuffer("f", buffData.Node_id, hostname)
+				continue
+			case "n":
+				membership.AddMember(buffData.Node_id, hostname)
+				buffer.WriteToBuffer("n", buffData.Node_id, hostname)
+				continue
+			default:
+				continue
+			}
 		}
 
 	}

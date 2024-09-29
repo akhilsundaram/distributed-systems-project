@@ -1,6 +1,7 @@
 package suspicion
 
 import (
+	"failure_detection/buffer"
 	"failure_detection/membership"
 	"failure_detection/utility"
 	"fmt"
@@ -8,24 +9,24 @@ import (
 )
 
 var (
-	suspicionTimeout = time.Microsecond * 10
-	faultyTimeout    = time.Microsecond * 10
+	suspicionTimeout = time.Millisecond * 200
 	Enabled          = false
 )
 
 // Handles all incoming suspicion messages
-func SuspicionHandler(key string, value string) {
-	switch key {
+func SuspicionHandler(Message, Node_id, hostname string) {
+	switch Message {
 	case "f":
-		membership.UpdateSuspicion(value, membership.Faulty)
-		time.AfterFunc(faultyTimeout, func() { stateTransitionOnTimeout(value) })
+		membership.UpdateSuspicion(hostname, membership.Faulty)
+		membership.DeleteMember(Node_id, hostname)
+		buffer.WriteToBuffer("f", Node_id, hostname)
 		return
 	case "s":
-		membership.UpdateSuspicion(value, membership.Suspicious)
-		time.AfterFunc(suspicionTimeout, func() { stateTransitionOnTimeout(value) })
+		membership.UpdateSuspicion(hostname, membership.Suspicious)
+		time.AfterFunc(suspicionTimeout, func() { stateTransitionOnTimeout(hostname) })
 		return
 	case "a":
-		membership.UpdateSuspicion(value, membership.Alive)
+		membership.UpdateSuspicion(hostname, membership.Alive)
 		// time.AfterFunc(suspicionTimeout, func() { stateTransitionOnTimeout(hostname) })
 		return
 	default:
@@ -45,12 +46,12 @@ func DeclareSuspicion(hostname string) error {
 	// Declares aftertimer to handle states internally. Maybe even callable from the Handler
 	state, err := membership.GetSuspicion(hostname)
 	if err != nil {
-		if state == -2 {
+		if state == -1 {
 			utility.LogMessage("DeclareSuspicion error - " + err.Error())
 			return fmt.Errorf("DeclareSuspicion error - no member %s in membership list error", hostname)
 		}
 	}
-	if state == -1 || state == membership.Alive { //No suspicion exists, but host does
+	if state == -2 || state == membership.Alive { //No suspicion exists, but host does
 		membership.UpdateSuspicion(hostname, membership.Suspicious)
 		time.AfterFunc(suspicionTimeout, func() { stateTransitionOnTimeout(hostname) })
 		membership.WriteToBuffer("s", hostname) //Need to decide format for string/data output. Or handle it in membership ?

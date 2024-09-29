@@ -117,7 +117,7 @@ func main() {
 					fmt.Println("Suspicion is set to = ", suspicion.Enabled)
 				}
 			case "status_sus":
-				fmt.Println("Status of PingSus : ", suspicion.Enabled)
+				fmt.Println("Status of PingSus : ", membership.SuspicionEnabled)
 			case "sus_list":
 				fmt.Println("List of all nodes which are marked as Suspicious for the current node :")
 			default:
