@@ -20,6 +20,7 @@ var LOGGER_FILE = "/home/log/machine.log"
 
 type IntroducerData struct {
 	NodeID    string `json:"node_id"`
+	Hostname  string `json:"hostname"`
 	Timestamp string `json:"timestamp"`
 }
 
@@ -80,7 +81,7 @@ func handleConnection(conn net.Conn) {
 	utility.LogMessage("Received connection  from " + serverAddr + " - Node ID: " + nodeID + ", Timestamp: " + timestamp)
 
 	/* Add new node to membership list */
-	err = AddNewMember(serverAddr, nodeID, timestamp)
+	err = AddNewMember(serverAddr, nodeID, timestamp, parsedData.Hostname)
 	if err != nil {
 		utility.LogMessage("error from adding new member - " + err.Error())
 	}
@@ -99,7 +100,7 @@ func handleConnection(conn net.Conn) {
 
 }
 
-func AddNewMember(serverAddr, nodeID, timestamp string) error {
+func AddNewMember(serverAddr, nodeID, timestamp, hostname string) error {
 	// Add node to membership list and also add membership list to buffer, and send
 	// need a different buffer for this, or should we directly read membership buffer, append this data and send
 	// and write the entry in the buffer after this ? (to ensure the node gets data quickly)
@@ -107,17 +108,16 @@ func AddNewMember(serverAddr, nodeID, timestamp string) error {
 	// Add new node to membership list
 	serverAddr = strings.Split(serverAddr, ":")[0]
 	new_node_id := serverAddr + "_" + "9090" + "_" + nodeID + "_" + timestamp
-	new_hostname := serverAddr
 	// getHostname, err := net.LookupAddr(serverAddr)
 	// if err != nil {
 	// 	return fmt.Errorf("NewMemb error - getting hostname from ip due to - %v", err)
 	// } else {
 	// 	new_hostname = getHostname[0]
 	// }
-	membership.AddMember(new_node_id, new_hostname)
+	membership.AddMember(new_node_id, hostname)
 
 	//Add membership to buffer for dissemination
-	buffer.WriteToBuffer("n", new_node_id, new_hostname)
+	buffer.WriteToBuffer("n", new_node_id, hostname)
 
 	return nil // "Welcome, Machine " + new_hostname + "! Your version number is : " + nodeID + ". Your connection time was " + timestamp + ". Here's some config data: ...", nil
 }
@@ -125,10 +125,16 @@ func AddNewMember(serverAddr, nodeID, timestamp string) error {
 func InitiateIntroducerRequest(hostname, port, node_id string) {
 
 	//Go routine wait group
+	sender_hostname, err := os.Hostname()
+	if err != nil {
+		utility.LogMessage("Error: " + err.Error())
+		return
+	}
 
 	senderData := IntroducerData{
 		NodeID:    node_id,
 		Timestamp: time.Now().Format(time.RFC3339),
+		Hostname:  sender_hostname,
 	}
 
 	requestData, jsonErr := json.Marshal(senderData)
