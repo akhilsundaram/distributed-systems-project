@@ -101,6 +101,7 @@ func main() {
 			case "leave":
 				fmt.Println("Node xyz is leaving the membership list")
 <<<<<<< HEAD
+<<<<<<< HEAD
 			case "enable_sus":
 				curr_val := suspicion.Enabled
 				if curr_val {
@@ -118,11 +119,16 @@ func main() {
 					fmt.Println("Suspicion is set to = ", suspicion.Enabled)
 				}
 =======
+=======
+>>>>>>> 5f163316f566ccfbc2cf99ea19bb1b9c91b9aee0
 			case "toggle_sus":
 				curr_val := membership.SuspicionEnabled
 				fmt.Println("Current value of PingSus is : ", (curr_val), ", change it to ", (!curr_val))
 				membership.SuspicionEnabled = !membership.SuspicionEnabled
+<<<<<<< HEAD
 >>>>>>> cc6f5ed (SUSSY)
+=======
+>>>>>>> 5f163316f566ccfbc2cf99ea19bb1b9c91b9aee0
 			case "status_sus":
 				fmt.Println("Status of PingSus : ", membership.SuspicionEnabled)
 			case "sus_list":
