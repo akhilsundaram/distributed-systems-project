@@ -75,7 +75,8 @@ func main() {
 		fmt.Println("  list_self   - Display this node's ID")
 		fmt.Println("  list_mem    - Display current membership list")
 		fmt.Println("  leave       - Leave the membership list")
-		fmt.Println("  toggle_sus  - Toggle suspicion mode")
+		fmt.Println("  enable_sus  - enable suspicion mode")
+		fmt.Println("  disable_sus - disable suspicion mode")
 		fmt.Println("  status_sus  - Show status of suspicion mode")
 		fmt.Println("  sus_list    - List suspicious nodes")
 		fmt.Println("  exit        - Exit the program")
@@ -99,10 +100,22 @@ func main() {
 				membership.PrintMembershipListStdOut()
 			case "leave":
 				fmt.Println("Node xyz is leaving the membership list")
-			case "toggle_sus":
+			case "enable_sus":
 				curr_val := suspicion.Enabled
-				fmt.Println("Current value of PingSus is : ", (curr_val), ", change it to ", (!curr_val))
-				suspicion.Enabled = !suspicion.Enabled
+				if curr_val {
+					fmt.Println("Suspicion is already enabled !!! ")
+				} else {
+					suspicion.Enabled = true
+					fmt.Println("Suspicion is set to = ", suspicion.Enabled)
+				}
+			case "disable_sus":
+				curr_val := suspicion.Enabled
+				if !curr_val {
+					fmt.Println("Suspicion is already disabled !!! ")
+				} else {
+					suspicion.Enabled = false
+					fmt.Println("Suspicion is set to = ", suspicion.Enabled)
+				}
 			case "status_sus":
 				fmt.Println("Status of PingSus : ", suspicion.Enabled)
 			case "sus_list":
