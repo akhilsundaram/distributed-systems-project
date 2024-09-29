@@ -94,15 +94,7 @@ func handlePingAndSendAck(data []byte, remoteAddr string, c net.Conn) bool {
 		}
 
 		//Get hostname of value
-		hostname, err := membership.GetMemberHostname(parsedData[i].Piggyback)
-		if err != nil {
-			utility.LogMessage(err.Error())
-		} else if !membership.IsMember(hostname) {
-			// member does not exist and buffer data for it not a new join.
-			if parsedData[i].ID != "n" {
-				continue
-			}
-		}
+		hostname := membership.GetMemberHostname(parsedData[i].Piggyback)
 
 		//Do a check to see if in Buffer or not
 		buffer_value_bytes, err := json.Marshal(parsedData[i])
@@ -122,14 +114,12 @@ func handlePingAndSendAck(data []byte, remoteAddr string, c net.Conn) bool {
 			switch parsedData[i].ID {
 			case "n":
 				membership.AddMember(parsedData[i].Piggyback, hostname)
-				membership.WriteToBuffer(buffer_value_bytes)
+				
 				continue
 			case "f":
 				// if membership.IsMember(hostname){     //ADD CHECKKKKKKKKKKK
 				// 	parsedData[i].Piggyback
 				// }
-				membership.DeleteMember(parsedData[i].Piggyback)
-				membership.WriteToBuffer(buffer_value_bytes)
 				continue
 
 			}
