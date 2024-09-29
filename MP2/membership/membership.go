@@ -33,6 +33,8 @@ type Member struct {
 	IncarnationNumber int
 }
 
+var My_hostname string
+
 var (
 	// Shared membership data
 	membership_list = map[string]Member{}
@@ -42,6 +44,7 @@ var (
 	suspicion_table  = map[string]SuspicionState{}
 	susLock          sync.RWMutex
 	SuspicionEnabled = false
+	SuspicionTimeout = time.Second * 5
 
 	//Shared Buffer table
 	shared_buffer []BufferValue
@@ -91,13 +94,21 @@ func GetMemberIncarnation(hostname string) int {
 	}
 }
 
-func SetMemberIncarnation(hostname string) bool {
+func SetMemberIncarnation(hostname string, num ...int) bool {
 	memLock.Lock()
 	defer memLock.Unlock()
 
+	inc := 1
+
+	if len(num) > 0 {
+		inc = num[0]
+	} else {
+		inc = 1
+	}
+
 	if _, ok := membership_list[hostname]; ok {
 		tp := Member{
-			IncarnationNumber: membership_list[hostname].IncarnationNumber + 1,
+			IncarnationNumber: membership_list[hostname].IncarnationNumber + inc,
 			Node_id:           membership_list[hostname].Node_id,
 		}
 		membership_list[hostname] = tp
@@ -137,7 +148,7 @@ func AddMember(node_id string, hostname string) error {
 	} else {
 		//initialise new member
 		var new_member Member
-		new_member.IncarnationNumber = "0"
+		new_member.IncarnationNumber = 0
 		new_member.Node_id = node_id
 
 		//Add to map
@@ -172,7 +183,11 @@ func UpdateSuspicion(hostname string, state SuspicionState) {
 	susLock.Lock()
 	defer susLock.Unlock()
 
-	suspicion_table[hostname] = state
+	if state == Faulty {
+		delete(suspicion_table, hostname)
+	} else {
+		suspicion_table[hostname] = state
+	}
 }
 
 func GetSuspicion(hostname string) (SuspicionState, error) {
