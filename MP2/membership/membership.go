@@ -71,11 +71,11 @@ func IsMember(hostname string) bool {
 
 }
 
-func GetMemberID(hostname string) (string, error) {
+func GetMemberID(hostname string) string {
 	if _, ok := membership_list[hostname]; ok {
-		return membership_list[hostname].Node_id, nil
+		return membership_list[hostname].Node_id
 	} else {
-		return "", fmt.Errorf("no such member")
+		return "-1"
 	}
 }
 

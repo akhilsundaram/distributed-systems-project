@@ -151,14 +151,15 @@ func sendUDPRequest(host string) {
 			if suspicion.Enabled {
 				suspicion.DeclareSuspicion(host)
 			} else {
-				node_id, err := membership.GetMemberID(host)
+				node_id := membership.GetMemberID(host)
 				utility.LogMessage("Reached here && Hostname :" + host)
-				if err != nil {
+				if node_id != "-1" {
 					membership.DeleteMember(host)
 					buffer.WriteToBuffer("f", node_id, host)
 					utility.LogMessage(" node declares ping timeout & deleted host - " + host)
+				} else {
+					membership.PrintMembershipList()
 				}
-				utility.LogMessage("SOME ERROR - " + err.Error())
 
 			}
 		} else {
