@@ -225,6 +225,12 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 				membership.AddMember(buffData.Node_id, hostname)
 				buffer.WriteToBuffer("n", buffData.Node_id, hostname)
 				continue
+			case "sus":
+				if !membership.SuspicionEnabled{
+					membership.SuspicionEnabled = true
+					buffer.WriteToBuffer("sus", buffData.Node_id, hostname)
+				}
+				continue
 			default:
 				continue
 			}
@@ -237,6 +243,12 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 func SuspicionHandler(Message, Node_id, hostname string, incarnation int) {
 	switch Message {
 	case "ping":
+		return
+	case "nsus":
+		if membership.SuspicionEnabled{
+			membership.SuspicionEnabled = false
+			buffer.WriteToBuffer("nsus", Node_id, hostname, incarnation)
+		}
 		return
 	case "n":
 		membership.AddMember(Node_id, hostname)

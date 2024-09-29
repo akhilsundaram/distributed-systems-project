@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"failure_detection/membership"
-	"failure_detection/suspicion"
 	"failure_detection/utility"
 	"math/rand"
 	"net"
@@ -106,15 +105,15 @@ func handlePingAndSendAck(data []byte, remoteAddr string, c net.Conn) bool {
 			continue
 		}
 
-		if suspicion.Enabled {
-			suspicion.SuspicionHandler(parsedData[i].ID, parsedData[i].Piggyback)
+		if membership.SuspicionEnabled {
+			//
 		} else {
 			// if membership.BufferMap[parsedData[i]] // check here
 
 			switch parsedData[i].ID {
 			case "n":
 				membership.AddMember(parsedData[i].Piggyback, hostname)
-				
+
 				continue
 			case "f":
 				// if membership.IsMember(hostname){     //ADD CHECKKKKKKKKKKK
@@ -251,9 +250,6 @@ func sendUDPRequest(host string, requestData []byte) {
 
 			// Either mark node as FAIL or raise Suspicion message
 
-			if suspicion.Enabled {
-				suspicion.DeclareSuspicion(host)
-			}
 		} else {
 			utility.LogMessage("Error reading response from " + host + ": " + err.Error())
 		}
