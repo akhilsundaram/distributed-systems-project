@@ -79,6 +79,7 @@ func WriteToBuffer(Message, Node_id, Hostname string, incarnation_number ...int)
 						shared_buffer[Hostname] = bval
 					}
 					utility.LogMessage("NONEEE ?")
+					fmt.Printf("\n %d %d %d %s \n", incarnation_number[0], shared_buffer[Hostname].IncarnationNumber, state, Hostname)
 
 				case "a":
 					if incarnation_number[0] > shared_buffer[Hostname].IncarnationNumber { //Unless the current disemination is Faulty-confirm, alive >>
