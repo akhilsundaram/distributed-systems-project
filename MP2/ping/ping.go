@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -17,6 +18,7 @@ const (
 	timeout = 10 * time.Millisecond
 )
 
+var totalBytesReceived int64
 var LOGGER_FILE = "/home/log/machine.log"
 
 type InputData struct {
@@ -41,6 +43,7 @@ func Listener() {
 	defer conn.Close()
 
 	buf := make([]byte, 4096)
+	go printTotalBytes()
 
 	for {
 		n, remoteAddr, err := conn.ReadFromUDP(buf) // Accept blocks conn, go routine to process the message
@@ -58,6 +61,7 @@ func Listener() {
 func HandleIncomingConnectionData(conn *net.UDPConn, addr *net.UDPAddr, data []byte) {
 	// buffer to send
 	bufferData := BufferSent()
+	totalBytesReceived += int64(len(data))
 	// utility.LogMessage(string(data) + ":  " + addr.String())
 	// membership.PrintMembershipList()
 
@@ -173,7 +177,7 @@ func BufferSent() []byte {
 	buff := buffer.GetBuffer()
 
 	sus_status := ""
-	if membership.SuspicionEnabled{
+	if membership.SuspicionEnabled {
 		sus_status = "y"
 	} else {
 		sus_status = "n"
@@ -221,7 +225,7 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 		} else {
 			switch buffData.Message {
 			case "ping":
-				if buffData.Node_id == "y"{
+				if buffData.Node_id == "y" {
 					membership.SuspicionEnabled = true
 				} else {
 					membership.SuspicionEnabled = false
@@ -248,7 +252,7 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 func SuspicionHandler(Message, Node_id, hostname string, incarnation int) {
 	switch Message {
 	case "ping":
-		if Node_id == "yes"{
+		if Node_id == "yes" {
 			membership.SuspicionEnabled = true
 		} else {
 			membership.SuspicionEnabled = false
@@ -360,4 +364,16 @@ func checkRandomDrop(numPassed int) bool {
 	randomNumber := rand.Intn(101)
 	//fmt.Printf("Generated random number: %d\n", randomNumber)  // Added for testing
 	return randomNumber <= numPassed
+}
+
+func printTotalBytes() {
+	for {
+		time.Sleep(10 * time.Second)
+		totalBytesString := strconv.FormatInt(totalBytesReceived, 10)
+		averageBytesPerSecond := float64(totalBytesReceived) / 10.0
+		averageBytesPerSecondString := strconv.FormatFloat(averageBytesPerSecond, 'f', 2, 64)
+		utility.LogMessage("Total bytes received in last 10 seconds: %d\n" + totalBytesString)
+		utility.LogMessage("Average bandwidth: " + averageBytesPerSecondString + " bytes/second")
+		totalBytesReceived = 0
+	}
 }
