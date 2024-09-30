@@ -319,6 +319,7 @@ func stateTransitionOnTimeout(hostname string, node_id string) {
 	state, _ := membership.GetSuspicion(hostname)
 	incarnation := membership.GetMemberIncarnation(hostname)
 	if state == membership.Suspicious {
+		utility.LogMessage("Member? " + hostname + " to be deleted because it didnt reply to ping from " + membership.My_hostname)
 		membership.UpdateSuspicion(hostname, membership.Faulty)
 		membership.DeleteMember(node_id, hostname)
 		buffer.WriteToBuffer("f", node_id, hostname, incarnation)
