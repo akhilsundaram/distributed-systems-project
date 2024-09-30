@@ -57,7 +57,7 @@ func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
 	// Read incoming data
-	buffer := make([]byte, 1024)
+	buffer := make([]byte, 4096)
 	n, err := conn.Read(buffer)
 	serverAddr := conn.RemoteAddr().String()
 
@@ -86,7 +86,15 @@ func handleConnection(conn net.Conn) {
 		utility.LogMessage("error from adding new member - " + err.Error())
 	}
 
-	json_bytes_membership_list, err := json.Marshal(membership.GetMembershipList())
+	memList := membership.GetMembershipList()
+
+	if membership.SuspicionEnabled {
+		memList["EnableSus"] = membership.Member{
+			IncarnationNumber: -1,
+		}
+	}
+
+	json_bytes_membership_list, err := json.Marshal(memList)
 	if err != nil {
 		utility.LogMessage("error handleconnection: converting membership list - " + err.Error())
 	}
@@ -160,7 +168,7 @@ func InitiateIntroducerRequest(hostname, port, node_id string) {
 	utility.LogMessage("Sent message to introducer: " + string(requestData))
 
 	// Wait for response
-	buffer := make([]byte, 1024)
+	buffer := make([]byte, 4096)
 	n, err := conn.Read(buffer)
 	if err != nil {
 		utility.LogMessage("Error reading response: " + err.Error())
@@ -178,7 +186,11 @@ func InitiateIntroducerRequest(hostname, port, node_id string) {
 
 	for host_name, value := range membershipList {
 		// utility.LogMessage("Printing key value of membershipList : " + keys[i])
-		membership.AddMember(value.Node_id, host_name)
+		if host_name == "EnableSus" {
+			membership.SuspicionEnabled = true
+		} else {
+			membership.AddMember(value.Node_id, host_name)
+		}
 	}
 	utility.LogMessage("Printing membership list recieved from machine 1")
 	membership.PrintMembershipList()

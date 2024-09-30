@@ -1,6 +1,7 @@
 package buffer
 
 import (
+	"failure_detection/membership"
 	"fmt"
 	"maps"
 	"strings"
@@ -9,22 +10,32 @@ import (
 )
 
 type BufferData struct {
-	Message   string
-	Node_id   string
-	TimesSent int
+	Message           string
+	Node_id           string
+	TimesSent         int
+	IncarnationNumber int
 }
 
 var shared_buffer = map[string]BufferData{} //Key is hostname
 var bufferLock sync.RWMutex
 var maxTimesSent = 4
 
-func WriteToBuffer(Message, Node_id, Hostname string) {
+func WriteToBuffer(Message, Node_id, Hostname string, incarnation_number ...int) {
 	bufferLock.Lock()
 	defer bufferLock.Unlock()
+
 	bval := BufferData{
 		Message:   Message,
 		Node_id:   Node_id,
 		TimesSent: 0,
+	}
+	if len(incarnation_number) > 0 {
+		bval = BufferData{
+			Message:           Message,
+			Node_id:           Node_id,
+			TimesSent:         0,
+			IncarnationNumber: incarnation_number[0],
+		}
 	}
 
 	if _, ok := shared_buffer[Hostname]; ok {
@@ -50,19 +61,51 @@ func WriteToBuffer(Message, Node_id, Hostname string) {
 		} else {
 			// Check message type and priority
 			// Node id 1 == node id 2
-			switch Message {
-			case "f":
-				// fail always gets priority
-				shared_buffer[Hostname] = bval
-			case "n":
-				// new node
-				if shared_buffer[Hostname].Message == "n" {
-					// new node join gets priority
+			if membership.SuspicionEnabled {
+				state, _ := membership.GetSuspicion(Hostname)
+				switch Message {
+				case "f":
 					shared_buffer[Hostname] = bval
+				case "s":
+					if (state == membership.Alive) && incarnation_number[0] >= shared_buffer[Hostname].IncarnationNumber {
+						shared_buffer[Hostname] = bval
+					} else if state == -2 { // if member exists & 0 sus so far
+						shared_buffer[Hostname] = bval
+					} else if (state == membership.Suspicious) && (incarnation_number[0] > shared_buffer[Hostname].IncarnationNumber) {
+						shared_buffer[Hostname] = bval
+					}
+
+				case "a":
+					if incarnation_number[0] > shared_buffer[Hostname].IncarnationNumber { //Unless the current disemination is Faulty-confirm, alive >>
+						shared_buffer[Hostname] = bval
+					}
+
+				case "n":
+					if shared_buffer[Hostname].Message == "n" {
+						// new node join gets no priority over other messages
+						shared_buffer[Hostname] = bval
+					}
+				case "ping":
+					//default
+					break
+
 				}
-			case "ping":
-				// default, dont do anything.
-				break
+
+			} else {
+				switch Message {
+				case "f":
+					// fail always gets priority
+					shared_buffer[Hostname] = bval
+				case "n":
+					// new node
+					if shared_buffer[Hostname].Message == "n" {
+						// new node join gets priority
+						shared_buffer[Hostname] = bval
+					}
+				case "ping":
+					// default, dont do anything.
+					break
+				}
 			}
 
 		}

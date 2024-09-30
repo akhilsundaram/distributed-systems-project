@@ -5,7 +5,6 @@ import (
 	"failure_detection/introducer"
 	"failure_detection/membership"
 	"failure_detection/ping"
-	"failure_detection/suspicion"
 	"failure_detection/utility"
 	"fmt"
 	"os"
@@ -35,6 +34,7 @@ func main() {
 		fmt.Println("Error:", err)
 		return
 	}
+	membership.My_hostname = hostname
 	utility.LogMessage("Starting execution on host:" + hostname)
 
 	node_id := "0"
@@ -101,23 +101,23 @@ func main() {
 			case "leave":
 				fmt.Println("Node xyz is leaving the membership list")
 			case "enable_sus":
-				curr_val := suspicion.Enabled
+				curr_val := membership.SuspicionEnabled
 				if curr_val {
 					fmt.Println("Suspicion is already enabled !!! ")
 				} else {
-					suspicion.Enabled = true
-					fmt.Println("Suspicion is set to = ", suspicion.Enabled)
+					membership.SuspicionEnabled = true
+					fmt.Println("Suspicion is set to = ", membership.SuspicionEnabled)
 				}
 			case "disable_sus":
-				curr_val := suspicion.Enabled
+				curr_val := membership.SuspicionEnabled
 				if !curr_val {
 					fmt.Println("Suspicion is already disabled !!! ")
 				} else {
-					suspicion.Enabled = false
-					fmt.Println("Suspicion is set to = ", suspicion.Enabled)
+					membership.SuspicionEnabled = false
+					fmt.Println("Suspicion is set to = ", membership.SuspicionEnabled)
 				}
 			case "status_sus":
-				fmt.Println("Status of PingSus : ", suspicion.Enabled)
+				fmt.Println("Status of PingSus : ", membership.SuspicionEnabled)
 			case "sus_list":
 				fmt.Println("List of all nodes which are marked as Suspicious for the current node :")
 			default:

@@ -30,8 +30,10 @@ type BufferValue struct {
 // Member type for memberhsip list
 type Member struct {
 	Node_id           string
-	IncarnationNumber string
+	IncarnationNumber int
 }
+
+var My_hostname string
 
 var (
 	// Shared membership data
@@ -39,8 +41,10 @@ var (
 	memLock         sync.RWMutex
 
 	//Shared Suspicion table lists
-	suspicion_table = map[string]SuspicionState{}
-	susLock         sync.RWMutex
+	suspicion_table  = map[string]SuspicionState{}
+	susLock          sync.RWMutex
+	SuspicionEnabled = false
+	SuspicionTimeout = time.Second * 5
 
 	//Shared Buffer table
 	shared_buffer []BufferValue
@@ -79,6 +83,41 @@ func IsMember(hostname string) bool {
 
 }
 
+func GetMemberIncarnation(hostname string) int {
+	memLock.Lock()
+	defer memLock.Unlock()
+
+	if _, ok := membership_list[hostname]; ok {
+		return membership_list[hostname].IncarnationNumber
+	} else {
+		return -1
+	}
+}
+
+func SetMemberIncarnation(hostname string, num ...int) bool {
+	memLock.Lock()
+	defer memLock.Unlock()
+
+	inc := 1
+
+	if len(num) > 0 {
+		inc = num[0]
+	} else {
+		inc = 1
+	}
+
+	if _, ok := membership_list[hostname]; ok {
+		tp := Member{
+			IncarnationNumber: membership_list[hostname].IncarnationNumber + inc,
+			Node_id:           membership_list[hostname].Node_id,
+		}
+		membership_list[hostname] = tp
+		return true
+	} else {
+		return false
+	}
+}
+
 func GetMemberID(hostname string) string {
 	if _, ok := membership_list[hostname]; ok {
 		return membership_list[hostname].Node_id
@@ -109,7 +148,7 @@ func AddMember(node_id string, hostname string) error {
 	} else {
 		//initialise new member
 		var new_member Member
-		new_member.IncarnationNumber = "0"
+		new_member.IncarnationNumber = 0
 		new_member.Node_id = node_id
 
 		//Add to map
@@ -140,20 +179,24 @@ func GetMembershipList() map[string]Member {
 
 /////// SUSPICION TABLE FUNCTIONS //////
 
-func UpdateSuspicion(member string, state SuspicionState) {
+func UpdateSuspicion(hostname string, state SuspicionState) {
 	susLock.Lock()
 	defer susLock.Unlock()
 
-	suspicion_table[member] = state
+	if state == Faulty {
+		delete(suspicion_table, hostname)
+	} else {
+		suspicion_table[hostname] = state
+	}
 }
 
-func GetSuspicion(member string) (SuspicionState, error) {
+func GetSuspicion(hostname string) (SuspicionState, error) {
 	susLock.RLock()
 	defer susLock.RUnlock()
 
-	if _, ok := suspicion_table[member]; ok {
-		return suspicion_table[member], nil
-	} else if !IsMember(member) {
+	if _, ok := suspicion_table[hostname]; ok {
+		return suspicion_table[hostname], nil
+	} else if !IsMember(hostname) {
 		return -1, fmt.Errorf("error sus: member does not exist")
 	} else {
 		return -2, fmt.Errorf("error sus: member does not have suspicion")

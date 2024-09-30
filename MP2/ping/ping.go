@@ -5,6 +5,7 @@ import (
 	"failure_detection/buffer"
 	"failure_detection/membership"
 	"failure_detection/utility"
+	"fmt"
 	"math/rand"
 	"net"
 	"os"
@@ -39,7 +40,7 @@ func Listener() {
 	}
 	defer conn.Close()
 
-	buf := make([]byte, 1024)
+	buf := make([]byte, 4096)
 
 	for {
 		n, remoteAddr, err := conn.ReadFromUDP(buf) // Accept blocks conn, go routine to process the message
@@ -61,6 +62,9 @@ func HandleIncomingConnectionData(conn *net.UDPConn, addr *net.UDPAddr, data []b
 	// membership.PrintMembershipList()
 
 	// Send the request
+	// if (checkRandomDrop(drop_rate_%)){
+	// utility.LogMessage("Inducing random drops in sending ack to requests")
+	//} // --> higher the number, higher chance of drop
 	_, err := conn.WriteToUDP(bufferData, addr)
 	if err != nil {
 		utility.LogMessage("error sending UDP request: " + err.Error())
@@ -140,15 +144,20 @@ func sendUDPRequest(host string, self_name string) {
 	}
 
 	// Read the response
-	response := make([]byte, 1024)
+	response := make([]byte, 4096)
 	n, err := conn.Read(response)
 	if err != nil {
 		node_id := membership.GetMemberID(host)
 		if node_id != "-1" {
-			utility.LogMessage("Member? " + host + " to be deleted because it didnt reply to ping from " + self_name)
-			membership.DeleteMember(node_id, host)
-			buffer.WriteToBuffer("f", node_id, host)
-			utility.LogMessage(" node declares ping timeout & deleted host - " + host)
+			if membership.SuspicionEnabled {
+				DeclareSuspicion(host, node_id)
+			} else {
+				utility.LogMessage("Member? " + host + " to be deleted because it didnt reply to ping from " + self_name)
+				membership.DeleteMember(node_id, host)
+				buffer.WriteToBuffer("f", node_id, host)
+				utility.LogMessage(" node declares ping timeout & deleted host - " + host)
+			}
+
 		} else {
 			membership.PrintMembershipList()
 		}
@@ -163,10 +172,16 @@ func BufferSent() []byte {
 	//Get Buffer
 	buff := buffer.GetBuffer()
 
+	sus_status := ""
+	if membership.SuspicionEnabled{
+		sus_status = "y"
+	} else {
+		sus_status = "n"
+	}
 	//Append Ping
 	buffArray := buffer.BufferData{
 		Message: "ping",
-		Node_id: "-1",
+		Node_id: sus_status,
 	}
 	buff["MP2"] = buffArray
 
@@ -201,24 +216,127 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 				continue
 			}
 		}
-		switch buffData.Message {
-		case "ping":
-			continue
-		case "f":
-			utility.LogMessage("Fail signal seen in buffer for hostname " + hostname)
-			membership.DeleteMember(buffData.Node_id, hostname)
-			buffer.WriteToBuffer("f", buffData.Node_id, hostname)
-			continue
-		case "n":
-			membership.AddMember(buffData.Node_id, hostname)
-			buffer.WriteToBuffer("n", buffData.Node_id, hostname)
-			continue
-		default:
-			continue
+		if membership.SuspicionEnabled {
+			SuspicionHandler(buffData.Message, buffData.Node_id, hostname, buffData.IncarnationNumber) // Same kind of Switch statements but in SUS Handler
+		} else {
+			switch buffData.Message {
+			case "ping":
+				if buffData.Node_id == "y"{
+					membership.SuspicionEnabled = true
+				} else {
+					membership.SuspicionEnabled = false
+				}
+				continue
+			case "f":
+				utility.LogMessage("Fail signal seen in buffer for hostname " + hostname)
+				membership.DeleteMember(buffData.Node_id, hostname)
+				buffer.WriteToBuffer("f", buffData.Node_id, hostname)
+				continue
+			case "n":
+				membership.AddMember(buffData.Node_id, hostname)
+				buffer.WriteToBuffer("n", buffData.Node_id, hostname)
+				continue
+			default:
+				continue
+			}
 		}
 
 	}
 
+}
+
+func SuspicionHandler(Message, Node_id, hostname string, incarnation int) {
+	switch Message {
+	case "ping":
+		if Node_id == "yes"{
+			membership.SuspicionEnabled = true
+		} else {
+			membership.SuspicionEnabled = false
+		}
+		return
+	case "n":
+		membership.AddMember(Node_id, hostname)
+		buffer.WriteToBuffer("n", Node_id, hostname, incarnation)
+		return
+	case "f":
+		utility.LogMessage("Fail signal seen in buffer for hostname " + hostname)
+		membership.UpdateSuspicion(hostname, membership.Faulty)
+		membership.DeleteMember(Node_id, hostname)
+		buffer.WriteToBuffer("f", Node_id, hostname, incarnation)
+		return
+	case "s":
+		inc := membership.GetMemberIncarnation(hostname)
+		sus_state, _ := membership.GetSuspicion(hostname)
+		if membership.My_hostname == hostname {
+			if inc == incarnation {
+				membership.UpdateSuspicion(hostname, membership.Alive)
+				membership.SetMemberIncarnation(hostname)
+				buffer.WriteToBuffer("a", Node_id, hostname, inc+1)
+			}
+			return
+
+		} else if inc <= incarnation {
+			if sus_state == -2 || sus_state == membership.Alive {
+				membership.UpdateSuspicion(hostname, membership.Suspicious)
+				membership.SetMemberIncarnation(hostname, incarnation)
+				buffer.WriteToBuffer("s", Node_id, hostname, incarnation)
+				fmt.Printf("\nSUSPICIOUS :: Host %s with MemberID %s\n", hostname, Node_id)
+				time.AfterFunc(membership.SuspicionTimeout, func() { stateTransitionOnTimeout(hostname, Node_id) })
+			}
+			if sus_state == membership.Suspicious {
+				membership.SetMemberIncarnation(hostname, incarnation)
+			}
+
+		}
+		return
+	case "a":
+		sus_state, _ := membership.GetSuspicion(hostname)
+		inc := membership.GetMemberIncarnation(hostname)
+		if (sus_state == membership.Suspicious) && inc < incarnation {
+			membership.UpdateSuspicion(hostname, membership.Alive)
+			membership.SetMemberIncarnation(hostname, incarnation)
+			buffer.WriteToBuffer("a", Node_id, hostname, incarnation)
+		} else if inc < incarnation {
+			membership.UpdateSuspicion(hostname, membership.Alive)
+			membership.SetMemberIncarnation(hostname, incarnation)
+			buffer.WriteToBuffer("a", Node_id, hostname, incarnation)
+		}
+
+		// time.AfterFunc(suspicionTimeout, func() { stateTransitionOnTimeout(hostname) })
+		return
+	default:
+		return
+
+	}
+
+}
+
+func stateTransitionOnTimeout(hostname string, node_id string) {
+	state, _ := membership.GetSuspicion(hostname)
+	incarnation := membership.GetMemberIncarnation(hostname)
+	if state == membership.Suspicious {
+		membership.UpdateSuspicion(hostname, membership.Faulty)
+		membership.DeleteMember(node_id, hostname)
+		buffer.WriteToBuffer("f", node_id, hostname, incarnation)
+		//WriteToBuffer("f", hostname) ///
+	}
+}
+
+// Declare a host as suspicious //
+func DeclareSuspicion(hostname string, node_id string) error {
+	// Only time our ping/ server ever reqs sus data.
+	// Declares aftertimer to handle states internally. Maybe even callable from the Handler
+
+	state, _ := membership.GetSuspicion(hostname)
+	if state == -2 || state == membership.Alive { //No suspicion exists, but host does
+		fmt.Printf("\nSUSPICIOUS :: Host %s with MemberID %s\n", hostname, node_id)
+		inc := membership.GetMemberIncarnation(hostname)
+		membership.UpdateSuspicion(hostname, membership.Suspicious)
+		time.AfterFunc(membership.SuspicionTimeout, func() { stateTransitionOnTimeout(hostname, node_id) })
+		buffer.WriteToBuffer("s", node_id, hostname, inc) //Need to decide format for string/data output. Or handle it in membership ?
+		return nil
+	}
+	return nil
 }
 
 func shuffleStringArray(arr []string) []string {
@@ -236,4 +354,10 @@ func shuffleStringArray(arr []string) []string {
 	}
 
 	return shuffled
+}
+
+func checkRandomDrop(numPassed int) bool {
+	randomNumber := rand.Intn(101)
+	//fmt.Printf("Generated random number: %d\n", randomNumber)  // Added for testing
+	return randomNumber <= numPassed
 }
