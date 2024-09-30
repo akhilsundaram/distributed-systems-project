@@ -19,6 +19,7 @@ const (
 )
 
 var totalBytesReceived int64
+var PingsSent int
 var LOGGER_FILE = "/home/log/machine.log"
 
 type InputData struct {
@@ -108,6 +109,7 @@ func Sender(suspect bool) {
 		for _, host := range randomizeHostArray {
 			if membership.IsMember(host) && !(my_hostname == host) {
 				sendUDPRequest(host, my_hostname)
+				PingsSent += 1
 				time.Sleep(2 * time.Second)
 			}
 		}
@@ -371,10 +373,9 @@ func checkRandomDrop(numPassed int) bool {
 func printTotalBytes() {
 	for {
 		time.Sleep(10 * time.Second)
-		totalBytesString := strconv.FormatInt(totalBytesReceived, 10)
 		averageBytesPerSecond := float64(totalBytesReceived) / 10.0
 		averageBytesPerSecondString := strconv.FormatFloat(averageBytesPerSecond, 'f', 2, 64)
-		utility.LogMessage("Total bytes received in last 10 seconds: %d\n" + totalBytesString)
+		utility.LogMessage("Total pings sent in last 10 seconds: " + strconv.Itoa(PingsSent))
 		utility.LogMessage("Average bandwidth: " + averageBytesPerSecondString + " bytes/second")
 		totalBytesReceived = 0
 	}

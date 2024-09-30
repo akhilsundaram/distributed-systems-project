@@ -8,6 +8,7 @@ import (
 	"failure_detection/utility"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -101,6 +102,7 @@ func main() {
 			case "leave":
 				fmt.Println("Node xyz is leaving the membership list")
 				utility.LogMessage("Bringing node " + membership.My_hostname + "down")
+				utility.LogMessage("Total pings sent overall: " + strconv.Itoa(ping.PingsSent))
 				return
 			case "enable_sus":
 				curr_val := membership.SuspicionEnabled
