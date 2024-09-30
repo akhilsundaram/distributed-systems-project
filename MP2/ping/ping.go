@@ -175,10 +175,18 @@ func BufferSent() []byte {
 	sus_status := "-1"
 	if membership.ToggleSusSend && membership.SuspicionEnabled {
 		sus_status = "y"
-		membership.ToggleSusSend = false
+		if membership.ToggleCount == 0 {
+			membership.ToggleSusSend = false
+			membership.ToggleCount = 20
+		}
+		membership.ToggleCount -= 1
 	}
 	if membership.ToggleSusSend && !membership.SuspicionEnabled {
-		membership.ToggleSusSend = false
+		if membership.ToggleCount == 0 {
+			membership.ToggleSusSend = false
+			membership.ToggleCount = 20
+		}
+		membership.ToggleCount -= 1
 		sus_status = "n"
 	}
 	//Append Ping

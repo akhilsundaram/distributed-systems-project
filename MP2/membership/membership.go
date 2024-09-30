@@ -45,6 +45,7 @@ var (
 	susLock          sync.RWMutex
 	SuspicionEnabled = false
 	ToggleSusSend    = false
+	ToggleCount      = 20
 	SuspicionTimeout = time.Second * 5
 
 	//Shared Buffer table
