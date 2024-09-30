@@ -100,6 +100,7 @@ func main() {
 				membership.PrintMembershipListStdOut()
 			case "leave":
 				fmt.Println("Node xyz is leaving the membership list")
+				utility.LogMessage("Bringing node " + membership.My_hostname + "down")
 			case "enable_sus":
 				curr_val := membership.SuspicionEnabled
 				if curr_val {
