@@ -102,6 +102,7 @@ func main() {
 				fmt.Println("Node xyz is leaving the membership list")
 			case "enable_sus":
 				curr_val := membership.SuspicionEnabled
+				membership.ToggleSusSend = true
 				if curr_val {
 					fmt.Println("Suspicion is already enabled !!! ")
 				} else {
@@ -110,6 +111,7 @@ func main() {
 				}
 			case "disable_sus":
 				curr_val := membership.SuspicionEnabled
+				membership.ToggleSusSend = true
 				if !curr_val {
 					fmt.Println("Suspicion is already disabled !!! ")
 				} else {

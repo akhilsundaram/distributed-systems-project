@@ -172,10 +172,13 @@ func BufferSent() []byte {
 	//Get Buffer
 	buff := buffer.GetBuffer()
 
-	sus_status := ""
-	if membership.SuspicionEnabled {
+	sus_status := "-1"
+	if membership.ToggleSusSend && membership.SuspicionEnabled {
 		sus_status = "y"
-	} else {
+		membership.ToggleSusSend = false
+	}
+	if membership.ToggleSusSend && !membership.SuspicionEnabled {
+		membership.ToggleSusSend = false
 		sus_status = "n"
 	}
 	//Append Ping
@@ -213,7 +216,8 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 		if hostname == "MP2" && buffData.Message == "ping" {
 			if buffData.Node_id == "y" {
 				membership.SuspicionEnabled = true
-			} else {
+			}
+			if buffData.Node_id == "y" {
 				membership.SuspicionEnabled = false
 			}
 		}
