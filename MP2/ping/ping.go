@@ -66,13 +66,14 @@ func HandleIncomingConnectionData(conn *net.UDPConn, addr *net.UDPAddr, data []b
 	// membership.PrintMembershipList()
 
 	// Send the request
-	// if (checkRandomDrop(drop_rate_%)){
-	// utility.LogMessage("Inducing random drops in sending ack to requests")
-	//} // --> higher the number, higher chance of drop
-	_, err := conn.WriteToUDP(bufferData, addr)
-	if err != nil {
-		utility.LogMessage("error sending UDP request: " + err.Error())
-	}
+	if checkRandomDrop(0) {
+		utility.LogMessage("Inducing random drops in sending ack to requests")
+		_, err := conn.WriteToUDP(bufferData, addr)
+		if err != nil {
+			utility.LogMessage("error sending UDP request: " + err.Error())
+		}
+
+	} // --> higher the number, higher chance of drop
 
 	// parse the incoming buffer in data, add it to your buffer
 	AddToNodeBuffer(data, addr.IP.String())
