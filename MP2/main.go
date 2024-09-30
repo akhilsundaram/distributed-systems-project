@@ -126,6 +126,9 @@ func main() {
 				fmt.Println("List of all nodes which are marked as Suspicious for the current node :")
 			case "rsus":
 				for host, v := range membership.GetMembershipList() {
+					if host == hostname {
+						continue
+					}
 					ping.DeclareSuspicion(host, v.Node_id)
 					break
 				}

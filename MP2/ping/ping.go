@@ -261,6 +261,7 @@ func SuspicionHandler(Message, Node_id, hostname string, incarnation int) {
 		buffer.WriteToBuffer("f", Node_id, hostname, incarnation)
 		return
 	case "s":
+		utility.LogMessage("Fail signal seen in buffer for hostname " + hostname)
 		inc := membership.GetMemberIncarnation(hostname)
 		sus_state, _ := membership.GetSuspicion(hostname)
 		if membership.My_hostname == hostname {
@@ -288,6 +289,7 @@ func SuspicionHandler(Message, Node_id, hostname string, incarnation int) {
 		}
 		return
 	case "a":
+		utility.LogMessage("Alive signal seen in buffer for hostname " + hostname)
 		sus_state, _ := membership.GetSuspicion(hostname)
 		inc := membership.GetMemberIncarnation(hostname)
 		if (sus_state == membership.Suspicious) && inc < incarnation {
@@ -310,6 +312,7 @@ func SuspicionHandler(Message, Node_id, hostname string, incarnation int) {
 }
 
 func stateTransitionOnTimeout(hostname string, node_id string) {
+	utility.LogMessage("state transition called for host : " + hostname)
 	state, _ := membership.GetSuspicion(hostname)
 	incarnation := membership.GetMemberIncarnation(hostname)
 	if state == membership.Suspicious {
