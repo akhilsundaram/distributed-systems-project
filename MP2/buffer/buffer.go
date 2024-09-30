@@ -2,6 +2,7 @@ package buffer
 
 import (
 	"failure_detection/membership"
+	"failure_detection/utility"
 	"fmt"
 	"maps"
 	"strings"
@@ -68,12 +69,16 @@ func WriteToBuffer(Message, Node_id, Hostname string, incarnation_number ...int)
 					shared_buffer[Hostname] = bval
 				case "s":
 					if (state == membership.Alive) && incarnation_number[0] >= shared_buffer[Hostname].IncarnationNumber {
+						utility.LogMessage("alive / inc>")
 						shared_buffer[Hostname] = bval
 					} else if state == -2 { // if member exists & 0 sus so far
+						utility.LogMessage("-2")
 						shared_buffer[Hostname] = bval
 					} else if (state == membership.Suspicious) && (incarnation_number[0] > shared_buffer[Hostname].IncarnationNumber) {
+						utility.LogMessage("sus / inc >")
 						shared_buffer[Hostname] = bval
 					}
+					utility.LogMessage("NONEEE ?")
 
 				case "a":
 					if incarnation_number[0] > shared_buffer[Hostname].IncarnationNumber { //Unless the current disemination is Faulty-confirm, alive >>
