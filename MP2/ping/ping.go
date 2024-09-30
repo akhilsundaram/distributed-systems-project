@@ -173,7 +173,7 @@ func BufferSent() []byte {
 	buff := buffer.GetBuffer()
 
 	sus_status := ""
-	if membership.SuspicionEnabled{
+	if membership.SuspicionEnabled {
 		sus_status = "y"
 	} else {
 		sus_status = "n"
@@ -210,22 +210,25 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 
 	// directly check each key value pair for parsedData, and send it to WriteBuffer
 	for hostname, buffData := range parsedData {
+		if hostname == "MP2" && buffData.Message == "ping" {
+			if buffData.Node_id == "y" {
+				membership.SuspicionEnabled = true
+			} else {
+				membership.SuspicionEnabled = false
+			}
+		}
 		if !membership.IsMember(hostname) {
 			// member does not exist and buffer data for it not a new join.
 			if buffData.Message != "n" {
 				continue
 			}
+
 		}
 		if membership.SuspicionEnabled {
 			SuspicionHandler(buffData.Message, buffData.Node_id, hostname, buffData.IncarnationNumber) // Same kind of Switch statements but in SUS Handler
 		} else {
 			switch buffData.Message {
 			case "ping":
-				if buffData.Node_id == "y"{
-					membership.SuspicionEnabled = true
-				} else {
-					membership.SuspicionEnabled = false
-				}
 				continue
 			case "f":
 				utility.LogMessage("Fail signal seen in buffer for hostname " + hostname)
@@ -248,11 +251,6 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 func SuspicionHandler(Message, Node_id, hostname string, incarnation int) {
 	switch Message {
 	case "ping":
-		if Node_id == "yes"{
-			membership.SuspicionEnabled = true
-		} else {
-			membership.SuspicionEnabled = false
-		}
 		return
 	case "n":
 		membership.AddMember(Node_id, hostname)
