@@ -109,9 +109,12 @@ Created a group membership system which detects failures and maintains a real-ti
 >`>$ go run . -cmd "sus" -o "" -s "test"`
 
 
->**PS** : Before running this, ensure that Listeners are up in all the machines !. 
 
 >**PS** : This will toggle the suspicion flag, running this again will disable the Suspicion mechanism.
+
+
+>**PS** : Before running this, ensure that Listeners are up in all the machines ! 
+
 
 
 
