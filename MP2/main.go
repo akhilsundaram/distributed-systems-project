@@ -8,8 +8,11 @@ import (
 	"failure_detection/utility"
 	"fmt"
 	"os"
+	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -28,6 +31,21 @@ func main() {
 	}
 
 	file.Close()
+
+	sigChannel := make(chan os.Signal, 1)
+	signal.Notify(sigChannel, syscall.SIGUSR1)
+	go func() {
+		// Block until a signal is received
+		for {
+			sig := <-sigChannel
+			switch sig {
+			case syscall.SIGUSR1:
+				fmt.Println("Received signal from VM to change suspicion state")
+				membership.SuspicionEnabled = !membership.SuspicionEnabled
+				utility.LogMessage("Suspicion set to : " + strconv.FormatBool(membership.SuspicionEnabled))
+			}
+		}
+	}()
 
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -100,9 +118,9 @@ func main() {
 				membership.PrintMembershipListStdOut()
 			case "leave":
 				fmt.Println("Node xyz is leaving the membership list")
+				return
 			case "enable_sus":
 				curr_val := membership.SuspicionEnabled
-				membership.ToggleSusSend = true
 				if curr_val {
 					fmt.Println("Suspicion is already enabled !!! ")
 				} else {
@@ -111,7 +129,6 @@ func main() {
 				}
 			case "disable_sus":
 				curr_val := membership.SuspicionEnabled
-				membership.ToggleSusSend = true
 				if !curr_val {
 					fmt.Println("Suspicion is already disabled !!! ")
 				} else {
