@@ -55,7 +55,9 @@ func CallCommand(cmd string, options string, pattern string, ut ...string) {
 	}
 
 	//Output if Options are empty.
-	if options != "" {
+	if cmd == "sus" {
+		req.Data = cmd
+	} else if options != "" {
 		req.Data = cmd + " " + "-" + options + " " + pattern // add filename if needed
 	} else {
 		req.Data = cmd + " " + pattern // add filename if needed
@@ -158,7 +160,10 @@ func CallCommand(cmd string, options string, pattern string, ut ...string) {
 	duration := endTime.Sub(startTime)
 	fmt.Printf("grep took %s to complete.\n", duration)
 
-	outputgrep()
+	if cmd == "grep"{
+		outputgrep()
+	}
+	
 	// fmt.Printf("End func!\n") // Change this to actually output/print file, ++ line counts.
 	//parse output file and print
 

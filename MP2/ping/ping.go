@@ -172,27 +172,11 @@ func BufferSent() []byte {
 	//Get Buffer
 	buff := buffer.GetBuffer()
 
-	sus_status := "-1"
-	if membership.ToggleSusSend && membership.SuspicionEnabled {
-		sus_status = "y"
-		if membership.ToggleCount == 0 {
-			membership.ToggleSusSend = false
-			membership.ToggleCount = 20
-		}
-		membership.ToggleCount -= 1
-	}
-	if membership.ToggleSusSend && !membership.SuspicionEnabled {
-		if membership.ToggleCount == 0 {
-			membership.ToggleSusSend = false
-			membership.ToggleCount = 20
-		}
-		membership.ToggleCount -= 1
-		sus_status = "n"
-	}
+
 	//Append Ping
 	buffArray := buffer.BufferData{
 		Message: "ping",
-		Node_id: sus_status,
+		Node_id: "-1",
 	}
 	buff["MP2"] = buffArray
 
@@ -221,14 +205,6 @@ func AddToNodeBuffer(data []byte, remoteAddr string) {
 
 	// directly check each key value pair for parsedData, and send it to WriteBuffer
 	for hostname, buffData := range parsedData {
-		if hostname == "MP2" && buffData.Message == "ping" {
-			if buffData.Node_id == "y" {
-				membership.SuspicionEnabled = true
-			}
-			if buffData.Node_id == "y" {
-				membership.SuspicionEnabled = false
-			}
-		}
 		if !membership.IsMember(hostname) {
 			// member does not exist and buffer data for it not a new join.
 			if buffData.Message != "n" {

@@ -80,6 +80,15 @@ func HostListener(portNo string) {
 				machine_log := "machine.log"
 
 				if parsedData.Type == "cmd" {
+					if parsedData.Data == "sus" {
+						fmt.Println("Inside sus condition")
+						cmd := exec.Command("pkill", "-SIGUSR1", "failure_detecti")
+						output, err := cmd.CombinedOutput()
+						if err != nil {
+							fmt.Println("Output : " + string(output) + " Error " + err.Error())
+						}
+						return
+					}
 					//Call Grep command
 					println("GREP called")
 

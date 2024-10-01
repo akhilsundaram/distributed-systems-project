@@ -9,13 +9,13 @@ import (
 
 func CLIParser() {
 	cmd := flag.String("cmd", "grep", "Command to be passed to distributed file logger")
-	options := flag.String("o", "", "Options to be passed to command - GREP")
-	pattern := flag.String("s", "", "Pattern to be searched")
+	options := flag.String("o", "", "Options to be passed to command - GREP/pkill")
+	pattern := flag.String("s", "", "Pattern to be searched / process name to whom we are sending signal")
 	test := flag.String("t", "", "Unit Test execution")
 
 	flag.Parse()
 
-	if *cmd != "grep" {
+	if *cmd != "grep" && *cmd != "sus" {
 		fmt.Println("Only `grep` supported")
 		os.Exit(1)
 	}
