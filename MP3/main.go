@@ -2,11 +2,11 @@ package main
 
 import (
 	"bufio"
-	"failure_detection/introducer"
-	"failure_detection/membership"
-	"failure_detection/ping"
-	"failure_detection/utility"
 	"fmt"
+	"hydfs/introducer"
+	"hydfs/membership"
+	"hydfs/ping"
+	"hydfs/utility"
 	"os"
 	"os/signal"
 	"strconv"

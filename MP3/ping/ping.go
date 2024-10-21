@@ -2,10 +2,10 @@ package ping
 
 import (
 	"encoding/json"
-	"failure_detection/buffer"
-	"failure_detection/membership"
-	"failure_detection/utility"
 	"fmt"
+	"hydfs/buffer"
+	"hydfs/membership"
+	"hydfs/utility"
 	"math/rand"
 	"net"
 	"os"
@@ -171,7 +171,6 @@ func sendUDPRequest(host string, self_name string) {
 func BufferSent() []byte {
 	//Get Buffer
 	buff := buffer.GetBuffer()
-
 
 	//Append Ping
 	buffArray := buffer.BufferData{

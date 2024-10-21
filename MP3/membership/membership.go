@@ -2,8 +2,8 @@ package membership
 
 import (
 	"encoding/json"
-	"failure_detection/utility"
 	"fmt"
+	"hydfs/utility"
 	"maps"
 	"net"
 	"strings"

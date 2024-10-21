@@ -1,8 +1,8 @@
 package buffer
 
 import (
-	"failure_detection/membership"
 	"fmt"
+	"hydfs/membership"
 	"maps"
 	"strings"
 	"sync"

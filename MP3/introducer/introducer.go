@@ -2,10 +2,10 @@ package introducer
 
 import (
 	"encoding/json"
-	"failure_detection/buffer"
-	"failure_detection/membership"
-	"failure_detection/utility"
 	"fmt"
+	"hydfs/buffer"
+	"hydfs/membership"
+	"hydfs/utility"
 	"net"
 	"os"
 	"strings"
