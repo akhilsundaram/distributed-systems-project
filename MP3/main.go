@@ -67,18 +67,14 @@ func main() {
 		// by now hoping that we have updated membership list
 	}
 
-	// time.Sleep(time.Second * 2)
-
 	// starting ping listener on every node
-	// go pingpong.PingAck()
 	go ping.Listener()
 
 	// sending pings
 	go ContinouslySendPings()
 
-	// Create channel to receive signals
-	// sigChan := make(chan os.Signal, 1)
-	// signal.Notify(sigChan, syscall.SIGUSR1)
+	// Call HyDFS ?
+	membership.RingMemberchan = make(chan membership.RingMemberMessage)
 
 	fmt.Println("Program running. PID:", os.Getpid())
 
