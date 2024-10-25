@@ -125,7 +125,7 @@ func GetMD5(filePath string) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
-func CompareFiles(file1, file2, file3 string) (bool, error) {
+func CompareFiles(file1, file2 string) (bool, error) {
 	hash1, err := GetMD5(file1)
 	if err != nil {
 		return false, err
@@ -136,10 +136,5 @@ func CompareFiles(file1, file2, file3 string) (bool, error) {
 		return false, err
 	}
 
-	hash3, err := GetMD5(file3)
-	if err != nil {
-		return false, err
-	}
-
-	return hash1 == hash2 && hash2 == hash3, nil
+	return hash1 == hash2, nil
 }
