@@ -11,13 +11,27 @@ import (
 	"time"
 )
 
+// Channels
+type RingMemberMessage struct {
+	Event    MemberState
+	NodeName string
+}
+
+var RingMemberchan chan RingMemberMessage
+
 // States
 type SuspicionState int8
+type MemberState int8
 
 const (
 	Suspicious SuspicionState = iota
 	Alive
 	Faulty
+)
+
+const (
+	Add MemberState = iota
+	Delete
 )
 
 // Shared Buffer table element
@@ -157,6 +171,16 @@ func AddMember(node_id string, hostname string) error {
 		utility.LogMessage("New member added: " + hostname + " with member id: " + node_id)
 	}
 
+	// Send a notification to HyDFS ring on membership changes
+	go func() {
+		newMessage := RingMemberMessage{
+			NodeName: hostname,
+			Event:    Add,
+		}
+		RingMemberchan <- newMessage
+		utility.LogMessage("Sent message to Ring Channel - Add")
+	}()
+
 	return nil
 }
 
@@ -171,6 +195,15 @@ func DeleteMember(node_id string, hostname string) error {
 		return fmt.Errorf("error mem: member does not exist")
 	}
 
+	// Send a notification to HyDFS ring on membership changes
+	go func() {
+		newMessage := RingMemberMessage{
+			NodeName: hostname,
+			Event:    Delete,
+		}
+		RingMemberchan <- newMessage
+		utility.LogMessage("Sent message to Ring Channel - Delete")
+	}()
 	return nil
 }
 
