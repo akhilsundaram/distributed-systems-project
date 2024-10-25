@@ -1,6 +1,9 @@
 package utility
 
 import (
+	"crypto/md5"
+	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -98,4 +101,45 @@ func clearDirectory(dir string) {
 			return
 		}
 	}
+}
+
+func FileExists(filePath string) bool {
+	_, err := os.Stat(filePath)
+	return !os.IsNotExist(err)
+}
+
+// file comparision , checking md5 hash
+
+func GetMD5(filePath string) (string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := md5.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+}
+
+func CompareFiles(file1, file2, file3 string) (bool, error) {
+	hash1, err := GetMD5(file1)
+	if err != nil {
+		return false, err
+	}
+
+	hash2, err := GetMD5(file2)
+	if err != nil {
+		return false, err
+	}
+
+	hash3, err := GetMD5(file3)
+	if err != nil {
+		return false, err
+	}
+
+	return hash1 == hash2 && hash2 == hash3, nil
 }
