@@ -1,9 +1,13 @@
 package utility
 
 import (
+	"crypto/md5"
+	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -14,7 +18,7 @@ var (
 	mu      sync.Mutex
 )
 
-var LOGGER_FILE = "/home/log/machine.log"
+var LOGGER_FILE = "/home/log/hydfs.log"
 
 func initLogger() {
 	once.Do(func() {
@@ -47,4 +51,90 @@ func GetIPAddr(host string) net.IP {
 		}
 	}
 	return net.IPv4(127, 0, 0, 1) // return loopback as default
+}
+
+func SetupDirectories(directories ...string) error {
+
+	for _, dir := range directories {
+		// check if directory exists
+		_, err := os.Stat(dir)
+
+		if os.IsNotExist(err) {
+			// directory doesn't exist, create it
+			err = os.MkdirAll(dir, 0755)
+			if err != nil {
+				LogMessage("failed to create directory " + dir + ": " + err.Error())
+				return err
+			}
+			LogMessage("Created directory: " + dir)
+		} else if err != nil {
+			LogMessage("error with directory " + dir + ": " + err.Error())
+			// any other err
+			return err
+		} else {
+			// directory exists, clear its contents
+			clearDirectory(dir)
+			LogMessage("Cleared contents of directory: " + dir)
+		}
+	}
+	return nil
+}
+
+func clearDirectory(dir string) {
+	d, err := os.Open(dir)
+	if err != nil {
+		LogMessage("failed to open directory " + dir + " : " + err.Error())
+		return
+	}
+	defer d.Close()
+
+	names, err := d.Readdirnames(-1)
+	if err != nil {
+		LogMessage("failed to read directory " + dir + " : " + err.Error())
+		return
+	}
+
+	for _, name := range names {
+		err = os.RemoveAll(filepath.Join(dir, name))
+		if err != nil {
+			LogMessage("failed to remove file " + name + " from directory " + dir + " : " + err.Error())
+			return
+		}
+	}
+}
+
+func FileExists(filePath string) bool {
+	_, err := os.Stat(filePath)
+	return !os.IsNotExist(err)
+}
+
+// file comparision , checking md5 hash
+
+func GetMD5(filePath string) (string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := md5.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+}
+
+func CompareFiles(file1, file2 string) (bool, error) {
+	hash1, err := GetMD5(file1)
+	if err != nil {
+		return false, err
+	}
+
+	hash2, err := GetMD5(file2)
+	if err != nil {
+		return false, err
+	}
+
+	return hash1 == hash2, nil
 }
