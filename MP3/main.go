@@ -17,9 +17,11 @@ import (
 )
 
 var (
-	LOGGER_FILE     = "/home/log/machine.log"
 	INTRODUCER_HOST = "fa24-cs425-5901.cs.illinois.edu"
 	status_sus      = false //suspicion.DeclareSuspicion
+	LOGGER_FILE     = "/home/log/hydfs.log"
+	HYDFS_DIR       = "/home/hydfs/files"
+	HYDFS_CACHE     = "/home/hydfs/cache"
 )
 
 func main() {
@@ -31,6 +33,13 @@ func main() {
 	}
 
 	file.Close()
+
+	utility.SetupDirectories(HYDFS_DIR, HYDFS_CACHE)
+	if err != nil {
+		fmt.Printf("Error setting up directories: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("Directories setup completed successfully")
 
 	sigChannel := make(chan os.Signal, 1)
 	signal.Notify(sigChannel, syscall.SIGUSR1)
@@ -85,7 +94,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 
-		fmt.Println("Available commands:")
+		fmt.Println("Available commands for Membership List:")
 		fmt.Println("  list_self   - Display this node's ID")
 		fmt.Println("  list_mem    - Display current membership list")
 		fmt.Println("  leave       - Leave the membership list")
@@ -93,7 +102,19 @@ func main() {
 		fmt.Println("  disable_sus - disable suspicion mode")
 		fmt.Println("  status_sus  - Show status of suspicion mode")
 		fmt.Println("  sus_list    - List suspicious nodes")
-		fmt.Println("  exit        - Exit the program")
+		fmt.Println("************************************************")
+		fmt.Println("************************************************")
+		fmt.Println("Available commands for HyDFS management:")
+		fmt.Println("  get               - fetches file from HyDFS to Local FS ") // fetches the entire file from HyDFS to localfilename on local dir
+		fmt.Println("  get_from_replica  - fetches a file from a HyDFS node to Local FS")
+		fmt.Println("  create            - push a local file to HyDFS")
+		fmt.Println("  append            - append contents of a local file to file in HyDFS")
+		fmt.Println("  merge             - merge all replicas of a file in HyDFS ")
+		fmt.Println("  delete            - delete a file completely from HyDFS")
+		fmt.Println("  ls                - list VM addresses where a file being stored")  // (along with the VMs’ IDs on the ring)
+		fmt.Println("  store             - list all files (with ids) being stored on VM") // also the VM ID
+		fmt.Println("  list_mem_ids      - Display current membership list along with Node ID on ring")
+		fmt.Println("  exit              - Exit the program")
 		fmt.Println("************************************************")
 		scanner := bufio.NewScanner(os.Stdin)
 		for {
@@ -135,6 +156,74 @@ func main() {
 				fmt.Println("Status of PingSus : ", membership.SuspicionEnabled)
 			case "sus_list":
 				fmt.Println("List of all nodes which are marked as Suspicious for the current node :")
+			case "get":
+				fmt.Println("Enter HyDFS filename to fetch, and store into local file.")
+				fmt.Print("Usage - get HyDFSfilename /path/to/localfilename : ")
+				scanner.Scan()
+				args := strings.Fields(scanner.Text())
+				if len(args) != 3 || args[0] != "get" {
+					fmt.Println("Invalid input. Usage: get <HyDFS_filename> <local_filename>")
+				} else {
+					fmt.Printf("Fetching %s from HyDFS to %s\n", args[1], args[2])
+					// get function here with args[0] and args[1]
+				}
+			case "get_from_replica":
+				fmt.Println("Enter VMaddress, HyDFS filename, and local filename to write the file to.")
+				fmt.Print("Usage - get_from_replica VMaddress HyDFSfilename /path/to/localfilename : ")
+				scanner.Scan()
+				args := strings.Fields(scanner.Text())
+				if len(args) != 4 || args[0] != "get_from_replica" {
+					fmt.Println("Invalid input. Usage: get_from_replica <VM_address> <HyDFS_filename> <local_filename> ")
+				} else {
+					fmt.Printf("Fetching %s from HyDFS node %s to %s\n", args[2], args[1], args[3])
+					// get_from_replica function here with args[0], args[1], and args[2]
+				}
+			case "create":
+				fmt.Println("Enter local filename  to upload to HyDFS file.")
+				fmt.Print("Usage - create localfilename HyDFSfilename : ")
+				scanner.Scan()
+				args := strings.Fields(scanner.Text())
+				if len(args) != 3 || args[0] != "create" {
+					fmt.Println("Invalid input. Usage: create <local_filename> <HyDFS_filename>")
+				} else {
+					fmt.Printf("Pushing %s to HyDFS as %s\n", args[0], args[1])
+					// create function here with args[0] and args[1]
+				}
+			case "append":
+				fmt.Println("Enter local filename to append to HyDFS file.")
+				fmt.Print("Usage - append localfilename HyDFSfilename : ")
+				scanner.Scan()
+				args := strings.Fields(scanner.Text())
+				if len(args) != 3 || args[0] != "append" {
+					fmt.Println("Invalid input. Usage: append <local_filename> <HyDFS_filename>")
+				} else {
+					fmt.Printf("Appending %s to %s in HyDFS\n", args[0], args[1])
+					// append function here with args[0] and args[1]
+				}
+			case "merge":
+				fmt.Print("Enter HyDFS file name to merge across all replicas: ")
+				scanner.Scan()
+				filename := strings.TrimSpace(scanner.Text())
+				fmt.Printf("Merging all replicas of %s in HyDFS\n", filename)
+				// merge function here with filename
+			case "delete":
+				fmt.Print("Enter filename to delete from HyDFS: ")
+				scanner.Scan()
+				filename := strings.TrimSpace(scanner.Text())
+				fmt.Printf("Deleting %s from HyDFS\n", filename)
+				// delete function here with filename
+			case "ls":
+				fmt.Print("Fetch details of HyDFS filename : ")
+				scanner.Scan()
+				filename := strings.TrimSpace(scanner.Text())
+				fmt.Printf("Listing VM addresses storing %s\n", filename)
+				// ls functionality
+			case "store":
+				fmt.Println("Listing all files being stored on this VM")
+				// store function here
+			case "list_mem_ids":
+				fmt.Println("Displaying current membership list along with Node ID on ring")
+				// list_mem_ids function here
 			default:
 				fmt.Printf("Unknown command: %s\n", cmd)
 			}
