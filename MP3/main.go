@@ -86,6 +86,8 @@ func main() {
 	// Call HyDFS ?
 	membership.RingMemberchan = make(chan membership.RingMemberMessage)
 
+	go file_transfer.HyDFSServer()
+
 	fmt.Println("Program running. PID:", os.Getpid())
 
 	var wg sync.WaitGroup

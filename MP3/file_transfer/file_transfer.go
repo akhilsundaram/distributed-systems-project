@@ -235,7 +235,6 @@ func HyDFSClient(request ClientData) {
 	// we need this to be blocking to the main.go code
 	// once the response is done, print to output and continue listening for new commands
 
-	utility.LogMessage("File " + filename + " sent successfully")
 	switch cmd {
 	case "get":
 		localPath := request.LocalFilePath
