@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"hydfs/file_transfer"
 	"hydfs/introducer"
 	"hydfs/membership"
 	"hydfs/ping"
@@ -122,6 +123,7 @@ func main() {
 			if !scanner.Scan() {
 				break // Exit the loop if there's an error or EOF
 			}
+			var requestData file_transfer.ClientData
 			cmd := strings.TrimSpace(scanner.Text())
 			if cmd == "exit" {
 				fmt.Println("Exiting program...")
@@ -156,6 +158,7 @@ func main() {
 				fmt.Println("Status of PingSus : ", membership.SuspicionEnabled)
 			case "sus_list":
 				fmt.Println("List of all nodes which are marked as Suspicious for the current node :")
+			// MP3 Commands
 			case "get":
 				fmt.Println("Enter HyDFS filename to fetch, and store into local file.")
 				fmt.Print("Usage - get HyDFSfilename /path/to/localfilename : ")
@@ -165,7 +168,11 @@ func main() {
 					fmt.Println("Invalid input. Usage: get <HyDFS_filename> <local_filename>")
 				} else {
 					fmt.Printf("Fetching %s from HyDFS to %s\n", args[1], args[2])
-					// get function here with args[0] and args[1]
+					// get here with args[0] and args[1]
+					requestData.Operation = args[0]
+					requestData.Filename = args[1]
+					requestData.LocalFilePath = args[2]
+					file_transfer.HyDFSClient(requestData)
 				}
 			case "get_from_replica":
 				fmt.Println("Enter VMaddress, HyDFS filename, and local filename to write the file to.")
@@ -176,7 +183,12 @@ func main() {
 					fmt.Println("Invalid input. Usage: get_from_replica <VM_address> <HyDFS_filename> <local_filename> ")
 				} else {
 					fmt.Printf("Fetching %s from HyDFS node %s to %s\n", args[2], args[1], args[3])
-					// get_from_replica function here with args[0], args[1], and args[2]
+					// get_from_replica here with args[0], args[1], and args[2]
+					requestData.Operation = args[0]
+					requestData.NodeAddr = args[1]
+					requestData.Filename = args[2]
+					requestData.LocalFilePath = args[3]
+					file_transfer.HyDFSClient(requestData)
 				}
 			case "create":
 				fmt.Println("Enter local filename  to upload to HyDFS file.")
@@ -187,7 +199,11 @@ func main() {
 					fmt.Println("Invalid input. Usage: create <local_filename> <HyDFS_filename>")
 				} else {
 					fmt.Printf("Pushing %s to HyDFS as %s\n", args[0], args[1])
-					// create function here with args[0] and args[1]
+					// create here with args[0] and args[1]
+					requestData.Operation = args[0]
+					requestData.LocalFilePath = args[1]
+					requestData.Filename = args[2]
+					file_transfer.HyDFSClient(requestData)
 				}
 			case "append":
 				fmt.Println("Enter local filename to append to HyDFS file.")
@@ -199,6 +215,10 @@ func main() {
 				} else {
 					fmt.Printf("Appending %s to %s in HyDFS\n", args[0], args[1])
 					// append function here with args[0] and args[1]
+					requestData.Operation = args[0]
+					requestData.LocalFilePath = args[1]
+					requestData.Filename = args[2]
+					file_transfer.HyDFSClient(requestData)
 				}
 			case "merge":
 				fmt.Print("Enter HyDFS file name to merge across all replicas: ")
@@ -206,21 +226,30 @@ func main() {
 				filename := strings.TrimSpace(scanner.Text())
 				fmt.Printf("Merging all replicas of %s in HyDFS\n", filename)
 				// merge function here with filename
+				requestData.Operation = "merge"
+				requestData.Filename = filename
+				file_transfer.HyDFSClient(requestData)
 			case "delete":
 				fmt.Print("Enter filename to delete from HyDFS: ")
 				scanner.Scan()
 				filename := strings.TrimSpace(scanner.Text())
 				fmt.Printf("Deleting %s from HyDFS\n", filename)
 				// delete function here with filename
+				// TODO
 			case "ls":
 				fmt.Print("Fetch details of HyDFS filename : ")
 				scanner.Scan()
 				filename := strings.TrimSpace(scanner.Text())
 				fmt.Printf("Listing VM addresses storing %s\n", filename)
 				// ls functionality
+				requestData.Operation = "ls"
+				requestData.Filename = filename
+				file_transfer.HyDFSClient(requestData)
 			case "store":
 				fmt.Println("Listing all files being stored on this VM")
 				// store function here
+				requestData.Operation = "store"
+				file_transfer.HyDFSClient(requestData)
 			case "list_mem_ids":
 				fmt.Println("Displaying current membership list along with Node ID on ring")
 				// list_mem_ids function here
