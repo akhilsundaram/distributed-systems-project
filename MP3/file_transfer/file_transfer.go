@@ -55,6 +55,8 @@ var hydfsFileStore = map[string]FileMetaData{} //key is filename
 
 func HyDFSServer() {
 
+	utility.LogMessage("Starting HyDFS Server to listen for incoming connections")
+
 	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		utility.LogMessage("Error listening: " + err.Error())
@@ -253,9 +255,9 @@ func HyDFSClient(request ClientData) {
 		nodeAddr := request.NodeAddr
 		fmt.Printf("Fetching file %s from HyDFS node %s to local path %s\n", filename, nodeAddr, localPath)
 		if utility.FileExists(localPath) {
-			fmt.Println("File exists")
+			utility.LogMessage("File exists, will be overwritten")
 		} else {
-			fmt.Println("File does not exist")
+			utility.LogMessage("File does not exist, will be created")
 		}
 
 		// channel to receive the response

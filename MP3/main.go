@@ -184,7 +184,6 @@ func main() {
 				if len(args) != 4 || args[0] != "get_from_replica" {
 					fmt.Println("Invalid input. Usage: get_from_replica <VM_address> <HyDFS_filename> <local_filename> ")
 				} else {
-					fmt.Printf("Fetching %s from HyDFS node %s to %s\n", args[2], args[1], args[3])
 					// get_from_replica here with args[0], args[1], and args[2]
 					requestData.Operation = args[0]
 					requestData.NodeAddr = args[1]
