@@ -19,7 +19,11 @@ const (
 	timeout = 10 * time.Millisecond
 )
 
-var LOGGER_FILE = "/home/log/hydfs.log"
+var (
+	LOGGER_FILE = "/home/log/hydfs.log"
+	HYDFS_DIR   = "/home/hydfs/files"
+	HYDFS_CACHE = "/home/hydfs/cache"
+)
 
 type ClientData struct {
 	Operation     string    `json:"operation"`
@@ -97,9 +101,10 @@ func handleIncomingFileConnection(conn net.Conn) {
 
 	switch cmd {
 	case "get", "get_from_replica":
-		hydfsPath := parsedData.Filename
+		hydfsPath := HYDFS_DIR + "/" + parsedData.Filename
+
 		// ipAddr := parsedData.NodeAddr
-		fmt.Printf("Fetching file %s from this HyDFS node \n", hydfsPath)
+		utility.LogMessage("Fetching file " + hydfsPath + " from this HyDFS node")
 
 		if !utility.FileExists(hydfsPath) {
 			errorMsg := "File does not exist on this replica"
@@ -126,13 +131,11 @@ func handleIncomingFileConnection(conn net.Conn) {
 		utility.LogMessage("File " + hydfsPath + " sent successfully")
 
 	case "create":
-		hydfsPath := parsedData.Filename
+		hydfsPath := HYDFS_DIR + "/" + parsedData.Filename
 
 		fmt.Printf("Creating file %s in HyDFS \n", hydfsPath)
 		if utility.FileExists(hydfsPath) {
-			fmt.Println("File exists")
-		} else {
-			fmt.Println("File does not exist")
+			utility.LogMessage("File with name exists")
 		}
 
 		// file write
@@ -161,7 +164,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 
 		// won't be sending create req for the same file
 	case "append":
-		hydfsPath := parsedData.Filename
+		hydfsPath := HYDFS_DIR + "/" + parsedData.Filename
 		if utility.FileExists(hydfsPath) {
 			fmt.Println("File exists")
 		} else {
@@ -171,20 +174,20 @@ func handleIncomingFileConnection(conn net.Conn) {
 		// handleAppend(filename, localPath)
 
 	case "merge":
-		hydfsPath := parsedData.Filename
+		hydfsPath := HYDFS_DIR + "/" + parsedData.Filename
 		fmt.Printf("Merging all replicas of %s in HyDFS\n", hydfsPath)
 
 		// Check with hash value being sent, if hash is diff then
 		// ask for file and make changes to hydfs file
 
 	case "delete":
-		hydfsPath := parsedData.Filename
+		hydfsPath := HYDFS_DIR + "/" + parsedData.Filename
 		fmt.Printf("Deleting %s from HyDFS\n", hydfsPath)
 
 		// handleDelete(filename)
 
 	case "ls":
-		hydfsPath := parsedData.Filename
+		hydfsPath := HYDFS_DIR + "/" + parsedData.Filename
 		fmt.Printf("Listing VM addresses storing %s\n", hydfsPath)
 
 		// handleLs(filename)
