@@ -291,9 +291,10 @@ func HyDFSClient(request ClientData) {
 
 		fmt.Printf("Creating file %s in HyDFS from local file %s\n", filename, localPath)
 		if utility.FileExists(localPath) {
-			fmt.Println("File exists")
+			utility.LogMessage("File at " + localPath + " exists")
 		} else {
 			fmt.Println("File does not exist")
+			return
 		}
 		fileData, err := os.ReadFile(localPath)
 		if err != nil {
@@ -373,7 +374,7 @@ func GetSuccesorIPsForFilename(filename string) (uint32, []string) {
 func SendRequestToNodes(ips []string, request ClientData) []Response {
 	responses := make(chan Response, len(ips))
 	var wg sync.WaitGroup
-
+	utility.LogMessage("")
 	for _, ip := range ips {
 		wg.Add(1)
 		go func(ip string) {
@@ -392,6 +393,7 @@ func SendRequestToNodes(ips []string, request ClientData) []Response {
 
 func sendRequest(ip string, request ClientData, responses chan<- Response) {
 	// Establish TCP connection
+	utility.LogMessage("Sending TCP request to " + ip)
 	conn, err := net.DialTimeout("tcp", ip+":"+port, 10*time.Second)
 	if err != nil {
 		responses <- Response{IP: ip, Err: fmt.Errorf("connection error: %v", err)}
@@ -420,7 +422,7 @@ func sendRequest(ip string, request ClientData, responses chan<- Response) {
 		responses <- Response{IP: ip, Err: fmt.Errorf("receive error: %v", err)}
 		return
 	}
-
+	utility.LogMessage("Received response for file write from : " + ip)
 	responses <- Response{IP: ip, Data: buffer.Bytes()}
 }
 

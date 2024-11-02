@@ -199,7 +199,6 @@ func main() {
 				if len(args) != 3 || args[0] != "create" {
 					fmt.Println("Invalid input. Usage: create <local_filename> <HyDFS_filename>")
 				} else {
-					fmt.Printf("Pushing %s to HyDFS as %s\n", args[0], args[1])
 					// create here with args[0] and args[1]
 					requestData.Operation = args[0]
 					requestData.LocalFilePath = args[1]
