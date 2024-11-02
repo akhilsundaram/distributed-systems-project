@@ -306,6 +306,9 @@ func HyDFSClient(request ClientData) {
 		request.RingID = fileID
 		utility.LogMessage("Successor IPs assigned - " + senderIPs[0] + ", " + senderIPs[1] + ", " + senderIPs[2])
 
+		clear(senderIPs)
+		senderIPs = []string{"172.22.94.195"}
+
 		responses := SendRequestToNodes(senderIPs, request)
 		for _, response := range responses {
 			if response.Err != nil {
