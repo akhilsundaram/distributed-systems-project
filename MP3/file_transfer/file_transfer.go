@@ -97,7 +97,6 @@ func handleIncomingFileConnection(conn net.Conn) {
 	defer conn.Close()
 
 	// Add logic to do action based on type of input being sent
-	utility.LogMessage("Incoming connection received")
 	data, err := io.ReadAll(conn)
 	if err != nil {
 		utility.LogMessage("Error reading data: " + err.Error())
@@ -111,7 +110,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 	}
 
 	cmd := parsedData.Operation
-
+	utility.LogMessage("Incoming connection received, cmd = " + cmd)
 	// Process the request and prepare the response
 	// resp := Response{
 	//    Data:      []byte(""),
@@ -450,7 +449,7 @@ func sendRequest(ip string, request ClientData, responses chan<- Response) {
 		return
 	}
 	defer conn.Close()
-	utility.LogMessage("Connection established")
+
 	// Marshal the request to JSON
 	jsonData, err := json.Marshal(request)
 	if err != nil {
