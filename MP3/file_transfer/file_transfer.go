@@ -23,6 +23,7 @@ var (
 	LOGGER_FILE = "/home/log/hydfs.log"
 	HYDFS_DIR   = "/home/hydfs/files"
 	HYDFS_CACHE = "/home/hydfs/cache"
+	HYDFS_TMP   = "/home/hydfs/tmp"
 )
 
 type ClientData struct {
@@ -35,10 +36,23 @@ type ClientData struct {
 	TimeStamp     time.Time `json:"timestamp,omitempty"`
 }
 
+/*
 type Response struct {
-	IP   string
-	Data []byte
-	Err  error
+	IP        string    `json:"ip"`
+	Data      []byte    `json:"data"`
+	TimeStamp time.Time `json:"timestamp,omitempty"`
+	Hash      string    `json:"hash,omitempty"`
+	RingId    uint32    `json:"ring_id,omitempty"`
+	Err       string    `json:"error,omitempty"`
+}*/
+
+type Response struct {
+	IP        string
+	Data      []byte
+	TimeStamp time.Time
+	Hash      string
+	RingId    uint32
+	Err       error
 }
 
 type FileMetaData struct {
@@ -53,9 +67,7 @@ var hydfsFileStore = map[string]FileMetaData{} //key is filename
 // file writing/appending
 // file merging methods
 
-// Client and Server code
-
-// Client puts in request for file fetching , file append
+// Client and Server code - Client puts in request for file fetching , file append
 
 func HyDFSServer() {
 
@@ -99,6 +111,10 @@ func handleIncomingFileConnection(conn net.Conn) {
 
 	cmd := parsedData.Operation
 
+	// Process the request and prepare the response
+	// resp := Response{
+	//    Data:      []byte(""),
+	//}
 	switch cmd {
 	case "get", "get_from_replica":
 		hydfsPath := HYDFS_DIR + "/" + parsedData.Filename
@@ -121,8 +137,18 @@ func handleIncomingFileConnection(conn net.Conn) {
 			return
 		}
 
+		/*
+			// Marshal the response to JSON
+			jsonResp, err := json.Marshal(resp)
+			if err != nil {
+				// Handle error (e.g., log it)
+				errorMsg := []byte("Error creating JSON response")
+				conn.Write(errorMsg)
+				return
+			}
+		*/
 		//sending file data back to the client
-		_, err = conn.Write(fileData)
+		_, err = conn.Write(fileData) // _, err = conn.Write(jsonResp)
 		if err != nil {
 			utility.LogMessage("Error sending file data: " + err.Error())
 			return
@@ -243,14 +269,35 @@ func HyDFSClient(request ClientData) {
 	switch cmd {
 	case "get":
 		localPath := request.LocalFilePath
+
+		// will change this condition to include caching, but right now we overwrite files
 		if utility.FileExists(localPath) {
-			fmt.Println("File exists")
+			utility.LogMessage("File exists, will be overwritten")
 		} else {
-			fmt.Println("File does not exist")
+			utility.LogMessage("File does not exist, will be created")
 		}
 		// add a check for checking if the file is in cache
 		// if yes, then ensure we pull from there and update its LRU counter in the cache
-		// can implement LRU in a log file, read and write to that file
+		// can implement LRU in memory, as a variable just like file hash and timestamp that we have right now. See implementations for this , using heap ?
+		// need to push out the entry which has not been used / used the least
+
+		// filename = filename of file in hydfs
+		fileID, senderIPs := GetSuccesorIPsForFilename(filename)
+		request.RingID = fileID
+		utility.LogMessage("Successor IPs assigned - " + senderIPs[0] + ", " + senderIPs[1] + ", " + senderIPs[2])
+
+		// remove lines when ring ID integrated
+		clear(senderIPs)
+		senderIPs = []string{"172.22.94.195"}
+
+		responses := SendRequestToNodes(senderIPs, request)
+		for _, response := range responses {
+			if response.Err != nil {
+				utility.LogMessage("Error from " + response.IP + ": " + response.Err.Error())
+			} else {
+				utility.LogMessage("File recevied successfully from " + response.IP)
+			}
+		}
 		// handleGet(filename, localPath)
 
 	case "get_from_replica":
@@ -310,15 +357,14 @@ func HyDFSClient(request ClientData) {
 		request.RingID = fileID
 		utility.LogMessage("Successor IPs assigned - " + senderIPs[0] + ", " + senderIPs[1] + ", " + senderIPs[2])
 
+		// remove lines when ring ID integrated
 		clear(senderIPs)
 		senderIPs = []string{"172.22.94.195"}
 
 		responses := SendRequestToNodes(senderIPs, request)
 		for _, response := range responses {
-			if response.Err != nil {
-				utility.LogMessage("Error from " + response.IP + ": " + response.Err.Error())
-			} else {
-				utility.LogMessage("File created successfully on " + response.IP)
+			if response.Err == nil {
+				fmt.Println("File created successfully on " + response.IP) // can print file Ring ID if needed
 			}
 		}
 
@@ -430,16 +476,38 @@ func sendRequest(ip string, request ClientData, responses chan<- Response) {
 }
 
 func collectResponses(responses <-chan Response, request ClientData, limit int) []Response {
+	// After getting response, what should be done to the response before sending control
+	// back to the client terminal
 	var result []Response
+	cmd := request.Operation
+	counter := 0
 	for resp := range responses {
-		if resp.Err == nil && request.LocalFilePath != "" {
-			err := writeResponseToFile(resp.Data, request.LocalFilePath)
-			if err != nil {
-				resp.Err = fmt.Errorf("failed to write response to file: %v", err)
+
+		if resp.Err != nil {
+			// recieve error , parsed from conn buffer
+			utility.LogMessage("Error from ip " + resp.IP + " - " + resp.Err.Error())
+		} else {
+			switch cmd {
+			case "get":
+				utility.LogMessage("File Get Ack from IP : " + resp.IP + ", file timestamp = " + resp.TimeStamp.String())
+				err := writeResponseToFile(resp.Data, request.LocalFilePath)
+				if err != nil {
+					resp.Err = fmt.Errorf("failed to write response to file: %v", err)
+				}
+				fmt.Println("File written at path : " + request.LocalFilePath)
+			case "merge":
+				utility.LogMessage("File Merge request Ack from IP : " + resp.IP + ", file timestamp = " + resp.TimeStamp.String())
+			case "write":
+				// handle write responses
+				utility.LogMessage("File Write Ack from IP (written successfully): " + resp.IP + ", ack msg : " + string(resp.Data))
+				counter += 1
+			default:
+				utility.LogMessage("Unknown command in CollectResponses: " + cmd)
 			}
+			result = append(result, resp)
 		}
-		result = append(result, resp)
 		if len(result) == limit {
+			// at how many responses do we stop parsing , eg if we quorum == 2 , then set limit to 2
 			break
 		}
 	}
