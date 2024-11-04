@@ -88,6 +88,11 @@ func main() {
 
 	go file_transfer.HyDFSServer()
 
+	hash1, _ := utility.GetMD5("hydfs1.txt")
+	fmt.Println(" Hash of first file : " + hash1)
+	hash2, _ := utility.GetMD5("copy_of_hydfs1.txt")
+	fmt.Println(" Hash of first file : " + hash2)
+
 	fmt.Println("Program running. PID:", os.Getpid())
 
 	var wg sync.WaitGroup
