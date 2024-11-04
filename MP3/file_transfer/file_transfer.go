@@ -84,6 +84,7 @@ func HyDFSServer() {
 
 	for {
 		conn, err := listener.Accept()
+		utility.LogMessage("Accepted connection request")
 		if err != nil {
 			utility.LogMessage("Error accepting connection : " + err.Error())
 			continue
@@ -96,7 +97,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 	defer conn.Close()
 
 	// Add logic to do action based on type of input being sent
-
+	utility.LogMessage("Incoming connection received")
 	data, err := io.ReadAll(conn)
 	if err != nil {
 		utility.LogMessage("Error reading data: " + err.Error())
@@ -449,7 +450,7 @@ func sendRequest(ip string, request ClientData, responses chan<- Response) {
 		return
 	}
 	defer conn.Close()
-
+	utility.LogMessage("Connection established")
 	// Marshal the request to JSON
 	jsonData, err := json.Marshal(request)
 	if err != nil {
