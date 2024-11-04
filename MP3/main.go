@@ -35,7 +35,7 @@ func main() {
 
 	file.Close()
 
-	utility.SetupDirectories(HYDFS_DIR, HYDFS_CACHE)
+	// utility.SetupDirectories(HYDFS_DIR, HYDFS_CACHE)
 	if err != nil {
 		fmt.Printf("Error setting up directories: %v\n", err)
 		os.Exit(1)
