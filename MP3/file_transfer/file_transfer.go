@@ -468,11 +468,13 @@ func sendRequest(ip string, request ClientData, responses chan<- Response) {
 
 	// Read the response
 	var buffer bytes.Buffer
-	reader := bufio.NewReader(conn)
+	readDeadline := time.Now().Add(5 * time.Second)
+	conn.SetReadDeadline(readDeadline)
+
 	for {
 		// Read in small chunks
 		chunk := make([]byte, 4096)
-		n, err := reader.Read(chunk)
+		n, err := conn.Read(chunk)
 		if err != nil {
 			if err == io.EOF {
 				break // End of response
@@ -487,6 +489,10 @@ func sendRequest(ip string, request ClientData, responses chan<- Response) {
 		utility.LogMessage("reading in chunks : " + string(data))
 		buffer.Write(chunk[:n])
 
+		// Check if we've reached the deadline
+		if time.Now().After(readDeadline) {
+			break
+		}
 	}
 
 	utility.LogMessage("Received response for file write from : " + ip)
