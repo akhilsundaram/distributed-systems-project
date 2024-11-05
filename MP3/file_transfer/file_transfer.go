@@ -1,6 +1,7 @@
 package file_transfer
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -84,7 +85,6 @@ func HyDFSServer() {
 
 	for {
 		conn, err := listener.Accept()
-		utility.LogMessage("Accepted connection request")
 		if err != nil {
 			utility.LogMessage("Error accepting connection : " + err.Error())
 			continue
@@ -466,11 +466,31 @@ func sendRequest(ip string, request ClientData, responses chan<- Response) {
 
 	// Read the response
 	var buffer bytes.Buffer
-	_, err = io.Copy(&buffer, conn)
-	if err != nil {
-		responses <- Response{IP: ip, Err: fmt.Errorf("receive error: %v", err)}
-		return
+	readDeadline := time.Now().Add(30 * time.Second) // Adjust timeout as needed
+	conn.SetReadDeadline(readDeadline)
+
+	for {
+		// Read in small chunks
+		chunk := make([]byte, 4096)
+		n, err := conn.Read(chunk)
+		if err != nil {
+			if err == io.EOF {
+				break // End of response
+			}
+			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+				break // Timeout, assume end of response
+			}
+			responses <- Response{IP: ip, Err: fmt.Errorf("receive error: %v", err)}
+			return
+		}
+		buffer.Write(chunk[:n])
+
+		// Check if we've reached the deadline
+		if time.Now().After(readDeadline) {
+			break
+		}
 	}
+
 	utility.LogMessage("Received response for file write from : " + ip)
 	responses <- Response{IP: ip, Data: buffer.Bytes()}
 }
@@ -481,6 +501,7 @@ func collectResponses(responses <-chan Response, request ClientData, limit int) 
 	var result []Response
 	cmd := request.Operation
 	counter := 0
+	utility.LogMessage("Recevied response from server")
 	for resp := range responses {
 
 		if resp.Err != nil {
@@ -497,7 +518,7 @@ func collectResponses(responses <-chan Response, request ClientData, limit int) 
 				fmt.Println("File written at path : " + request.LocalFilePath)
 			case "merge":
 				utility.LogMessage("File Merge request Ack from IP : " + resp.IP + ", file timestamp = " + resp.TimeStamp.String())
-			case "write":
+			case "create":
 				// handle write responses
 				utility.LogMessage("File Write Ack from IP (written successfully): " + resp.IP + ", ack msg : " + string(resp.Data))
 				counter += 1
@@ -516,4 +537,88 @@ func collectResponses(responses <-chan Response, request ClientData, limit int) 
 
 func writeResponseToFile(data []byte, filePath string) error {
 	return os.WriteFile(filePath, data, 0644)
+}
+
+// not used
+func WriteToConnBuffer(conn net.Conn, filePath string) error {
+	// Open the file
+	file, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("error opening file: %v", err)
+	}
+	defer file.Close()
+
+	// scanner to read the file
+	fileScanner := bufio.NewScanner(file)
+
+	// Write Buffer
+	bufW := bufio.NewWriter(conn)
+
+	// Read and write file line by line
+	for fileScanner.Scan() {
+		line := fileScanner.Text()
+		if line != "" {
+			_, err := bufW.WriteString(line)
+			if err != nil {
+				return fmt.Errorf("error writing file line to write buffer: %v", err)
+			}
+
+			// Write newline character at the end of each line
+			err = bufW.WriteByte('\n')
+			if err != nil {
+				return fmt.Errorf("error writing newline to buffer: %v", err)
+			}
+		}
+	}
+
+	// Check for errors during file scanning
+	if err := fileScanner.Err(); err != nil {
+		return fmt.Errorf("error reading file: %v", err)
+	}
+
+	// Flush
+	err = bufW.Flush()
+	if err != nil {
+		return fmt.Errorf("error on buffer writer flush: %v", err)
+	}
+
+	return nil
+}
+
+// not used
+func ReadFromConnBuffer(conn net.Conn, filePath string) error {
+	// Create or open the file for writing
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("error creating file: %v", err)
+	}
+	defer file.Close()
+
+	// Create a buffered reader for the connection
+	bufR := bufio.NewReader(conn)
+
+	// Create a buffered writer for the file
+	bufW := bufio.NewWriter(file)
+	defer bufW.Flush()
+
+	// Read from connection and write to file
+	buffer := make([]byte, 4096) // 4KB buffer
+
+	for {
+		n, err := bufR.Read(buffer)
+		if err != nil {
+			if err == io.EOF {
+				break // End of file, exit loop
+			}
+			return fmt.Errorf("error reading from connection: %v", err)
+		}
+
+		// Write the read bytes to the file
+		_, err = bufW.Write(buffer[:n])
+		if err != nil {
+			return fmt.Errorf("error writing to file: %v", err)
+		}
+	}
+
+	return nil
 }
