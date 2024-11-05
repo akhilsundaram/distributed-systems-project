@@ -38,6 +38,7 @@ func StartHyDFS() {
 // AddMember to ring
 func initRing() {
 	members_list := membership.GetMembershipList()
+	current_node_index := 0
 
 	ringLock.Lock()
 	for key := range members_list {
@@ -56,8 +57,23 @@ func initRing() {
 		for j := 0; i < replicas-1; j++ {
 			ring[i].successor = append(ring[i].successor, ring[i+j%len(ring)].hashID)
 		}
+		if ring[i].serverName == membership.My_hostname {
+			current_node_index = i
+		}
 	}
 	ringLock.Unlock()
+
+	//Pull data from previous node.
+	//Make a call to file server that reqs files from numbers [x,y] inclusive.
+	pullFiles(ring[((current_node_index-1)%len(ring)+len(ring))%len(ring)].hashID, ring[current_node_index+1%len(ring)].hashID, ring[current_node_index+1%len(ring)].serverName)
+	// Pull data/files on node from predecessor at node init. // //Make a call to file server that reqs files from numbers [x,y] inclusive. //
+
+	//Pull replica files into your system
+	num := ((current_node_index-replicas)%len(ring) + len(ring)) % len(ring)
+	for i := 0; i < replicas-1; i++ {
+		pullFiles(ring[num+i].hashID, ring[(num+i+1)%len(ring)].hashID)
+	}
+
 	//Add logic to event to pull replica data ? or a push based on add ??
 	// Always called when you're the new node in the system
 	// no nodes/ first node in the system
@@ -93,7 +109,13 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 		ringLock.Unlock()
 
 		//if we're part of two (num_replicas - 1) nodes after, drop data replica after a while.
-		//if we're part of the two nodes before, we need to replicate data to new node, but this should be pulled from init not here.
+		for i := 1; i < replicas; i++ {
+			if ring[(insertion+i)%len(ring)].serverName == membership.My_hostname {
+				num := ((insertion+i-replicas-1)%len(ring) + len(ring)) % len(ring)
+				dropFiles(ring[num%len(ring)].hashID, ring[(num+1)%len(ring)].hashID)
+			}
+		}
+		//if we're part of the two nodes before, we need to replicate data to new node, but this should be pulled from init not here. //NOT done in init
 		return nil
 
 	case membership.Delete: // remove from ring
@@ -116,6 +138,21 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 			ring[(num+c)%len(ring)].successor = []uint32{ring[(num+c+1)%len(ring)].hashID, ring[(num+c+2)%len(ring)].hashID}
 		}
 		ringLock.Unlock()
+
+		// The two successors of a deleted element will replicate one node further in.
+		for i := 0; i < replicas-1; i++ {
+			// I'm the next node
+			if ring[(deletion+i)%len(ring)].serverName == membership.My_hostname {
+				num := ((deletion+i-replicas)%len(ring) + len(ring)) % len(ring)
+				pullFiles(ring[num].hashID, ring[(num+1)%len(ring)].hashID)
+			}
+		}
+
+		// deletion index has more nodes, so one extra replica needs to pull this.
+		if ring[(deletion+replicas-1)%len(ring)].serverName == membership.My_hostname {
+			num := ((deletion-1)%len(ring) + len(ring)) % len(ring)
+			pullFiles(ring[num].hashID, hash_value_of_node)
+		}
 		return nil
 
 	}
@@ -134,4 +171,16 @@ func nodeInRing(node string) bool {
 // Hashing function
 func Hashmurmur(name string) uint32 {
 	return murmur3.Sum32([]byte(name)) % 1024
+}
+
+// Ask node to drop the file list - called when it gets { a files req from a newly added node } OR {sees newly added node and asks the replica + 1th node to drop files which won't be part of added node's hash }
+func dropFiles(low uint32, high uint32) {
+
+}
+
+func pullFiles(low uint32, high uint32, server ...string) {
+	// IF we have files within this range already -----> add a data struct for this if not there.
+	//Don't do anything
+	//Else
+	// Pull from the correct replicas (for now, 1 call, later to all replicas) -----> pull from server if the var was passed, else usual hashcheck
 }
