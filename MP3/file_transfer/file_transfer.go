@@ -475,11 +475,14 @@ func sendRequest(ip string, request ClientData, responses chan<- Response) {
 		// Read in small chunks
 		chunk := make([]byte, 4096)
 		n, err := conn.Read(chunk)
+		utility.LogMessage("reading in chunks : " + string(chunk[:n]))
 		if err != nil {
 			if err == io.EOF {
+				utility.LogMessage("EOF")
 				break // End of response
 			}
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+				utility.LogMessage("Timeout")
 				break // Timeout, assume end of response
 			}
 			responses <- Response{IP: ip, Err: fmt.Errorf("receive error: %v", err)}
