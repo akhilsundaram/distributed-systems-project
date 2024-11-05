@@ -194,10 +194,16 @@ func handleIncomingFileConnection(conn net.Conn) {
 
 		// Send response back to client
 		response := "File created successfully"
-		_, err = conn.Write([]byte(response))
+		bufW := bufio.NewWriter(conn)
+		_, err = bufW.WriteString(response)
 		if err != nil {
-			utility.LogMessage("Error sending response: " + err.Error())
+			utility.LogMessage("error writing modified log line to write buffer - " + err.Error())
 		}
+
+		//_, err = conn.Write([]byte(response))
+		//if err != nil {
+		//	utility.LogMessage("Error sending response: " + err.Error())
+		//}
 
 		// won't be sending create req for the same file
 	case "append":
