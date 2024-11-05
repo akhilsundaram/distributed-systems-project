@@ -97,10 +97,20 @@ func handleIncomingFileConnection(conn net.Conn) {
 	defer conn.Close()
 
 	// Add logic to do action based on type of input being sent
-	data, err := io.ReadAll(conn)
-	if err != nil {
-		utility.LogMessage("Error reading data: " + err.Error())
-		return
+
+	buffer := make([]byte, 4096) // 4KB buffer
+	var data []byte
+
+	for {
+		n, err := conn.Read(buffer)
+		if err != nil {
+			if err == io.EOF {
+				break // End of data
+			}
+			utility.LogMessage("Error reading data: " + err.Error())
+			return
+		}
+		data = append(data, buffer[:n]...)
 	}
 
 	var parsedData ClientData
@@ -166,7 +176,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 		}
 
 		// file write
-		err = os.WriteFile(hydfsPath, parsedData.Data, 0644)
+		err := os.WriteFile(hydfsPath, parsedData.Data, 0644)
 		if err != nil {
 			utility.LogMessage("Error writing file: " + err.Error())
 			return
