@@ -324,6 +324,7 @@ func HyDFSClient(request ClientData) {
 			utility.LogMessage("Error fetching file from replica: " + response.Err.Error())
 		} else {
 			utility.LogMessage("File fetched successfully from replica")
+			utility.LogMessage("Response : " + string(response.Data))
 			err := writeResponseToFile(response.Data, localPath)
 			if err != nil {
 				utility.LogMessage("Error writing file to local path: " + err.Error())
