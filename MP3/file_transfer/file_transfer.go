@@ -148,6 +148,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 			}
 		*/
 		//sending file data back to the client
+		utility.LogMessage("filedata : " + string(fileData))
 		_, err = conn.Write(fileData) // _, err = conn.Write(jsonResp)
 		if err != nil {
 			utility.LogMessage("Error sending file data: " + err.Error())
@@ -467,13 +468,11 @@ func sendRequest(ip string, request ClientData, responses chan<- Response) {
 
 	// Read the response
 	var buffer bytes.Buffer
-	readDeadline := time.Now().Add(10 * time.Second) // Adjust timeout as needed
-	conn.SetReadDeadline(readDeadline)
-
+	reader := bufio.NewReader(conn)
 	for {
 		// Read in small chunks
 		chunk := make([]byte, 4096)
-		n, err := conn.Read(chunk)
+		n, err := reader.Read(chunk)
 		if err != nil {
 			if err == io.EOF {
 				break // End of response
@@ -484,15 +483,14 @@ func sendRequest(ip string, request ClientData, responses chan<- Response) {
 			responses <- Response{IP: ip, Err: fmt.Errorf("receive error: %v", err)}
 			return
 		}
+		data := chunk[:n]
+		utility.LogMessage("reading in chunks : " + string(data))
 		buffer.Write(chunk[:n])
 
-		// Check if we've reached the deadline
-		if time.Now().After(readDeadline) {
-			break
-		}
 	}
 
 	utility.LogMessage("Received response for file write from : " + ip)
+	utility.LogMessage("Buffer value : " + buffer.String())
 	responses <- Response{IP: ip, Data: buffer.Bytes()}
 }
 
