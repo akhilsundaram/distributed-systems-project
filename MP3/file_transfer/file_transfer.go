@@ -466,7 +466,7 @@ func sendRequest(ip string, request ClientData, responses chan<- Response) {
 
 	// Read the response
 	var buffer bytes.Buffer
-	readDeadline := time.Now().Add(30 * time.Second) // Adjust timeout as needed
+	readDeadline := time.Now().Add(10 * time.Second) // Adjust timeout as needed
 	conn.SetReadDeadline(readDeadline)
 
 	for {
