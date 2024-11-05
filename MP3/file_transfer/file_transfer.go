@@ -197,7 +197,12 @@ func handleIncomingFileConnection(conn net.Conn) {
 		bufW := bufio.NewWriter(conn)
 		_, err = bufW.WriteString(response)
 		if err != nil {
-			utility.LogMessage("error writing modified log line to write buffer - " + err.Error())
+			utility.LogMessage("error writing resp to write buffer - " + err.Error())
+		}
+
+		err = bufW.Flush()
+		if err != nil {
+			utility.LogMessage("error on buffer writer flush - " + err.Error())
 		}
 
 		//_, err = conn.Write([]byte(response))
