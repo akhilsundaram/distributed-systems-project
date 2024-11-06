@@ -1,9 +1,7 @@
 package hydfs
 
 import (
-	"encoding/json"
 	"fmt"
-	"hydfs/file_transfer"
 	"hydfs/membership"
 	"hydfs/utility"
 	"os"
@@ -45,7 +43,7 @@ func initRing() {
 	ringLock.Lock()
 	for key := range members_list {
 		var ring_member ringMember
-		ring_member.hashID = membership.Hashmurmur(key)
+		ring_member.hashID = utility.Hashmurmur(key)
 		ring_member.serverName = key
 		ring = append(ring, ring_member)
 
@@ -82,7 +80,7 @@ func initRing() {
 }
 
 func UpdateRingMemeber(node string, action membership.MemberState) error {
-	hash_value_of_node := membership.Hashmurmur(node)
+	hash_value_of_node := utility.Hashmurmur(node)
 	switch action {
 	case membership.Add: // add to ring
 		if nodeInRing(node) {
@@ -165,7 +163,7 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 }
 
 func nodeInRing(node string) bool {
-	if _, exists := ringNodes[membership.Hashmurmur(node)]; exists {
+	if _, exists := ringNodes[utility.Hashmurmur(node)]; exists {
 		return true
 	} else {
 		return false
@@ -175,7 +173,7 @@ func nodeInRing(node string) bool {
 
 // Get Successor node for a file
 func GetFileNodes(filename string) []string {
-	hash_of_file := membership.Hashmurmur(filename)
+	hash_of_file := utility.Hashmurmur(filename)
 	idx := -1 // negative to indicate init
 	var output []string
 
@@ -212,7 +210,7 @@ func handleDelete(filename string) {
 	//Path to file may need to change : HDFS_URL + filename
 
 	// Delete the file
-	err := os.Remove(file_transfer.HYDFS_DIR + "/" + filename)
+	err := os.Remove(utility.HYDFS_DIR + "/" + filename)
 	if err != nil {
 		utility.LogMessage("File does not exist")
 		return
@@ -230,21 +228,21 @@ func pullFiles(low uint32, high uint32, server string) {
 	// Get file list for the ranges in the other servers.
 	var remote_list []string
 
-	serverIP := utility.GetIPAddr(server)
-	reqVar := file_transfer.ClientData{
-		Operation:   "get_files_in_range",
-		RangeRingID: []uint32{low, high},
-	}
-	responseVar, err := file_transfer.SendRequest(serverIP.String(), reqVar)
-	if err != nil {
-		utility.LogMessage("Error in pull files - ring.go")
-	}
+	// serverIP := utility.GetIPAddr(server)
+	// reqVar := file_transfer.ClientData{
+	// 	Operation:   "get_files_in_range",
+	// 	RangeRingID: []uint32{low, high},
+	// }
+	// responseVar, err := file_transfer.SendRequest(serverIP.String(), reqVar)
+	// if err != nil {
+	// 	utility.LogMessage("Error in pull files - ring.go")
+	// }
 
 	// Get list of servers with the hash ids of that range.
-	err = json.Unmarshal(responseVar.Data, &remote_list)
-	if err != nil {
-		utility.LogMessage("Error in unmarshalling rmeote list - pull files - ring.go")
-	}
+	// err = json.Unmarshal(responseVar.Data, &remote_list)
+	// if err != nil {
+	// 	utility.LogMessage("Error in unmarshalling rmeote list - pull files - ring.go")
+	// }
 
 	map_self_list := make(map[string]struct{}, len(self_list))
 	diff := []string{}
@@ -264,14 +262,14 @@ func pullFiles(low uint32, high uint32, server string) {
 
 }
 
-func getFilesFromServer() {
+// func getFilesFromServer() {
 
-}
+// }
 
 func getFileList(low uint32, high uint32) []string {
 	var file_list []string
 	if low > high {
-		for filename, metadata := range file_transfer.HydfsFileStore {
+		for filename, metadata := range utility.HydfsFileStore {
 			if low < metadata.RingId && metadata.RingId <= 1023 {
 				file_list = append(file_list, filename)
 			}
@@ -280,7 +278,7 @@ func getFileList(low uint32, high uint32) []string {
 			}
 		}
 	} else {
-		for filename, metadata := range file_transfer.HydfsFileStore {
+		for filename, metadata := range utility.HydfsFileStore {
 			if low < metadata.RingId && metadata.RingId <= high {
 				file_list = append(file_list, filename)
 			}

@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"hydfs/membership"
 	"hydfs/utility"
 	"io"
 	"net"
@@ -18,13 +17,6 @@ import (
 const (
 	port    = "6060"
 	timeout = 10 * time.Millisecond
-)
-
-var (
-	LOGGER_FILE = "/home/log/hydfs.log"
-	HYDFS_DIR   = "/home/hydfs/files"
-	HYDFS_CACHE = "/home/hydfs/cache"
-	HYDFS_TMP   = "/home/hydfs/tmp"
 )
 
 type ClientData struct {
@@ -54,14 +46,6 @@ type Response struct {
 	RingId    uint32
 	Err       error
 }
-
-type FileMetaData struct {
-	Hash      string
-	Timestamp time.Time
-	RingId    uint32
-}
-
-var HydfsFileStore = map[string]FileMetaData{} //key is filename
 
 // This file will contain file fetching ,
 // file writing/appending
@@ -128,7 +112,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 	}
 	switch cmd {
 	case "get", "get_from_replica":
-		hydfsPath := HYDFS_DIR + "/" + parsedData.Filename
+		hydfsPath := utility.HYDFS_DIR + "/" + parsedData.Filename
 
 		// ipAddr := parsedData.NodeAddr
 		utility.LogMessage("Fetching file " + hydfsPath + " from this HyDFS node")
@@ -152,7 +136,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 		utility.LogMessage("File " + hydfsPath + " sent successfully")
 
 	case "create":
-		hydfsPath := HYDFS_DIR + "/" + parsedData.Filename
+		hydfsPath := utility.HYDFS_DIR + "/" + parsedData.Filename
 
 		fmt.Printf("Creating file %s in HyDFS \n", hydfsPath)
 		if utility.FileExists(hydfsPath) {
@@ -167,7 +151,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 		} else {
 			// write to virtual representation
 			filehash, _ := utility.GetMD5(hydfsPath)
-			HydfsFileStore[hydfsPath] = FileMetaData{
+			utility.HydfsFileStore[hydfsPath] = utility.FileMetaData{
 				Hash:      filehash,
 				Timestamp: parsedData.TimeStamp,
 				RingId:    parsedData.RingID,
@@ -177,7 +161,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 		}
 		// won't be sending create req for the same file
 	case "append":
-		hydfsPath := HYDFS_DIR + "/" + parsedData.Filename
+		hydfsPath := utility.HYDFS_DIR + "/" + parsedData.Filename
 		if utility.FileExists(hydfsPath) {
 			fmt.Println("File exists")
 		} else {
@@ -187,20 +171,20 @@ func handleIncomingFileConnection(conn net.Conn) {
 		// handleAppend(filename, localPath)
 
 	case "merge":
-		hydfsPath := HYDFS_DIR + "/" + parsedData.Filename
+		hydfsPath := utility.HYDFS_DIR + "/" + parsedData.Filename
 		fmt.Printf("Merging all replicas of %s in HyDFS\n", hydfsPath)
 
 		// Check with hash value being sent, if hash is diff then
 		// ask for file and make changes to hydfs file
 
 	case "delete":
-		hydfsPath := HYDFS_DIR + "/" + parsedData.Filename
+		hydfsPath := utility.HYDFS_DIR + "/" + parsedData.Filename
 		fmt.Printf("Deleting %s from HyDFS\n", hydfsPath)
 
 		// handleDelete(filename)
 
 	case "ls":
-		hydfsPath := HYDFS_DIR + "/" + parsedData.Filename
+		hydfsPath := utility.HYDFS_DIR + "/" + parsedData.Filename
 		fmt.Printf("Listing VM addresses storing %s\n", hydfsPath)
 
 		// handleLs(filename)
@@ -408,7 +392,7 @@ func HyDFSClient(request ClientData) {
 }
 
 func GetSuccesorIPsForFilename(filename string) (uint32, []string) {
-	ringID := membership.Hashmurmur(filename)
+	ringID := utility.Hashmurmur(filename)
 	utility.LogMessage("Ring ID generated for filename " + filename + ": " + strconv.FormatInt(int64(ringID), 10))
 
 	// ips = hydfs.GetSuccessorNodeIps(ringID)
