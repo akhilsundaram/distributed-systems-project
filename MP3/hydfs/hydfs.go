@@ -2,7 +2,10 @@ package hydfs
 
 import (
 	"fmt"
+	"hydfs/file_transfer"
 	"hydfs/membership"
+	"hydfs/utility"
+	"os"
 	"sort"
 	"sync"
 
@@ -140,6 +143,7 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 		ringLock.Unlock()
 
 		// The two successors of a deleted element will replicate one node further in.
+		// 1st successor of deleted node will have more files assigned to it. The replicas of this node will also need to get these files
 		for i := 0; i < replicas-1; i++ {
 			// I'm the next node
 			if ring[(deletion+i)%len(ring)].serverName == membership.My_hostname {
@@ -168,6 +172,27 @@ func nodeInRing(node string) bool {
 
 }
 
+// Get Successor node for a file
+func GetFileNodes(filename string) []string {
+	hash_of_file := Hashmurmur(filename)
+	idx := 0
+	var output []string
+
+	for i := 0; i < len(ring); i++ {
+		if hash_of_file > ring[i].hashID {
+			continue
+		} else {
+			idx = i
+		}
+	}
+
+	for i := idx; i < idx+replicas; i++ {
+		output = append(output, ring[i].serverName)
+	}
+
+	return output
+}
+
 // Hashing function
 func Hashmurmur(name string) uint32 {
 	return murmur3.Sum32([]byte(name)) % 1024
@@ -175,6 +200,23 @@ func Hashmurmur(name string) uint32 {
 
 // Ask node to drop the file list - called when it gets { a files req from a newly added node } OR {sees newly added node and asks the replica + 1th node to drop files which won't be part of added node's hash }
 func dropFiles(low uint32, high uint32) {
+	delete_list := getFileList(low, high)
+	for _, filename := range delete_list {
+		//change to file_transfer function
+		handleDelete(filename)
+	}
+}
+
+// To move to file_transfer
+func handleDelete(filename string) {
+	//Path to file may need to change : HDFS_URL + filename
+
+	// Delete the file
+	err := os.Remove(file_transfer.HYDFS_DIR + "/" + filename)
+	if err != nil {
+		utility.LogMessage("File does not exist")
+		return
+	}
 
 }
 
@@ -183,4 +225,51 @@ func pullFiles(low uint32, high uint32, server ...string) {
 	//Don't do anything
 	//Else
 	// Pull from the correct replicas (for now, 1 call, later to all replicas) -----> pull from server if the var was passed, else usual hashcheck
+	self_list := getFileList(low, high)
+
+	// Get file list for the ranges in the other servers.
+	var remote_list []string
+	if len(server) == 0 {
+		// Get File from server func - wait for anurag to rewrite this.
+		remote_list = append(remote_list, "") // get list from server[0]
+	} else {
+		// Get list of servers with the hash ids of that range
+		idx := 0
+		for i := 0; i < len(ring); i++ {
+			if low > ring[i].hashID {
+				continue
+			} else {
+				idx = i
+			}
+		}
+		remote_list = append(remote_list, "") // get list from servers
+	}
+
+	//Find the correct server to send data to. difference in lists.
+	map_self_list := make(map[string]struct{}, len(self_list))
+	diff := []string{}
+	for _, file := range self_list {
+		map_self_list[file] = struct{}{}
+	}
+	for _, v := range remote_list {
+		if _, found := map_self_list[v]; !found {
+			diff = append(diff, v)
+		}
+	}
+
+	for _, file_to_get := range diff {
+		//Call get file for "file_to_get"
+		fmt.Printf("file_to_get: %v\n", file_to_get)
+	}
+
+}
+
+func getFileList(low uint32, high uint32) []string {
+	var file_list []string
+	for filename, metadata := range file_transfer.HydfsFileStore {
+		if low < metadata.RingId && metadata.RingId <= high {
+			file_list = append(file_list, filename)
+		}
+	}
+	return file_list
 }
