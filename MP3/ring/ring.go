@@ -1,6 +1,7 @@
 package hydfs
 
 import (
+	"encoding/json"
 	"fmt"
 	"hydfs/file_transfer"
 	"hydfs/membership"
@@ -8,8 +9,6 @@ import (
 	"os"
 	"sort"
 	"sync"
-
-	"github.com/spaolacci/murmur3"
 )
 
 type ringMember struct {
@@ -26,7 +25,7 @@ var (
 )
 
 /*Initialize a new server for hydfs ring.*/
-func StartHyDFS() {
+func StartRing() {
 	// Get current server name
 	// Get current member list
 	// Construct Ring
@@ -46,7 +45,7 @@ func initRing() {
 	ringLock.Lock()
 	for key := range members_list {
 		var ring_member ringMember
-		ring_member.hashID = Hashmurmur(key)
+		ring_member.hashID = membership.Hashmurmur(key)
 		ring_member.serverName = key
 		ring = append(ring, ring_member)
 
@@ -83,7 +82,7 @@ func initRing() {
 }
 
 func UpdateRingMemeber(node string, action membership.MemberState) error {
-	hash_value_of_node := Hashmurmur(node)
+	hash_value_of_node := membership.Hashmurmur(node)
 	switch action {
 	case membership.Add: // add to ring
 		if nodeInRing(node) {
@@ -166,7 +165,7 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 }
 
 func nodeInRing(node string) bool {
-	if _, exists := ringNodes[Hashmurmur(node)]; exists {
+	if _, exists := ringNodes[membership.Hashmurmur(node)]; exists {
 		return true
 	} else {
 		return false
@@ -176,7 +175,7 @@ func nodeInRing(node string) bool {
 
 // Get Successor node for a file
 func GetFileNodes(filename string) []string {
-	hash_of_file := Hashmurmur(filename)
+	hash_of_file := membership.Hashmurmur(filename)
 	idx := -1 // negative to indicate init
 	var output []string
 
@@ -197,11 +196,6 @@ func GetFileNodes(filename string) []string {
 	}
 
 	return output
-}
-
-// Hashing function
-func Hashmurmur(name string) uint32 {
-	return murmur3.Sum32([]byte(name)) % 1024
 }
 
 // Ask node to drop the file list - called when it gets { a files req from a newly added node } OR {sees newly added node and asks the replica + 1th node to drop files which won't be part of added node's hash }
@@ -236,8 +230,21 @@ func pullFiles(low uint32, high uint32, server string) {
 	// Get file list for the ranges in the other servers.
 	var remote_list []string
 
+	serverIP := utility.GetIPAddr(server)
+	reqVar := file_transfer.ClientData{
+		Operation:   "get_files_in_range",
+		RangeRingID: []uint32{low, high},
+	}
+	responseVar, err := file_transfer.SendRequest(serverIP.String(), reqVar)
+	if err != nil {
+		utility.LogMessage("Error in pull files - ring.go")
+	}
+
 	// Get list of servers with the hash ids of that range.
-	remote_list = append(remote_list, "") // get list from servers.
+	err = json.Unmarshal(responseVar.Data, &remote_list)
+	if err != nil {
+		utility.LogMessage("Error in unmarshalling rmeote list - pull files - ring.go")
+	}
 
 	map_self_list := make(map[string]struct{}, len(self_list))
 	diff := []string{}
@@ -254,6 +261,10 @@ func pullFiles(low uint32, high uint32, server string) {
 		//Call get file for "file_to_get"
 		fmt.Printf("file_to_get: %v\n", file_to_get)
 	}
+
+}
+
+func getFilesFromServer() {
 
 }
 
@@ -278,3 +289,39 @@ func getFileList(low uint32, high uint32) []string {
 
 	return file_list
 }
+
+// case "get_files_in_range":
+// 	low_range := parsedData.RangeRingID[0]
+// 	high_range := parsedData.RangeRingID[1]
+
+// 	output_list := GetFileList(low_range, high_range)
+
+// 	jsonBytesOutput, err := json.Marshal(output_list)
+// 	if err != nil {
+// 		utility.LogMessage("json marshal error - hydfs file server - get_files_in_range")
+// 	}
+
+// 	resp.Data = jsonBytesOutput
+
+// // Get file
+// func GetFileList(low uint32, high uint32) []string {
+// 	var file_list []string
+// 	if low > high {
+// 		for filename, metadata := range HydfsFileStore {
+// 			if low < metadata.RingId && metadata.RingId <= 1023 {
+// 				file_list = append(file_list, filename)
+// 			}
+// 			if low <= metadata.RingId && metadata.RingId <= high {
+// 				file_list = append(file_list, filename)
+// 			}
+// 		}
+// 	} else {
+// 		for filename, metadata := range HydfsFileStore {
+// 			if low < metadata.RingId && metadata.RingId <= high {
+// 				file_list = append(file_list, filename)
+// 			}
+// 		}
+// 	}
+
+// 	return file_list
+// }

@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"hydfs/hydfs"
+	"hydfs/membership"
 	"hydfs/utility"
 	"io"
 	"net"
@@ -299,7 +299,7 @@ func HyDFSClient(request ClientData) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			response, err := sendRequest(nodeAddr, request)
+			response, err := SendRequest(nodeAddr, request)
 			if err != nil {
 				utility.LogMessage(fmt.Sprintf("Error in get_from_replica: %v", err))
 				return
@@ -349,7 +349,7 @@ func HyDFSClient(request ClientData) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			response, err := sendRequest(senderIPs[0], request)
+			response, err := SendRequest(senderIPs[0], request)
 			if err != nil {
 				utility.LogMessage(fmt.Sprintf("Error in create: %v", err))
 				return
@@ -408,7 +408,7 @@ func HyDFSClient(request ClientData) {
 }
 
 func GetSuccesorIPsForFilename(filename string) (uint32, []string) {
-	ringID := hydfs.Hashmurmur(filename)
+	ringID := membership.Hashmurmur(filename)
 	utility.LogMessage("Ring ID generated for filename " + filename + ": " + strconv.FormatInt(int64(ringID), 10))
 
 	// ips = hydfs.GetSuccessorNodeIps(ringID)
@@ -425,7 +425,7 @@ func SendRequestToNodes(ips []string, request ClientData) []Response {
 		wg.Add(1)
 		go func(ip string) {
 			defer wg.Done()
-			sendRequest(ip, request)
+			SendRequest(ip, request)
 		}(ip)
 	}
 
@@ -437,7 +437,7 @@ func SendRequestToNodes(ips []string, request ClientData) []Response {
 	return collectResponses(responses, request, len(ips))
 }
 
-func sendRequest(ip string, request ClientData) (*ResponseJson, error) {
+func SendRequest(ip string, request ClientData) (*ResponseJson, error) {
 	// Establish TCP connection
 	utility.LogMessage("Sending TCP request to " + ip)
 

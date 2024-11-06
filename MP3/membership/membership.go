@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/spaolacci/murmur3"
 )
 
 // Channels
@@ -298,4 +300,9 @@ func CheckBuffer(data []byte) bool {
 		return true
 	}
 	return false
+}
+
+// Hashing function
+func Hashmurmur(name string) uint32 {
+	return murmur3.Sum32([]byte(name)) % 1024
 }
