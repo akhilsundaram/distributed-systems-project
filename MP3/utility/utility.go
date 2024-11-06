@@ -9,8 +9,12 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
+
+	"github.com/spaolacci/murmur3"
 )
 
+// -----------------------------------VARS----------------------------------------------------//
 var (
 	logFile *os.File
 	logger  *log.Logger
@@ -18,8 +22,20 @@ var (
 	mu      sync.Mutex
 )
 
-var LOGGER_FILE = "/home/log/hydfs.log"
+type FileMetaData struct {
+	Hash      string
+	Timestamp time.Time
+	RingId    uint32
+}
 
+var (
+	LOGGER_FILE = "/home/log/hydfs.log"
+	HYDFS_DIR   = "/home/hydfs/files"
+	HYDFS_CACHE = "/home/hydfs/cache"
+	HYDFS_TMP   = "/home/hydfs/tmp"
+)
+
+/* LOGGER STUFF */
 func initLogger() {
 	once.Do(func() {
 		var err error
@@ -38,6 +54,8 @@ func LogMessage(message string) {
 	logger.Println(message)
 }
 
+/* IP ADDRESS  && NET */
+
 func GetIPAddr(host string) net.IP {
 	ips, err := net.LookupIP(host) // Can give us a string of IPs.
 
@@ -52,6 +70,11 @@ func GetIPAddr(host string) net.IP {
 	}
 	return net.IPv4(127, 0, 0, 1) // return loopback as default
 }
+
+// --------------------------------------------------------------------------------------------//
+/*FILES AND HASHES*/
+
+var HydfsFileStore = map[string]FileMetaData{} //key is filename
 
 func SetupDirectories(directories ...string) error {
 
@@ -137,4 +160,9 @@ func CompareFiles(file1, file2 string) (bool, error) {
 	}
 
 	return hash1 == hash2, nil
+}
+
+// Hashing function
+func Hashmurmur(name string) uint32 {
+	return murmur3.Sum32([]byte(name)) % 1024
 }
