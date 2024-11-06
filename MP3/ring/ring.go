@@ -1,12 +1,16 @@
-package hydfs
+package ring
 
 import (
 	"fmt"
 	"hydfs/membership"
 	"hydfs/utility"
+	"log"
+	"net"
 	"os"
 	"sort"
 	"sync"
+
+	grpc "google.golang.org/grpc"
 )
 
 type ringMember struct {
@@ -20,6 +24,7 @@ var (
 	ringNodes map[uint32]int
 	replicas  = 3
 	ringLock  sync.Mutex
+	port      = "5050"
 )
 
 /*Initialize a new server for hydfs ring.*/
@@ -27,6 +32,22 @@ func StartRing() {
 	// Get current server name
 	// Get current member list
 	// Construct Ring
+
+	// Start file rpc server for ring
+	listener, err := net.Listen("tcp", ":"+port)
+	if err != nil {
+		log.Fatalf("Failed to listen on port 50051: %v", err)
+	}
+	server := grpc.NewServer()
+	RegisterFileServiceServer(server, &FileServer{})
+	go func() {
+		if err := server.Serve(listener); err != nil {
+			utility.LogMessage("Init Ring -  start fserver failure")
+		}
+	}()
+
+	//End file server start
+
 	initRing()
 
 	for {
@@ -226,23 +247,7 @@ func pullFiles(low uint32, high uint32, server string) {
 	self_list := getFileList(low, high)
 
 	// Get file list for the ranges in the other servers.
-	var remote_list []string
-
-	// serverIP := utility.GetIPAddr(server)
-	// reqVar := file_transfer.ClientData{
-	// 	Operation:   "get_files_in_range",
-	// 	RangeRingID: []uint32{low, high},
-	// }
-	// responseVar, err := file_transfer.SendRequest(serverIP.String(), reqVar)
-	// if err != nil {
-	// 	utility.LogMessage("Error in pull files - ring.go")
-	// }
-
-	// Get list of servers with the hash ids of that range.
-	// err = json.Unmarshal(responseVar.Data, &remote_list)
-	// if err != nil {
-	// 	utility.LogMessage("Error in unmarshalling rmeote list - pull files - ring.go")
-	// }
+	remote_list := callFileServerNames(server, low, high)
 
 	map_self_list := make(map[string]struct{}, len(self_list))
 	diff := []string{}
@@ -255,10 +260,7 @@ func pullFiles(low uint32, high uint32, server string) {
 		}
 	}
 
-	for _, file_to_get := range diff {
-		//Call get file for "file_to_get"
-		fmt.Printf("file_to_get: %v\n", file_to_get)
-	}
+	callFileServerFiles(server, diff)
 
 }
 
