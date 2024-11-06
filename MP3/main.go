@@ -7,6 +7,7 @@ import (
 	"hydfs/introducer"
 	"hydfs/membership"
 	"hydfs/ping"
+	"hydfs/ring"
 	"hydfs/utility"
 	"os"
 	"os/signal"
@@ -84,6 +85,7 @@ func main() {
 	go ContinouslySendPings()
 
 	// Call HyDFS ?
+	ring.StartRing()
 	membership.RingMemberchan = make(chan membership.RingMemberMessage)
 
 	go file_transfer.HyDFSServer()
@@ -257,6 +259,7 @@ func main() {
 				file_transfer.HyDFSClient(requestData)
 			case "list_mem_ids":
 				fmt.Println("Displaying current membership list along with Node ID on ring")
+				ring.PrintRing()
 				// list_mem_ids function here
 			default:
 				fmt.Printf("Unknown command: %s\n", cmd)
