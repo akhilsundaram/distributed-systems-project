@@ -61,7 +61,7 @@ type FileMetaData struct {
 	RingId    uint32
 }
 
-var hydfsFileStore = map[string]FileMetaData{} //key is filename
+var HydfsFileStore = map[string]FileMetaData{} //key is filename
 
 // This file will contain file fetching ,
 // file writing/appending
@@ -167,7 +167,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 		} else {
 			// write to virtual representation
 			filehash, _ := utility.GetMD5(hydfsPath)
-			hydfsFileStore[hydfsPath] = FileMetaData{
+			HydfsFileStore[hydfsPath] = FileMetaData{
 				Hash:      filehash,
 				Timestamp: parsedData.TimeStamp,
 				RingId:    parsedData.RingID,
