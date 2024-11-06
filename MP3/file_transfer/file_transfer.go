@@ -37,15 +37,14 @@ type ClientData struct {
 	TimeStamp     time.Time `json:"timestamp,omitempty"`
 }
 
-/*
-type Response struct {
+type ResponseJson struct {
 	IP        string    `json:"ip"`
 	Data      []byte    `json:"data"`
 	TimeStamp time.Time `json:"timestamp,omitempty"`
 	Hash      string    `json:"hash,omitempty"`
 	RingId    uint32    `json:"ring_id,omitempty"`
 	Err       string    `json:"error,omitempty"`
-}*/
+}
 
 type Response struct {
 	IP        string
@@ -121,10 +120,12 @@ func handleIncomingFileConnection(conn net.Conn) {
 
 	cmd := parsedData.Operation
 	utility.LogMessage("Incoming connection received, cmd = " + cmd)
+
 	// Process the request and prepare the response
-	// resp := Response{
-	//    Data:      []byte(""),
-	//}
+	serverAddr := conn.RemoteAddr().String()
+	resp := ResponseJson{
+		IP: serverAddr,
+	}
 	switch cmd {
 	case "get", "get_from_replica":
 		hydfsPath := HYDFS_DIR + "/" + parsedData.Filename
@@ -133,37 +134,20 @@ func handleIncomingFileConnection(conn net.Conn) {
 		utility.LogMessage("Fetching file " + hydfsPath + " from this HyDFS node")
 
 		if !utility.FileExists(hydfsPath) {
-			errorMsg := "File does not exist on this replica"
-			utility.LogMessage(errorMsg)
-			conn.Write([]byte(errorMsg))
-			return
-		}
-
-		fileData, err := os.ReadFile(hydfsPath)
-		if err != nil {
-			errorMsg := "Error reading file: " + err.Error()
-			utility.LogMessage(errorMsg)
-			conn.Write([]byte(errorMsg))
-			return
-		}
-
-		/*
-			// Marshal the response to JSON
-			jsonResp, err := json.Marshal(resp)
+			resp.Err = "File does not exist on this replica"
+			utility.LogMessage(resp.Err)
+		} else {
+			fileData, err := os.ReadFile(hydfsPath)
 			if err != nil {
-				// Handle error (e.g., log it)
-				errorMsg := []byte("Error creating JSON response")
-				conn.Write(errorMsg)
-				return
+				resp.Err = "Error reading file: " + err.Error()
+				utility.LogMessage(resp.Err)
+			} else {
+				resp.Data = fileData
+				utility.LogMessage("File " + hydfsPath + " read successfully")
 			}
-		*/
-		//sending file data back to the client
-		utility.LogMessage("filedata : " + string(fileData))
-		_, err = conn.Write(fileData) // _, err = conn.Write(jsonResp)
-		if err != nil {
-			utility.LogMessage("Error sending file data: " + err.Error())
-			return
 		}
+
+		//sending file data back to the client
 
 		utility.LogMessage("File " + hydfsPath + " sent successfully")
 
@@ -178,38 +162,19 @@ func handleIncomingFileConnection(conn net.Conn) {
 		// file write
 		err := os.WriteFile(hydfsPath, parsedData.Data, 0644)
 		if err != nil {
-			utility.LogMessage("Error writing file: " + err.Error())
-			return
+			resp.Err = "Error writing file: " + err.Error()
+			utility.LogMessage(resp.Err)
+		} else {
+			// write to virtual representation
+			filehash, _ := utility.GetMD5(hydfsPath)
+			hydfsFileStore[hydfsPath] = FileMetaData{
+				Hash:      filehash,
+				Timestamp: parsedData.TimeStamp,
+				RingId:    parsedData.RingID,
+			}
+			resp.Data = []byte("File created successfully: " + hydfsPath)
+			utility.LogMessage(string(resp.Data))
 		}
-
-		// write to virtual representation
-		filehash, _ := utility.GetMD5(hydfsPath)
-		hydfsFileStore[hydfsPath] = FileMetaData{
-			Hash:      filehash,
-			Timestamp: parsedData.TimeStamp,
-			RingId:    parsedData.RingID,
-		}
-
-		utility.LogMessage("File created successfully: " + hydfsPath)
-
-		// Send response back to client
-		response := "File created successfully"
-		bufW := bufio.NewWriter(conn)
-		_, err = bufW.WriteString(response)
-		if err != nil {
-			utility.LogMessage("error writing resp to write buffer - " + err.Error())
-		}
-
-		err = bufW.Flush()
-		if err != nil {
-			utility.LogMessage("error on buffer writer flush - " + err.Error())
-		}
-
-		//_, err = conn.Write([]byte(response))
-		//if err != nil {
-		//	utility.LogMessage("Error sending response: " + err.Error())
-		//}
-
 		// won't be sending create req for the same file
 	case "append":
 		hydfsPath := HYDFS_DIR + "/" + parsedData.Filename
@@ -253,32 +218,31 @@ func handleIncomingFileConnection(conn net.Conn) {
 	default:
 		utility.LogMessage("Unknown command: " + cmd)
 	}
-	/*
-		filename := string(buffer[:n])
-		utility.LogMessage("Receiving file: " + filename)
 
-		file, err := os.Create(filepath.Join("received", filename))
-		if err != nil {
-			utility.LogMessage("Error creating file: " + err.Error())
-			return
-		}
-		defer file.Close()
+	// Marshal the response to JSON
+	jsonResp, err := json.Marshal(resp)
+	if err != nil {
+		errorMsg := "Error creating JSON response: " + err.Error()
+		utility.LogMessage(errorMsg)
+		conn.Write([]byte(errorMsg))
+		return
+	}
 
-		_, err = io.Copy(file, conn)
-		if err != nil {
-			utility.LogMessage("Error receiving file data : " + err.Error())
-			return
-		}
+	// Send JSON response back to the client
+	_, err = conn.Write(jsonResp)
+	if err != nil {
+		utility.LogMessage("Error sending JSON response: " + err.Error())
+		return
+	}
 
-		utility.LogMessage("File " + filename + " received successfully")
-	*/
+	utility.LogMessage("Response sent successfully")
 }
 
 func HyDFSClient(request ClientData) {
 
 	cmd := request.Operation
 	filename := request.Filename
-
+	var wg sync.WaitGroup
 	// preprocess data recv from cli -- done
 	// do checks for filename  -- done
 	// get the nodes to which you have to send the requests to -- hashing -- method akhil will provide
@@ -332,30 +296,28 @@ func HyDFSClient(request ClientData) {
 			utility.LogMessage("File does not exist, will be created")
 		}
 
-		// channel to receive the response
-		responses := make(chan Response, 1)
-
-		// Call sendRequest with the node address
-		go sendRequest(nodeAddr, request, responses)
-
-		// wait for the response on channel
-		response := <-responses
-		close(responses)
-
-		if response.Err != nil {
-			utility.LogMessage("Error fetching file from replica: " + response.Err.Error())
-		} else {
-			utility.LogMessage("File fetched successfully from replica")
-			utility.LogMessage("Response : " + string(response.Data))
-			err := writeResponseToFile(response.Data, localPath)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			response, err := sendRequest(nodeAddr, request)
 			if err != nil {
-				utility.LogMessage("Error writing file to local path: " + err.Error())
-			} else {
-				utility.LogMessage("File saved to " + localPath)
+				utility.LogMessage(fmt.Sprintf("Error in get_from_replica: %v", err))
+				return
 			}
-		}
+			if response.Err != "" {
+				utility.LogMessage(fmt.Sprintf("Error from server: %s", response.Err))
+				return
+			}
+			// Handle the response data (e.g., write to file)
+			err = os.WriteFile(localPath, response.Data, 0644)
+			if err != nil {
+				utility.LogMessage(fmt.Sprintf("Error writing file: %v", err))
+			}
+		}()
 
-		utility.LogMessage("File fetched and saved to " + localPath)
+		// Wait for the goroutine to finish
+		wg.Wait()
+		utility.LogMessage("File fetch operation completed")
 
 		// handleGetFromReplica(filename, localPath, nodeID)
 
@@ -384,12 +346,24 @@ func HyDFSClient(request ClientData) {
 		clear(senderIPs)
 		senderIPs = []string{"172.22.94.195"}
 
-		responses := SendRequestToNodes(senderIPs, request)
-		for _, response := range responses {
-			if response.Err == nil {
-				fmt.Println("File created successfully on " + response.IP) // can print file Ring ID if needed
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			response, err := sendRequest(senderIPs[0], request)
+			if err != nil {
+				utility.LogMessage(fmt.Sprintf("Error in create: %v", err))
+				return
 			}
-		}
+			if response.Err != "" {
+				utility.LogMessage(fmt.Sprintf("Error from server: %s", response.Err))
+				return
+			}
+			utility.LogMessage(fmt.Sprintf("File created successfully: %s", string(response.Data)))
+		}()
+
+		// Wait for the goroutine to finish
+		wg.Wait()
+		utility.LogMessage("File create operation completed")
 
 		// handleCreate(filename, localPath)
 		// we won't be sending create req for the same file
@@ -451,7 +425,7 @@ func SendRequestToNodes(ips []string, request ClientData) []Response {
 		wg.Add(1)
 		go func(ip string) {
 			defer wg.Done()
-			sendRequest(ip, request, responses)
+			sendRequest(ip, request)
 		}(ip)
 	}
 
@@ -463,34 +437,38 @@ func SendRequestToNodes(ips []string, request ClientData) []Response {
 	return collectResponses(responses, request, len(ips))
 }
 
-func sendRequest(ip string, request ClientData, responses chan<- Response) {
+func sendRequest(ip string, request ClientData) (*ResponseJson, error) {
 	// Establish TCP connection
 	utility.LogMessage("Sending TCP request to " + ip)
-	conn, err := net.DialTimeout("tcp", ip+":"+port, 10*time.Second)
-	if err != nil {
-		responses <- Response{IP: ip, Err: fmt.Errorf("connection error: %v", err)}
-		return
-	}
-	defer conn.Close()
 
 	// Marshal the request to JSON
 	jsonData, err := json.Marshal(request)
 	if err != nil {
-		responses <- Response{IP: ip, Err: fmt.Errorf("JSON marshaling error: %v", err)}
-		return
+		return nil, fmt.Errorf("error marshaling request: %v", err)
+	}
+
+	conn, err := net.DialTimeout("tcp", ip+":"+port, 10*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("error connecting to %s: %v", ip, err)
+	}
+	defer conn.Close()
+
+	tcpConn, ok := conn.(*net.TCPConn)
+	if ok {
+		tcpConn.SetNoDelay(true)
 	}
 
 	// Send the JSON data
 	_, err = conn.Write(jsonData)
 	if err != nil {
-		responses <- Response{IP: ip, Err: fmt.Errorf("send error: %v", err)}
-		return
+		return nil, fmt.Errorf("error sending data to %s: %v", ip, err)
 	}
 
+	if ok {
+		tcpConn.CloseWrite()
+	}
 	// Read the response
 	var buffer bytes.Buffer
-	readDeadline := time.Now().Add(5 * time.Second)
-	conn.SetReadDeadline(readDeadline)
 
 	for {
 		// Read in small chunks
@@ -506,22 +484,32 @@ func sendRequest(ip string, request ClientData, responses chan<- Response) {
 				utility.LogMessage("Timeout")
 				break // Timeout, assume end of response
 			}
-			responses <- Response{IP: ip, Err: fmt.Errorf("receive error: %v", err)}
-			return
+			return nil, fmt.Errorf("error reading response from %s: %v", ip, err)
 		}
 		data := chunk[:n]
 		utility.LogMessage("reading in chunks : " + string(data))
 		buffer.Write(chunk[:n])
-
-		// Check if we've reached the deadline
-		if time.Now().After(readDeadline) {
-			break
-		}
 	}
 
 	utility.LogMessage("Received response for file write from : " + ip)
-	utility.LogMessage("Buffer value : " + buffer.String())
-	responses <- Response{IP: ip, Data: buffer.Bytes()}
+	// utility.LogMessage("Buffer value : " + buffer.String())
+
+	// Parse the JSON response
+	var response ResponseJson
+	err = json.Unmarshal(buffer.Bytes(), &response)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshaling response from %s: %v", ip, err)
+	}
+
+	// Log the response details
+	utility.LogMessage(fmt.Sprintf("Response from %s: IP=%s, Timestamp=%v, Error=%s",
+		ip, response.IP, response.TimeStamp, response.Err))
+
+	if len(response.Data) > 0 {
+		utility.LogMessage(fmt.Sprintf("Received data length: %d bytes", len(response.Data)))
+	}
+
+	return &response, nil
 }
 
 func collectResponses(responses <-chan Response, request ClientData, limit int) []Response {
