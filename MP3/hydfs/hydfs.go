@@ -74,8 +74,8 @@ func initRing() {
 	//Pull replica files into your system
 	num := ((current_node_index-replicas)%len(ring) + len(ring)) % len(ring)
 	for i := 0; i < replicas-1; i++ {
-		pullFiles(ring[num+i].hashID, ring[(num+i+1)%len(ring)].hashID)
-	}
+		pullFiles(ring[num+i].hashID, ring[(num+i+1)%len(ring)].hashID, ring[(num+i+1)%len(ring)].serverName)
+	} // can add later - failure to find node/ we can retry to get the files from successor of this node.
 
 	//Add logic to event to pull replica data ? or a push based on add ??
 	// Always called when you're the new node in the system
@@ -136,6 +136,8 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 			deletion = i
 			break
 		}
+
+		// Nodes behind
 		num := ((deletion-replicas+1)%len(ring) + len(ring)) % len(ring)
 		for c := 0; c < replicas-1; c++ {
 			ring[(num+c)%len(ring)].successor = []uint32{ring[(num+c+1)%len(ring)].hashID, ring[(num+c+2)%len(ring)].hashID}
@@ -143,20 +145,20 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 		ringLock.Unlock()
 
 		// The two successors of a deleted element will replicate one node further in.
-		// 1st successor of deleted node will have more files assigned to it. The replicas of this node will also need to get these files
+		// Node right after deleted node, (at idx deletion%len(ring)th position and two nodes after that will have files added in their replication.
 		for i := 0; i < replicas-1; i++ {
-			// I'm the next node
 			if ring[(deletion+i)%len(ring)].serverName == membership.My_hostname {
-				num := ((deletion+i-replicas)%len(ring) + len(ring)) % len(ring)
-				pullFiles(ring[num].hashID, ring[(num+1)%len(ring)].hashID)
+				num := (((deletion+i)%len(ring)-replicas)%len(ring) + len(ring)) % len(ring)
+				pullFiles(ring[num].hashID, ring[(num+1)%len(ring)].hashID, ring[(num+1)%len(ring)].serverName)
 			}
 		}
 
-		// deletion index has more nodes, so one extra replica needs to pull this.
-		if ring[(deletion+replicas-1)%len(ring)].serverName == membership.My_hostname {
-			num := ((deletion-1)%len(ring) + len(ring)) % len(ring)
-			pullFiles(ring[num].hashID, hash_value_of_node)
-		}
+		// partial optimization - do later. In the 3rd node after deleted node, we only need to pull a partial subset of nodes instead of everything,
+		// But we can handle it in pullfiles, NO NEED HERE
+		// if ring[(deletion+replicas-1)%len(ring)].serverName == membership.My_hostname {
+		// 	num := ((deletion-1)%len(ring) + len(ring)) % len(ring)
+		// 	pullFiles(ring[num].hashID, hash_value_of_node, ring[deletion%len(ring)].serverName)
+		// }
 		return nil
 
 	}
@@ -175,7 +177,7 @@ func nodeInRing(node string) bool {
 // Get Successor node for a file
 func GetFileNodes(filename string) []string {
 	hash_of_file := Hashmurmur(filename)
-	idx := 0
+	idx := -1 // negative to indicate init
 	var output []string
 
 	for i := 0; i < len(ring); i++ {
@@ -183,11 +185,15 @@ func GetFileNodes(filename string) []string {
 			continue
 		} else {
 			idx = i
+			break
 		}
 	}
+	if idx == -1 && ring[len(ring)-1].hashID < hash_of_file { // still init value, and the last node in ring is still < hash_of_node, wrap around.
+		idx = 0
+	}
 
-	for i := idx; i < idx+replicas; i++ {
-		output = append(output, ring[i].serverName)
+	for i := 0; i < replicas; i++ {
+		output = append(output, ring[idx+i%len(ring)].serverName)
 	}
 
 	return output
@@ -220,7 +226,7 @@ func handleDelete(filename string) {
 
 }
 
-func pullFiles(low uint32, high uint32, server ...string) {
+func pullFiles(low uint32, high uint32, server string) {
 	// IF we have files within this range already -----> add a data struct for this if not there.
 	//Don't do anything
 	//Else
@@ -229,23 +235,10 @@ func pullFiles(low uint32, high uint32, server ...string) {
 
 	// Get file list for the ranges in the other servers.
 	var remote_list []string
-	if len(server) == 0 {
-		// Get File from server func - wait for anurag to rewrite this.
-		remote_list = append(remote_list, "") // get list from server[0]
-	} else {
-		// Get list of servers with the hash ids of that range
-		idx := 0
-		for i := 0; i < len(ring); i++ {
-			if low > ring[i].hashID {
-				continue
-			} else {
-				idx = i
-			}
-		}
-		remote_list = append(remote_list, "") // get list from servers
-	}
 
-	//Find the correct server to send data to. difference in lists.
+	// Get list of servers with the hash ids of that range.
+	remote_list = append(remote_list, "") // get list from servers.
+
 	map_self_list := make(map[string]struct{}, len(self_list))
 	diff := []string{}
 	for _, file := range self_list {
@@ -266,10 +259,22 @@ func pullFiles(low uint32, high uint32, server ...string) {
 
 func getFileList(low uint32, high uint32) []string {
 	var file_list []string
-	for filename, metadata := range file_transfer.HydfsFileStore {
-		if low < metadata.RingId && metadata.RingId <= high {
-			file_list = append(file_list, filename)
+	if low > high {
+		for filename, metadata := range file_transfer.HydfsFileStore {
+			if low < metadata.RingId && metadata.RingId <= 1023 {
+				file_list = append(file_list, filename)
+			}
+			if low <= metadata.RingId && metadata.RingId <= high {
+				file_list = append(file_list, filename)
+			}
+		}
+	} else {
+		for filename, metadata := range file_transfer.HydfsFileStore {
+			if low < metadata.RingId && metadata.RingId <= high {
+				file_list = append(file_list, filename)
+			}
 		}
 	}
+
 	return file_list
 }
