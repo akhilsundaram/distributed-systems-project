@@ -78,7 +78,9 @@ func initRing() {
 		return ring[i].hashID < ring[j].hashID
 	})
 	utility.LogMessage("after sorted")
+	PrintRing()
 	for i := 0; i < len(ring); i++ {
+		utility.LogMessage("loop start")
 		for j := 0; i < replicas-1; j++ {
 			ring[i].successor = append(ring[i].successor, ring[(i+j)%len(ring)].hashID)
 		}
