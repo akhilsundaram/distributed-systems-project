@@ -78,16 +78,12 @@ func initRing() {
 		return ring[i].hashID < ring[j].hashID
 	})
 	utility.LogMessage("after sorted")
-	// PrintRing()
-	for i := 0; i < len(ring); i++ {
-		utility.LogMessage("loop start")
-		for j := 1; j < replicas-1; j++ {
-			ring[i].successor = append(ring[i].successor, ring[(i+j)%len(ring)].hashID)
+	n := len(ring)
+	for i := 0; i < n; i++ {
+		ring[i].successor = make([]uint32, 0, 2)
+		for j := 1; j <= 2; j++ {
+			ring[i].successor = append(ring[i].successor, ring[(i+j)%n].hashID)
 		}
-		if ring[i].serverName == membership.My_hostname {
-			current_node_index = i
-		}
-		utility.LogMessage("loop stuffff")
 	}
 	utility.LogMessage("Ring init done!")
 	ringLock.Unlock()
@@ -119,41 +115,31 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 		if nodeInRing(node) {
 			return fmt.Errorf("error - Node %v already in Ring! cannot add", node)
 		}
-		insertion := 0
-		ringLock.Lock()
 		//Add to hashmap
-		ringNodes[hash_value_of_node] = 1
+
 		utility.LogMessage("New node -" + node + " added.")
-		for i := 0; i < len(ring); i++ { // len == 0 cannot happen because 0 members mean we're dead too.
-			if ring[i].hashID < hash_value_of_node && i != len(ring)-1 { // Unless it's the last element, then do the same insertion at the end.
-				continue
-			}
-			// Create ring element
-			var ring_member ringMember
-			ring_member.hashID = hash_value_of_node
-			ring_member.serverName = node
-			ring = append(ring[:i], append([]ringMember{ring_member}, ring[i:]...)...)
-			insertion = i + 1
-			break
-		}
+		var ring_member ringMember
+		ring_member.hashID = hash_value_of_node
+		ring_member.serverName = node
+		AddRingMember(ring_member)
 
 		utility.LogMessage("Node added to ring")
-		//Update successor for 3 nodes, newly inserted node and two before it
-		num := ((insertion-replicas+1)%len(ring) + len(ring)) % len(ring)
-		for c := 0; c < replicas; c++ {
-			utility.LogMessage("successor of " + ring[(num+c)%len(ring)].serverName + " is " + ring[(num+c+1)%len(ring)].serverName + " and " + ring[(num+c+2)%len(ring)].serverName)
-			ring[(num+c)%len(ring)].successor = []uint32{ring[(num+c+1)%len(ring)].hashID, ring[(num+c+2)%len(ring)].hashID}
+		//Update successor for 3 nodes, newly inserted node and two before it ^^ done in addring member.
+
+		low, high, err := findFileRanges(node)
+		if err != nil {
+			utility.LogMessage("error deleting files not in range - " + err.Error())
 		}
-		ringLock.Unlock()
+		dropFilesNotInRange(low, high)
 
 		//if we're part of two (num_replicas - 1) nodes after, drop data replica after a while.
 		// CHANGE THIS AND KEEP TRACK OF THE FILE RANGES WE NEED TO STORE! USE THIS TO DROP FILES OUTSIDE RANGE. BETTER
-		for i := 1; i < replicas; i++ {
-			if ring[(insertion+i)%len(ring)].serverName == membership.My_hostname {
-				num := ((insertion+i-replicas-1)%len(ring) + len(ring)) % len(ring)
-				dropFiles(ring[num%len(ring)].hashID, ring[(num+1)%len(ring)].hashID)
-			}
-		}
+		// for i := 1; i < replicas; i++ {
+		// 	if ring[(insertion+i)%len(ring)].serverName == membership.My_hostname {
+		// 		num := ((insertion+i-replicas-1)%len(ring) + len(ring)) % len(ring)
+		// 		dropFiles(ring[num%len(ring)].hashID, ring[(num+1)%len(ring)].hashID)
+		// 	}
+		// }
 		//if we're part of the two nodes before, we need to replicate data to new node, but this should be pulled from init not here. //NOT done in init
 		return nil
 
@@ -162,25 +148,10 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 			return fmt.Errorf("error - Node %v not in Ring! cannot delete", node)
 		}
 		//Delete map entry of node
-		delete(ringNodes, hash_value_of_node)
-		deletion := 0
-		ringLock.Lock()
-		for i := 0; i < len(ring); i++ {
-			if ring[i].hashID != hash_value_of_node {
-				continue
-			}
-			// Delete ring element
-			ring = append(ring[:i], ring[i+1:]...)
-			deletion = i
-			break
+		deletion, err := DeleteRingMember(node)
+		if err != nil {
+			utility.LogMessage("node deletion in ring errored - " + err.Error())
 		}
-
-		// Nodes behind
-		num := ((deletion-replicas+1)%len(ring) + len(ring)) % len(ring)
-		for c := 0; c < replicas-1; c++ {
-			ring[(num+c)%len(ring)].successor = []uint32{ring[(num+c+1)%len(ring)].hashID, ring[(num+c+2)%len(ring)].hashID}
-		}
-		ringLock.Unlock()
 
 		// The two successors of a deleted element will replicate one node further in.
 		// Node right after deleted node, (at idx deletion%len(ring)th position and two nodes after that will have files added in their replication.
@@ -235,15 +206,6 @@ func GetFileNodes(filename string) []string {
 	}
 
 	return output
-}
-
-// Ask node to drop the file list - called when it gets { a files req from a newly added node } OR {sees newly added node and asks the replica + 1th node to drop files which won't be part of added node's hash }
-func dropFiles(low uint32, high uint32) {
-	delete_list := getFileList(low, high)
-	for _, filename := range delete_list {
-		//change to file_transfer function
-		handleDelete(filename)
-	}
 }
 
 // To move to file_transfer
