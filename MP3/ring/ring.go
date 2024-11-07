@@ -81,7 +81,7 @@ func initRing() {
 	PrintRing()
 	for i := 0; i < len(ring); i++ {
 		utility.LogMessage("loop start")
-		for j := 0; i < replicas-1; j++ {
+		for j := 0; j < replicas-1; j++ {
 			ring[i].successor = append(ring[i].successor, ring[(i+j)%len(ring)].hashID)
 		}
 		if ring[i].serverName == membership.My_hostname {
