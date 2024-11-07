@@ -63,7 +63,7 @@ func StartRing() {
 func initRing() {
 	utility.LogMessage("Init ring started")
 	members_list := membership.GetMembershipList()
-	current_node_index := 0
+	// current_node_index := 0
 
 	ringLock.Lock()
 	for key := range members_list {
@@ -91,20 +91,32 @@ func initRing() {
 
 	//Pull data from previous node.
 	//Make a call to file server that reqs files from numbers [x,y] inclusive.
-	utility.LogMessage("pull files in init start")
-	utility.LogMessage("Trying to pull from - " + ring[(current_node_index+1)%len(ring)].serverName)
-	pullFiles(ring[((current_node_index-1)%len(ring)+len(ring))%len(ring)].hashID, ring[(current_node_index+1)%len(ring)].hashID, ring[(current_node_index+1)%len(ring)].serverName)
-	// Pull data/files on node from predecessor at node init. // //Make a call to file server that reqs files from numbers [x,y] inclusive. //
-	utility.LogMessage("pull files in init end")
-	//Pull replica files into your system
-	num := ((current_node_index-replicas)%len(ring) + len(ring)) % len(ring)
-	for i := 0; i < replicas-1; i++ {
-		utility.LogMessage("more pull files in init start - loop")
-		utility.LogMessage("Trying to pull from - " + ring[(num+i+1)%len(ring)].serverName)
-		pullFiles(ring[(num+i)%len(ring)].hashID, ring[(num+i+1)%len(ring)].hashID, ring[(num+i+1)%len(ring)].serverName)
-	} // can add later - failure to find node/ we can retry to get the files from successor of this node.
 
-	//Add logic to event to pull replica data ? or a push based on add ??
+	low_self, high_self, _ := findFileRanges(membership.My_hostname)
+	node_idx, _ := GetNodeIndex(membership.My_hostname)
+	num := ((node_idx-replicas)%len(ring) + len(ring)) % len(ring)
+
+	utility.LogMessage("pull files in init start")
+	for i := 0; i < replicas; i++ {
+		n := (num + i) % len(ring)
+		if ring[n].serverName != membership.My_hostname {
+			utility.LogMessage("Trying to pull from - " + ring[n].serverName)
+			pullFiles(low_self, high_self, ring[n].serverName)
+		}
+	}
+
+	// pullFiles(ring[((current_node_index-1)%len(ring)+len(ring))%len(ring)].hashID, ring[(current_node_index+1)%len(ring)].hashID, ring[(current_node_index+1)%len(ring)].serverName)
+	// // Pull data/files on node from predecessor at node init. // //Make a call to file server that reqs files from numbers [x,y] inclusive. //
+	// utility.LogMessage("pull files in init end")
+	// //Pull replica files into your system
+	// num := ((current_node_index-replicas)%len(ring) + len(ring)) % len(ring)
+	// for i := 0; i < replicas-1; i++ {
+	// 	utility.LogMessage("more pull files in init start - loop")
+	// 	utility.LogMessage("Trying to pull from - " + ring[(num+i+1)%len(ring)].serverName)
+	// 	pullFiles(ring[(num+i)%len(ring)].hashID, ring[(num+i+1)%len(ring)].hashID, ring[(num+i+1)%len(ring)].serverName)
+	// } // can add later - failure to find node/ we can retry to get the files from successor of this node.
+
+	// //Add logic to event to pull replica data ? or a push based on add ??
 	// Always called when you're the new node in the system
 	// no nodes/ first node in the system
 }

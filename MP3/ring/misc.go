@@ -117,3 +117,12 @@ func PrintRing() {
 		}
 	}
 }
+
+func GetNodeIndex(serverName string) (int, error) {
+	for i, member := range ring {
+		if member.serverName == serverName {
+			return i, nil
+		}
+	}
+	return -1, fmt.Errorf("server %s not found in ring", serverName)
+}
