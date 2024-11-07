@@ -117,7 +117,7 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 		}
 		//Add to hashmap
 
-		utility.LogMessage("New node -" + node + " added.")
+		utility.LogMessage("Signal to add New node -" + node)
 		var ring_member ringMember
 		ring_member.hashID = hash_value_of_node
 		ring_member.serverName = node

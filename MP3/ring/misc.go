@@ -10,12 +10,16 @@ import (
 func AddRingMember(newMember ringMember) {
 	ringLock.Lock()
 	defer ringLock.Unlock()
+	utility.LogMessage("Adding new member - " + newMember.serverName)
 	ring = append(ring, newMember)
 	sort.Slice(ring, func(i, j int) bool {
 		return ring[i].hashID < ring[j].hashID
 	})
+	utility.LogMessage("member list added, sorted")
 	updateSuccessors()
+	utility.LogMessage("successor list updated")
 	ringNodes[newMember.hashID] = 1
+	utility.LogMessage("Hash check for node updated.")
 }
 
 func DeleteRingMember(serverName string) (int, error) {
@@ -40,8 +44,6 @@ func DeleteRingMember(serverName string) (int, error) {
 }
 
 func updateSuccessors() {
-	ringLock.Lock()
-	defer ringLock.Unlock()
 	n := len(ring)
 	for i := 0; i < n; i++ {
 		ring[i].successor = make([]uint32, 0, 2)
