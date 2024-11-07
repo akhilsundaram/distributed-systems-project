@@ -107,6 +107,7 @@ func PrintRing() {
 		if err != nil {
 			utility.LogMessage("error getting file ranges while printing")
 		}
+		println(ringMember.serverName)
 		if ringMember.serverName == membership.My_hostname {
 			fmt.Printf("host: %s, ringID: %d, successors: %d & %d, fileranges: [%d - %d]   <----------- Current Server\n", ringMember.serverName, ringMember.hashID, ringMember.successor[0], ringMember.successor[1], low, high)
 		} else {
