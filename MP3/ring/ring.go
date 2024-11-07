@@ -95,6 +95,7 @@ func initRing() {
 	//Pull data from previous node.
 	//Make a call to file server that reqs files from numbers [x,y] inclusive.
 	utility.LogMessage("pull files in init start")
+	println("Trying to pull from - " + ring[(current_node_index+1)%len(ring)].serverName)
 	pullFiles(ring[((current_node_index-1)%len(ring)+len(ring))%len(ring)].hashID, ring[(current_node_index+1)%len(ring)].hashID, ring[(current_node_index+1)%len(ring)].serverName)
 	// Pull data/files on node from predecessor at node init. // //Make a call to file server that reqs files from numbers [x,y] inclusive. //
 	utility.LogMessage("pull files in init end")
@@ -102,6 +103,7 @@ func initRing() {
 	num := ((current_node_index-replicas)%len(ring) + len(ring)) % len(ring)
 	for i := 0; i < replicas-1; i++ {
 		utility.LogMessage("more pull files in init start - loop")
+		println("Trying to pull from - " + ring[(num+i+1)%len(ring)].serverName)
 		pullFiles(ring[(num+i)%len(ring)].hashID, ring[(num+i+1)%len(ring)].hashID, ring[(num+i+1)%len(ring)].serverName)
 	} // can add later - failure to find node/ we can retry to get the files from successor of this node.
 
@@ -119,6 +121,7 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 		}
 		insertion := 0
 		ringLock.Lock()
+		utility.LogMessage("New node -" + node + " added.")
 		for i := 0; i < len(ring); i++ { // len == 0 cannot happen because 0 members mean we're dead too.
 			if ring[i].hashID < hash_value_of_node && i != len(ring)-1 { // Unless it's the last element, then do the same insertion at the end.
 				continue
@@ -132,6 +135,7 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 			break
 		}
 
+		utility.LogMessage("Node added to ring")
 		//two nodes behind -  need to change successor
 		num := ((insertion-replicas)%len(ring) + len(ring)) % len(ring)
 		for c := 0; c < replicas; c++ {
@@ -142,8 +146,8 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 		//if we're part of two (num_replicas - 1) nodes after, drop data replica after a while.
 		for i := 1; i < replicas; i++ {
 			if ring[(insertion+i)%len(ring)].serverName == membership.My_hostname {
-				num := ((insertion+i-replicas-1)%len(ring) + len(ring)) % len(ring)
-				dropFiles(ring[num%len(ring)].hashID, ring[(num+1)%len(ring)].hashID)
+				// num := ((insertion+i-replicas-1)%len(ring) + len(ring)) % len(ring)
+				// dropFiles(ring[num%len(ring)].hashID, ring[(num+1)%len(ring)].hashID)
 			}
 		}
 		//if we're part of the two nodes before, we need to replicate data to new node, but this should be pulled from init not here. //NOT done in init
@@ -262,6 +266,10 @@ func pullFiles(low uint32, high uint32, server string) {
 
 	// Get file list for the ranges in the other servers.
 	remote_list := callFileServerNames(server, low, high)
+	if len(remote_list) == 0 {
+		utility.LogMessage("No files received in the range")
+		return
+	}
 
 	map_self_list := make(map[string]struct{}, len(self_list))
 	diff := []string{}
@@ -307,9 +315,9 @@ func getFileList(low uint32, high uint32) []string {
 func PrintRing() {
 	for _, ringMember := range ring {
 		if ringMember.serverName == membership.My_hostname {
-			fmt.Printf("host: %s, ringID: %d   <----------- Current Server", ringMember.serverName, ringMember.hashID)
+			fmt.Printf("host: %s, ringID: %d, successors: %d & %d   <----------- Current Server\n", ringMember.serverName, ringMember.hashID, ringMember.successor[0], ringMember.successor[1])
 		} else {
-			fmt.Printf("host: %s, ringID: %d", ringMember.serverName, ringMember.hashID)
+			fmt.Printf("host: %s, ringID: %d, successors: %d & %d\n", ringMember.serverName, ringMember.hashID, ringMember.successor[0], ringMember.successor[1])
 		}
 	}
 }

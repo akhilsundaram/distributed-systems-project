@@ -142,6 +142,11 @@ func callFileServerNames(server string, low uint32, high uint32) []string {
 	if err != nil {
 		utility.LogMessage("Error receiving stream -  " + err.Error())
 	}
+	utility.LogMessage("files requested")
+	utility.LogMessage("received: ----------")
+	for _, v := range resp.Filenames {
+		utility.LogMessage("filename sent - " + v)
+	}
 
 	return resp.Filenames
 }
