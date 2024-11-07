@@ -221,39 +221,6 @@ func handleDelete(filename string) {
 
 }
 
-func pullFiles(low uint32, high uint32, server string) {
-	if server == membership.My_hostname {
-		utility.LogMessage("No pulls from self please")
-		return
-	}
-	// IF we have files within this range already -----> add a data struct for this if not there.
-	//Don't do anything
-	//Else
-	// Pull from the correct replicas (for now, 1 call, later to all replicas) -----> pull from server if the var was passed, else usual hashcheck
-	self_list := getFileList(low, high)
-
-	// Get file list for the ranges in the other servers.
-	remote_list := callFileServerNames(server, low, high)
-	if len(remote_list) == 0 {
-		utility.LogMessage("No files received in the range")
-		return
-	}
-
-	map_self_list := make(map[string]struct{}, len(self_list))
-	diff := []string{}
-	for _, file := range self_list {
-		map_self_list[file] = struct{}{}
-	}
-	for _, v := range remote_list {
-		if _, found := map_self_list[v]; !found {
-			diff = append(diff, v)
-		}
-	}
-
-	callFileServerFiles(server, diff)
-
-}
-
 // func getFilesFromServer() {
 
 // }
@@ -278,6 +245,22 @@ func getFileList(low uint32, high uint32) []string {
 	}
 
 	return file_list
+}
+
+func hashwithinRange(value uint32, low uint32, high uint32) bool {
+	if low > high {
+		if low < value && value <= 1023 {
+			return true
+		}
+		if low <= value && value <= high {
+			return true
+		}
+	} else {
+		if low < value && value <= high {
+			return true
+		}
+	}
+	return false
 }
 
 // case "get_files_in_range":

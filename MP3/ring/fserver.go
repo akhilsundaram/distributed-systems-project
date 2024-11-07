@@ -3,6 +3,7 @@ package ring
 import (
 	context "context"
 	"fmt"
+	"hydfs/membership"
 	"hydfs/utility"
 	"io"
 	"log"
@@ -77,6 +78,7 @@ func callFileServerFiles(server string, files []string) {
 		utility.LogMessage("Unable to connect to server - ring rpc fserver - " + err.Error())
 	}
 	defer conn.Close()
+	utility.LogMessage("created conn with server: " + server)
 
 	client := NewFileServiceClient(conn)
 
@@ -85,16 +87,20 @@ func callFileServerFiles(server string, files []string) {
 		Command:   "getfiles",
 		Filenames: files,
 	}
+	utility.LogMessage("here - 1")
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
+	utility.LogMessage("here - 2")
 	stream, err := client.GetFiles(ctx, fileRequest)
 	if err != nil {
+		utility.LogMessage("error getiing file - " + err.Error())
 		log.Fatalf("Error calling GetFiles: %v", err)
 	}
 
 	for {
+		utility.LogMessage("reponse - 1")
 		resp, err := stream.Recv()
 		if err == io.EOF {
 			break
@@ -103,13 +109,14 @@ func callFileServerFiles(server string, files []string) {
 			utility.LogMessage("Error receiving stream -  " + err.Error())
 		}
 
-		utility.LogMessage("File received at server - " + resp.Filename)
+		utility.LogMessage("File received at client - " + resp.Filename)
 
 		// Write the content to the destination file
 		err = os.WriteFile(filepath.Join(utility.HYDFS_DIR, resp.Filename), resp.Content, 0644)
 		if err != nil {
 			utility.LogMessage("Error writing to destination file: " + err.Error())
 		}
+		utility.LogMessage("file written")
 	}
 
 }
@@ -149,4 +156,39 @@ func callFileServerNames(server string, low uint32, high uint32) []string {
 	}
 
 	return resp.Filenames
+}
+
+func pullFiles(low uint32, high uint32, server string) {
+	if server == membership.My_hostname {
+		utility.LogMessage("No pulls from self please")
+		return
+	}
+	// IF we have files within this range already -----> add a data struct for this if not there.
+	//Don't do anything
+	//Else
+	// Pull from the correct replicas (for now, 1 call, later to all replicas) -----> pull from server if the var was passed, else usual hashcheck
+	self_list := getFileList(low, high)
+
+	// Get file list for the ranges in the other servers.
+	remote_list := callFileServerNames(server, low, high)
+	if len(remote_list) == 0 {
+		utility.LogMessage("No files received in the range")
+		return
+	}
+	utility.LogMessage("files to pull")
+
+	map_self_list := make(map[string]struct{}, len(self_list))
+	diff := []string{}
+	for _, file := range self_list {
+		map_self_list[file] = struct{}{}
+	}
+	for _, v := range remote_list {
+		if _, found := map_self_list[v]; !found {
+			diff = append(diff, v)
+			utility.LogMessage("file to get final! => " + v)
+		}
+	}
+
+	callFileServerFiles(server, diff)
+
 }
