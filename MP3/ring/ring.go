@@ -103,7 +103,7 @@ func initRing() {
 	num := ((current_node_index-replicas)%len(ring) + len(ring)) % len(ring)
 	for i := 0; i < replicas-1; i++ {
 		utility.LogMessage("more pull files in init start - loop")
-		utility.LogMessage("Trying to pull from - " + ring[(num+i+1)%len(ring)].serverName)
+		// utility.LogMessage("Trying to pull from - " + ring[(num+i+1)%len(ring)].serverName)
 		pullFiles(ring[(num+i)%len(ring)].hashID, ring[(num+i+1)%len(ring)].hashID, ring[(num+i+1)%len(ring)].serverName)
 	} // can add later - failure to find node/ we can retry to get the files from successor of this node.
 
@@ -146,8 +146,8 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 		//if we're part of two (num_replicas - 1) nodes after, drop data replica after a while.
 		for i := 1; i < replicas; i++ {
 			if ring[(insertion+i)%len(ring)].serverName == membership.My_hostname {
-				// num := ((insertion+i-replicas-1)%len(ring) + len(ring)) % len(ring)
-				// dropFiles(ring[num%len(ring)].hashID, ring[(num+1)%len(ring)].hashID)
+				num := ((insertion+i-replicas-1)%len(ring) + len(ring)) % len(ring)
+				dropFiles(ring[num%len(ring)].hashID, ring[(num+1)%len(ring)].hashID)
 			}
 		}
 		//if we're part of the two nodes before, we need to replicate data to new node, but this should be pulled from init not here. //NOT done in init
