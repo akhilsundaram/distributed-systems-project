@@ -280,16 +280,6 @@ func getFileList(low uint32, high uint32) []string {
 	return file_list
 }
 
-func PrintRing() {
-	for _, ringMember := range ring {
-		if ringMember.serverName == membership.My_hostname {
-			fmt.Printf("host: %s, ringID: %d, successors: %d & %d   <----------- Current Server\n", ringMember.serverName, ringMember.hashID, ringMember.successor[0], ringMember.successor[1])
-		} else {
-			fmt.Printf("host: %s, ringID: %d, successors: %d & %d\n", ringMember.serverName, ringMember.hashID, ringMember.successor[0], ringMember.successor[1])
-		}
-	}
-}
-
 // case "get_files_in_range":
 // 	low_range := parsedData.RangeRingID[0]
 // 	high_range := parsedData.RangeRingID[1]
