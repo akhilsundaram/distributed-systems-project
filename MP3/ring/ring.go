@@ -37,7 +37,7 @@ func StartRing() {
 	// Start file rpc server for ring
 	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
-		log.Fatalf("Failed to listen on port 50051: %v", err)
+		log.Fatalf("Failed to listen on port: %v", err)
 	}
 	server := grpc.NewServer()
 	RegisterFileServiceServer(server, &FileServer{})
@@ -241,6 +241,10 @@ func handleDelete(filename string) {
 }
 
 func pullFiles(low uint32, high uint32, server string) {
+	if server == membership.My_hostname {
+		utility.LogMessage("No pulls from self please")
+		return
+	}
 	// IF we have files within this range already -----> add a data struct for this if not there.
 	//Don't do anything
 	//Else
