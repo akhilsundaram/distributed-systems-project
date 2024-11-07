@@ -32,6 +32,7 @@ func StartRing() {
 	// Get current server name
 	// Get current member list
 	// Construct Ring
+	ringNodes = make(map[uint32]int)
 
 	// Start file rpc server for ring
 	listener, err := net.Listen("tcp", ":"+port)

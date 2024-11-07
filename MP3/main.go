@@ -85,8 +85,8 @@ func main() {
 	go ContinouslySendPings()
 
 	// Call HyDFS ?
-	ring.StartRing()
 	membership.RingMemberchan = make(chan membership.RingMemberMessage)
+	go ring.StartRing()
 
 	go file_transfer.HyDFSServer()
 
