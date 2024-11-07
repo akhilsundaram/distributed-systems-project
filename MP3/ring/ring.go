@@ -78,7 +78,7 @@ func initRing() {
 		return ring[i].hashID < ring[j].hashID
 	})
 	utility.LogMessage("after sorted")
-	PrintRing()
+	// PrintRing()
 	for i := 0; i < len(ring); i++ {
 		utility.LogMessage("loop start")
 		for j := 0; j < replicas-1; j++ {
@@ -102,7 +102,7 @@ func initRing() {
 	num := ((current_node_index-replicas)%len(ring) + len(ring)) % len(ring)
 	for i := 0; i < replicas-1; i++ {
 		utility.LogMessage("more pull files in init start - loop")
-		pullFiles(ring[num+i].hashID, ring[(num+i+1)%len(ring)].hashID, ring[(num+i+1)%len(ring)].serverName)
+		pullFiles(ring[(num+i)%len(ring)].hashID, ring[(num+i+1)%len(ring)].hashID, ring[(num+i+1)%len(ring)].serverName)
 	} // can add later - failure to find node/ we can retry to get the files from successor of this node.
 
 	//Add logic to event to pull replica data ? or a push based on add ??
