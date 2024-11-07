@@ -103,6 +103,7 @@ func callFileServerFiles(server string, files []string) {
 		utility.LogMessage("reponse - 1")
 		resp, err := stream.Recv()
 		if err == io.EOF {
+			utility.LogMessage("non eof error ? - " + err.Error())
 			break
 		}
 		if err != nil {
