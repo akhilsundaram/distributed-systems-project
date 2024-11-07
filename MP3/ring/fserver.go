@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"time"
 
 	grpc "google.golang.org/grpc"
@@ -33,7 +32,7 @@ func (s *FileServer) GetFiles(req *FileRequest, stream FileService_GetFilesServe
 func (s *FileServer) handleGetFiles(req *FileRequest, stream FileService_GetFilesServer) error {
 	for _, filename := range req.Filenames {
 		// Read file content
-		content, err := os.ReadFile(filepath.Join(utility.HYDFS_DIR, filename))
+		content, err := os.ReadFile(filename)
 		if err != nil {
 			utility.LogMessage("fserver(grpc) in ring: Failed to read file " + filename + " becuase of the the err => " + err.Error())
 			continue
@@ -113,7 +112,7 @@ func callFileServerFiles(server string, files []string) {
 		utility.LogMessage("File received at client - " + resp.Filename)
 
 		// Write the content to the destination file
-		err = os.WriteFile(filepath.Join(utility.HYDFS_DIR, resp.Filename), resp.Content, 0644)
+		err = os.WriteFile(resp.Filename, resp.Content, 0644)
 		if err != nil {
 			utility.LogMessage("Error writing to destination file: " + err.Error())
 		}
