@@ -87,6 +87,7 @@ func main() {
 	// Call HyDFS ?
 	ring.StartRing()
 	membership.RingMemberchan = make(chan membership.RingMemberMessage)
+	go ring.StartRing()
 
 	go file_transfer.HyDFSServer()
 
@@ -255,8 +256,12 @@ func main() {
 			case "store":
 				fmt.Println("Listing all files being stored on this VM")
 				// store function here
-				requestData.Operation = "store"
-				file_transfer.HyDFSClient(requestData)
+				// requestData.Operation = "store"
+				// file_transfer.HyDFSClient(requestData)
+				for filename, v := range utility.HydfsFileStore {
+					fmt.Printf("Filename: %s, Ring ID: %d, md5 hash: %s, timestamp: %s", filename, v.RingId, v.Hash, v.Timestamp)
+				}
+
 			case "list_mem_ids":
 				fmt.Println("Displaying current membership list along with Node ID on ring")
 				ring.PrintRing()

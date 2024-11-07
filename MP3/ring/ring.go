@@ -32,15 +32,17 @@ func StartRing() {
 	// Get current server name
 	// Get current member list
 	// Construct Ring
+	ringNodes = make(map[uint32]int)
 
 	// Start file rpc server for ring
 	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
-		log.Fatalf("Failed to listen on port 50051: %v", err)
+		log.Fatalf("Failed to listen on port: %v", err)
 	}
 	server := grpc.NewServer()
 	RegisterFileServiceServer(server, &FileServer{})
 	go func() {
+		utility.LogMessage("RPC server goroutine entered")
 		if err := server.Serve(listener); err != nil {
 			utility.LogMessage("Init Ring -  start fserver failure")
 		}
@@ -58,6 +60,7 @@ func StartRing() {
 
 // AddMember to ring
 func initRing() {
+	utility.LogMessage("Init ring started")
 	members_list := membership.GetMembershipList()
 	current_node_index := 0
 
@@ -74,25 +77,32 @@ func initRing() {
 	sort.Slice(ring, func(i, j int) bool {
 		return ring[i].hashID < ring[j].hashID
 	})
+	utility.LogMessage("after sorted")
+	// PrintRing()
 	for i := 0; i < len(ring); i++ {
-		for j := 0; i < replicas-1; j++ {
-			ring[i].successor = append(ring[i].successor, ring[i+j%len(ring)].hashID)
+		utility.LogMessage("loop start")
+		for j := 0; j < replicas-1; j++ {
+			ring[i].successor = append(ring[i].successor, ring[(i+j)%len(ring)].hashID)
 		}
 		if ring[i].serverName == membership.My_hostname {
 			current_node_index = i
 		}
+		utility.LogMessage("loop stuffff")
 	}
+	utility.LogMessage("Ring init done!")
 	ringLock.Unlock()
 
 	//Pull data from previous node.
 	//Make a call to file server that reqs files from numbers [x,y] inclusive.
-	pullFiles(ring[((current_node_index-1)%len(ring)+len(ring))%len(ring)].hashID, ring[current_node_index+1%len(ring)].hashID, ring[current_node_index+1%len(ring)].serverName)
+	utility.LogMessage("pull files in init start")
+	pullFiles(ring[((current_node_index-1)%len(ring)+len(ring))%len(ring)].hashID, ring[(current_node_index+1)%len(ring)].hashID, ring[(current_node_index+1)%len(ring)].serverName)
 	// Pull data/files on node from predecessor at node init. // //Make a call to file server that reqs files from numbers [x,y] inclusive. //
-
+	utility.LogMessage("pull files in init end")
 	//Pull replica files into your system
 	num := ((current_node_index-replicas)%len(ring) + len(ring)) % len(ring)
 	for i := 0; i < replicas-1; i++ {
-		pullFiles(ring[num+i].hashID, ring[(num+i+1)%len(ring)].hashID, ring[(num+i+1)%len(ring)].serverName)
+		utility.LogMessage("more pull files in init start - loop")
+		pullFiles(ring[(num+i)%len(ring)].hashID, ring[(num+i+1)%len(ring)].hashID, ring[(num+i+1)%len(ring)].serverName)
 	} // can add later - failure to find node/ we can retry to get the files from successor of this node.
 
 	//Add logic to event to pull replica data ? or a push based on add ??
@@ -240,6 +250,10 @@ func handleDelete(filename string) {
 }
 
 func pullFiles(low uint32, high uint32, server string) {
+	if server == membership.My_hostname {
+		utility.LogMessage("No pulls from self please")
+		return
+	}
 	// IF we have files within this range already -----> add a data struct for this if not there.
 	//Don't do anything
 	//Else
