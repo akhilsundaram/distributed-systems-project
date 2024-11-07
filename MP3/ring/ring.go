@@ -42,6 +42,7 @@ func StartRing() {
 	server := grpc.NewServer()
 	RegisterFileServiceServer(server, &FileServer{})
 	go func() {
+		utility.LogMessage("RPC server goroutine entered")
 		if err := server.Serve(listener); err != nil {
 			utility.LogMessage("Init Ring -  start fserver failure")
 		}
@@ -59,6 +60,7 @@ func StartRing() {
 
 // AddMember to ring
 func initRing() {
+	utility.LogMessage("Init ring started")
 	members_list := membership.GetMembershipList()
 	current_node_index := 0
 
@@ -83,16 +85,19 @@ func initRing() {
 			current_node_index = i
 		}
 	}
+	utility.LogMessage("Ring init done!")
 	ringLock.Unlock()
 
 	//Pull data from previous node.
 	//Make a call to file server that reqs files from numbers [x,y] inclusive.
+	utility.LogMessage("pull files in init start")
 	pullFiles(ring[((current_node_index-1)%len(ring)+len(ring))%len(ring)].hashID, ring[current_node_index+1%len(ring)].hashID, ring[current_node_index+1%len(ring)].serverName)
 	// Pull data/files on node from predecessor at node init. // //Make a call to file server that reqs files from numbers [x,y] inclusive. //
-
+	utility.LogMessage("pull files in init end")
 	//Pull replica files into your system
 	num := ((current_node_index-replicas)%len(ring) + len(ring)) % len(ring)
 	for i := 0; i < replicas-1; i++ {
+		utility.LogMessage("more pull files in init start - loop")
 		pullFiles(ring[num+i].hashID, ring[(num+i+1)%len(ring)].hashID, ring[(num+i+1)%len(ring)].serverName)
 	} // can add later - failure to find node/ we can retry to get the files from successor of this node.
 

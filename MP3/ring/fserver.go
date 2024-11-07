@@ -18,6 +18,7 @@ type FileServer struct {
 }
 
 func (s *FileServer) GetFiles(req *FileRequest, stream FileService_GetFilesServer) error {
+	utility.LogMessage("RPC server entered - " + req.Command)
 	switch req.Command {
 	case "getfiles":
 		return s.handleGetFiles(req, stream)
