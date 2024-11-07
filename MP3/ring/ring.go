@@ -81,7 +81,7 @@ func initRing() {
 	// PrintRing()
 	for i := 0; i < len(ring); i++ {
 		utility.LogMessage("loop start")
-		for j := 0; j < replicas-1; j++ {
+		for j := 1; j < replicas-1; j++ {
 			ring[i].successor = append(ring[i].successor, ring[(i+j)%len(ring)].hashID)
 		}
 		if ring[i].serverName == membership.My_hostname {
@@ -121,6 +121,8 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 		}
 		insertion := 0
 		ringLock.Lock()
+		//Add to hashmap
+		ringNodes[hash_value_of_node] = 1
 		utility.LogMessage("New node -" + node + " added.")
 		for i := 0; i < len(ring); i++ { // len == 0 cannot happen because 0 members mean we're dead too.
 			if ring[i].hashID < hash_value_of_node && i != len(ring)-1 { // Unless it's the last element, then do the same insertion at the end.
@@ -136,8 +138,8 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 		}
 
 		utility.LogMessage("Node added to ring")
-		//two nodes behind -  need to change successor
-		num := ((insertion-replicas)%len(ring) + len(ring)) % len(ring)
+		//Update successor for 3 nodes, newly inserted node and two before it
+		num := ((insertion-replicas+1)%len(ring) + len(ring)) % len(ring)
 		for c := 0; c < replicas; c++ {
 			utility.LogMessage("successor of " + ring[(num+c)%len(ring)].serverName + " is " + ring[(num+c+1)%len(ring)].serverName + " and " + ring[(num+c+2)%len(ring)].serverName)
 			ring[(num+c)%len(ring)].successor = []uint32{ring[(num+c+1)%len(ring)].hashID, ring[(num+c+2)%len(ring)].hashID}
@@ -145,6 +147,7 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 		ringLock.Unlock()
 
 		//if we're part of two (num_replicas - 1) nodes after, drop data replica after a while.
+		// CHANGE THIS AND KEEP TRACK OF THE FILE RANGES WE NEED TO STORE! USE THIS TO DROP FILES OUTSIDE RANGE. BETTER
 		for i := 1; i < replicas; i++ {
 			if ring[(insertion+i)%len(ring)].serverName == membership.My_hostname {
 				num := ((insertion+i-replicas-1)%len(ring) + len(ring)) % len(ring)
@@ -158,6 +161,8 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 		if !nodeInRing(node) {
 			return fmt.Errorf("error - Node %v not in Ring! cannot delete", node)
 		}
+		//Delete map entry of node
+		delete(ringNodes, hash_value_of_node)
 		deletion := 0
 		ringLock.Lock()
 		for i := 0; i < len(ring); i++ {
