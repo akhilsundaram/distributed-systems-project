@@ -139,6 +139,7 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 		//two nodes behind -  need to change successor
 		num := ((insertion-replicas)%len(ring) + len(ring)) % len(ring)
 		for c := 0; c < replicas; c++ {
+			utility.LogMessage("successor of " + ring[(num+c)%len(ring)].serverName + " is " + ring[(num+c+1)%len(ring)].serverName + " and " + ring[(num+c+2)%len(ring)].serverName)
 			ring[(num+c)%len(ring)].successor = []uint32{ring[(num+c+1)%len(ring)].hashID, ring[(num+c+2)%len(ring)].hashID}
 		}
 		ringLock.Unlock()
