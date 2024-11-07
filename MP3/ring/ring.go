@@ -33,7 +33,6 @@ func StartRing() {
 	// Get current server name
 	// Get current member list
 	// Construct Ring
-	time.Sleep(2 * time.Second)
 	ringNodes = make(map[uint32]int)
 
 	// Start file rpc server for ring
@@ -51,7 +50,7 @@ func StartRing() {
 	}()
 
 	//End file server start
-
+	time.Sleep(2 * time.Second)
 	initRing()
 
 	for {
@@ -93,7 +92,7 @@ func initRing() {
 	//Pull data from previous node.
 	//Make a call to file server that reqs files from numbers [x,y] inclusive.
 	utility.LogMessage("pull files in init start")
-	// utility.LogMessage("Trying to pull from - " + ring[(current_node_index+1)%len(ring)].serverName)
+	utility.LogMessage("Trying to pull from - " + ring[(current_node_index+1)%len(ring)].serverName)
 	pullFiles(ring[((current_node_index-1)%len(ring)+len(ring))%len(ring)].hashID, ring[(current_node_index+1)%len(ring)].hashID, ring[(current_node_index+1)%len(ring)].serverName)
 	// Pull data/files on node from predecessor at node init. // //Make a call to file server that reqs files from numbers [x,y] inclusive. //
 	utility.LogMessage("pull files in init end")
@@ -101,7 +100,7 @@ func initRing() {
 	num := ((current_node_index-replicas)%len(ring) + len(ring)) % len(ring)
 	for i := 0; i < replicas-1; i++ {
 		utility.LogMessage("more pull files in init start - loop")
-		// utility.LogMessage("Trying to pull from - " + ring[(num+i+1)%len(ring)].serverName)
+		utility.LogMessage("Trying to pull from - " + ring[(num+i+1)%len(ring)].serverName)
 		pullFiles(ring[(num+i)%len(ring)].hashID, ring[(num+i+1)%len(ring)].hashID, ring[(num+i+1)%len(ring)].serverName)
 	} // can add later - failure to find node/ we can retry to get the files from successor of this node.
 
