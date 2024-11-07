@@ -95,7 +95,7 @@ func initRing() {
 	//Pull data from previous node.
 	//Make a call to file server that reqs files from numbers [x,y] inclusive.
 	utility.LogMessage("pull files in init start")
-	pullFiles(ring[((current_node_index-1)%len(ring)+len(ring))%len(ring)].hashID, ring[current_node_index+1%len(ring)].hashID, ring[current_node_index+1%len(ring)].serverName)
+	pullFiles(ring[((current_node_index-1)%len(ring)+len(ring))%len(ring)].hashID, ring[(current_node_index+1)%len(ring)].hashID, ring[(current_node_index+1)%len(ring)].serverName)
 	// Pull data/files on node from predecessor at node init. // //Make a call to file server that reqs files from numbers [x,y] inclusive. //
 	utility.LogMessage("pull files in init end")
 	//Pull replica files into your system
