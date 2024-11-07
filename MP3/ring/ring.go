@@ -9,6 +9,7 @@ import (
 	"os"
 	"sort"
 	"sync"
+	"time"
 
 	grpc "google.golang.org/grpc"
 )
@@ -32,6 +33,7 @@ func StartRing() {
 	// Get current server name
 	// Get current member list
 	// Construct Ring
+	time.Sleep(2 * time.Second)
 	ringNodes = make(map[uint32]int)
 
 	// Start file rpc server for ring
