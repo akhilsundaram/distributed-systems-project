@@ -16,7 +16,6 @@ func AddRingMember(newMember ringMember) {
 	})
 	updateSuccessors()
 	ringNodes[newMember.hashID] = 1
-	ringLock.Unlock()
 }
 
 func DeleteRingMember(serverName string) (int, error) {
@@ -24,7 +23,6 @@ func DeleteRingMember(serverName string) (int, error) {
 	defer ringLock.Unlock()
 	var index int
 	found := false
-	ringLock.Unlock()
 	for i, member := range ring {
 		if member.serverName == serverName {
 			index = i
