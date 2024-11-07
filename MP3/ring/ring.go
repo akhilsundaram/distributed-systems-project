@@ -77,13 +77,15 @@ func initRing() {
 	sort.Slice(ring, func(i, j int) bool {
 		return ring[i].hashID < ring[j].hashID
 	})
+	utility.LogMessage("after sorted")
 	for i := 0; i < len(ring); i++ {
 		for j := 0; i < replicas-1; j++ {
-			ring[i].successor = append(ring[i].successor, ring[i+j%len(ring)].hashID)
+			ring[i].successor = append(ring[i].successor, ring[(i+j)%len(ring)].hashID)
 		}
 		if ring[i].serverName == membership.My_hostname {
 			current_node_index = i
 		}
+		utility.LogMessage("loop stuffff")
 	}
 	utility.LogMessage("Ring init done!")
 	ringLock.Unlock()
