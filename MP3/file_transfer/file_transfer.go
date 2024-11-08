@@ -151,8 +151,8 @@ func handleIncomingFileConnection(conn net.Conn) {
 			utility.LogMessage(resp.Err)
 		} else {
 			// write to virtual representation
-			filehash, _ := utility.GetMD5(hydfsPath)
-			utility.HydfsFileStore[hydfsPath] = utility.FileMetaData{
+			filehash, _ := utility.GetMD5(parsedData.Filename)
+			utility.HydfsFileStore[parsedData.Filename] = utility.FileMetaData{
 				Hash:      filehash,
 				Timestamp: parsedData.TimeStamp,
 				RingId:    parsedData.RingID,
