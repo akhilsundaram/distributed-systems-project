@@ -41,8 +41,12 @@ func (s *FileServer) handleGetFiles(req *FileRequest, stream FileService_GetFile
 		}
 
 		// get hash
-		file_hash := utility.HydfsFileStore[filename].Hash
-		timestamp_file := utility.HydfsFileStore[filename].Timestamp
+		//file_hash := utility.HydfsFileStore[filename].Hash
+		//timestamp_file := utility.HydfsFileStore[filename].Timestamp
+
+		FileMetaData, _ := utility.GetHyDFSMetadata(filename)
+		file_hash := FileMetaData.Hash
+		timestamp_file := FileMetaData.Timestamp
 
 		// Send file content and metadata to the client
 		response := &FileResponse{
@@ -125,11 +129,18 @@ func callFileServerFiles(server string, files []string) {
 			utility.LogMessage("Error writing to destination file: " + err.Error())
 		}
 		utility.LogMessage("file written")
-		utility.HydfsFileStore[resp.Filename] = utility.FileMetaData{
+
+		//utility.HydfsFileStore[resp.Filename] = utility.FileMetaData{
+		//	Hash:      resp.Hash,
+		//	Timestamp: resp.Timestamp.AsTime(),
+		//	RingId:    utility.Hashmurmur(resp.Filename),
+		//}
+		NewFileMetaData := utility.FileMetaData{
 			Hash:      resp.Hash,
 			Timestamp: resp.Timestamp.AsTime(),
 			RingId:    utility.Hashmurmur(resp.Filename),
 		}
+		utility.SetHyDFSMetadata(resp.Filename, NewFileMetaData)
 	}
 
 }

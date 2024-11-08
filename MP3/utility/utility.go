@@ -89,6 +89,7 @@ func GetIPAddr(host string) net.IP {
 /*FILES AND HASHES*/
 
 var HydfsFileStore = map[string]FileMetaData{} //key is filename
+var hydfsFileStoreMutex sync.RWMutex
 
 type FileAppendsTracker struct {
 	mu    sync.RWMutex
@@ -142,6 +143,38 @@ func GetEntries(filename string) []FileAppend {
 	defer AppendsFileStore.mu.RUnlock()
 
 	return AppendsFileStore.files[filename]
+}
+
+// GetMetadata retrieves metadata for a file
+func GetHyDFSMetadata(filename string) (FileMetaData, bool) {
+	hydfsFileStoreMutex.RLock()
+	defer hydfsFileStoreMutex.RUnlock()
+	metadata, exists := HydfsFileStore[filename]
+	return metadata, exists
+}
+
+// SetMetadata sets or updates metadata for a file
+func SetHyDFSMetadata(filename string, metadata FileMetaData) {
+	hydfsFileStoreMutex.Lock()
+	defer hydfsFileStoreMutex.Unlock()
+	HydfsFileStore[filename] = metadata
+}
+
+func GetAllHyDFSMetadata() map[string]FileMetaData {
+	hydfsFileStoreMutex.RLock()
+	defer hydfsFileStoreMutex.RUnlock()
+	copyMap := make(map[string]FileMetaData, len(HydfsFileStore))
+	for k, v := range HydfsFileStore {
+		copyMap[k] = v
+	}
+	return copyMap
+}
+
+// DeleteMetadata removes metadata for a file
+func DeleteMetadata(filename string) {
+	hydfsFileStoreMutex.Lock()
+	defer hydfsFileStoreMutex.Unlock()
+	delete(HydfsFileStore, filename)
 }
 
 func clearDirectory(dir string) {

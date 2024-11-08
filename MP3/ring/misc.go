@@ -99,7 +99,8 @@ func dropFilesNotInRange(low uint32, high uint32) {
 		needed[item] = struct{}{} // Using an empty struct to save memory
 	}
 
-	for filename, _ := range utility.HydfsFileStore {
+	hydfs := utility.GetAllHyDFSMetadata()
+	for filename, _ := range hydfs {
 		if _, exists := needed[filename]; exists {
 			handleDelete(filename)
 		}

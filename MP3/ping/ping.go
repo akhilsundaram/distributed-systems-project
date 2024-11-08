@@ -138,7 +138,7 @@ func sendUDPRequest(host string, self_name string) {
 	}
 
 	// Set a timeout for receiving the response
-	err = conn.SetReadDeadline(time.Now().Add(2000 * time.Millisecond))
+	err = conn.SetReadDeadline(time.Now().Add(6000 * time.Millisecond))
 	if err != nil {
 		utility.LogMessage("error setting read deadline: " + err.Error())
 	}

@@ -257,7 +257,8 @@ func main() {
 				// store function here
 				// requestData.Operation = "store"
 				// file_transfer.HyDFSClient(requestData)
-				for filename, v := range utility.HydfsFileStore {
+				hydfsFS := utility.GetAllHyDFSMetadata()
+				for filename, v := range hydfsFS {
 					fmt.Printf("Filename: %s, Ring ID: %d, md5 hash: %s, timestamp: %s\n", filename, v.RingId, v.Hash, v.Timestamp)
 				}
 

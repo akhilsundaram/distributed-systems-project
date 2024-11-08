@@ -139,7 +139,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 		utility.LogMessage("File " + hydfsPath + " sent successfully")
 	case "cache":
 		hydfsPath := utility.HYDFS_DIR + "/" + parsedData.Filename
-		value, exists := utility.HydfsFileStore[parsedData.Filename]
+		value, exists := utility.GetHyDFSMetadata(parsedData.Filename)
 		if exists {
 			utility.LogMessage("Returning File metadata for " + hydfsPath + " in hydfs file store")
 			resp.Hash = value.Hash
@@ -147,7 +147,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 			resp.RingId = value.RingId
 		} else {
 			utility.LogMessage("File metadata for " + hydfsPath + "not found in hydfs file store")
-			// for filename, v := range utility.HydfsFileStore {
+			// for filename, v := utility.GetAllHyDFSMetadata() {
 			//fmt.Printf("Filename: %s, Ring ID: %d, md5 hash: %s, timestamp: %s", filename, v.RingId, v.Hash, v.Timestamp)
 			//}
 			resp.Err = "File does not exist on this replica's hydfs file store"
@@ -169,12 +169,14 @@ func handleIncomingFileConnection(conn net.Conn) {
 		} else {
 			// write to virtual representation
 			filehash, _ := utility.GetMD5(parsedData.Filename)
-			utility.HydfsFileStore[parsedData.Filename] = utility.FileMetaData{
+			// utility.GetHyDFSMetadata(parsedData.Filename)
+			fileMetaData := utility.FileMetaData{
 				Hash:      filehash,
 				Timestamp: parsedData.TimeStamp,
 				RingId:    parsedData.RingID,
 				Appends:   0,
 			}
+			utility.SetHyDFSMetadata(parsedData.Filename, fileMetaData)
 			resp.Data = []byte("File created successfully: " + hydfsPath)
 			utility.LogMessage(string(resp.Data))
 		}
@@ -185,7 +187,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 			resp.Err = "File does not exist on this replica"
 			utility.LogMessage(resp.Err)
 		} else {
-			metadata, exists := utility.HydfsFileStore[parsedData.Filename]
+			metadata, exists := utility.GetHyDFSMetadata(parsedData.Filename)
 			if !exists {
 				resp.Err = "File exists on local FS but not a part of HydfsFileStore"
 				utility.LogMessage(resp.Err)
@@ -201,8 +203,9 @@ func handleIncomingFileConnection(conn net.Conn) {
 				utility.LogMessage(resp.Err)
 			} else {
 				utility.LogMessage("File write for append success : " + appendPath)
-				utility.AddAppendsEntry(parsedData.Filename, parsedData.LocalFilePath, parsedData.TimeStamp, clientAddr)
-				utility.HydfsFileStore[parsedData.Filename] = metadata
+				utility.AddAppendsEntry(parsedData.Filename, appendPath, parsedData.TimeStamp, clientAddr)
+				utility.SetHyDFSMetadata(parsedData.Filename, metadata)
+				// utility.HydfsFileStore[parsedData.Filename] = metadata
 				//appends_list := utility.GetEntries(parsedData.Filename)
 				utility.LogMessage("appends List for file : " + parsedData.Filename)
 				//for _, entry := range appends_list {
@@ -221,7 +224,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 			resp.Err = "File does not exist on this replica"
 			utility.LogMessage(resp.Err)
 		} else {
-			metadata, exists := utility.HydfsFileStore[parsedData.Filename]
+			metadata, exists := utility.GetHyDFSMetadata(parsedData.Filename)
 			if !exists {
 				resp.Err = "File exists on local FS but not a part of HydfsFileStore"
 				utility.LogMessage(resp.Err)
@@ -267,12 +270,12 @@ func handleIncomingFileConnection(conn net.Conn) {
 					utility.LogMessage("Error in generating MD5 has for the merged file")
 				}
 
-				metadata := utility.HydfsFileStore[parsedData.Filename]
+				metadata, _ := utility.GetHyDFSMetadata(parsedData.Filename)
 				metadata.Hash = newMD5Hash
 				metadata.Timestamp = time.Now()
 				metadata.Appends = 0
 
-				utility.HydfsFileStore[parsedData.Filename] = metadata
+				utility.SetHyDFSMetadata(parsedData.Filename, metadata)
 				// send signal to other replicas to pick file from this node / send a merge write request to override the file and meta data
 				// send response to client on success after your completion / after all nodes complete
 				utility.LogMessage("Updated Hash and Timestamp of the merged file")

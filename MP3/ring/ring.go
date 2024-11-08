@@ -242,7 +242,8 @@ func handleDelete(filename string) {
 		utility.LogMessage("File does not exist")
 		return
 	}
-	delete(utility.HydfsFileStore, filename)
+	utility.DeleteMetadata(filename)
+	// delete(utility.HydfsFileStore, filename)
 
 }
 
@@ -252,14 +253,15 @@ func handleDelete(filename string) {
 
 func getFileList(low uint32, high uint32) []string {
 	var file_list []string
+	hydfsFS := utility.GetAllHyDFSMetadata()
 	if low > high {
-		for filename, metadata := range utility.HydfsFileStore {
+		for filename, metadata := range hydfsFS {
 			if low < metadata.RingId && metadata.RingId <= 1023 || (0 <= metadata.RingId && metadata.RingId <= high) {
 				file_list = append(file_list, filename)
 			}
 		}
 	} else {
-		for filename, metadata := range utility.HydfsFileStore {
+		for filename, metadata := range hydfsFS {
 			if low < metadata.RingId && metadata.RingId <= high {
 				file_list = append(file_list, filename)
 			}
