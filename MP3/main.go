@@ -85,7 +85,6 @@ func main() {
 	go ContinouslySendPings()
 
 	// Call HyDFS ?
-	ring.StartRing()
 	membership.RingMemberchan = make(chan membership.RingMemberMessage)
 	go ring.StartRing()
 
@@ -259,7 +258,7 @@ func main() {
 				// requestData.Operation = "store"
 				// file_transfer.HyDFSClient(requestData)
 				for filename, v := range utility.HydfsFileStore {
-					fmt.Printf("Filename: %s, Ring ID: %d, md5 hash: %s, timestamp: %s", filename, v.RingId, v.Hash, v.Timestamp)
+					fmt.Printf("Filename: %s, Ring ID: %d, md5 hash: %s, timestamp: %s\n", filename, v.RingId, v.Hash, v.Timestamp)
 				}
 
 			case "list_mem_ids":

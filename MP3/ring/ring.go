@@ -9,6 +9,7 @@ import (
 	"os"
 	"sort"
 	"sync"
+	"time"
 
 	grpc "google.golang.org/grpc"
 )
@@ -49,7 +50,7 @@ func StartRing() {
 	}()
 
 	//End file server start
-
+	time.Sleep(2 * time.Second)
 	initRing()
 
 	for {
@@ -62,7 +63,7 @@ func StartRing() {
 func initRing() {
 	utility.LogMessage("Init ring started")
 	members_list := membership.GetMembershipList()
-	current_node_index := 0
+	// current_node_index := 0
 
 	ringLock.Lock()
 	for key := range members_list {
@@ -78,34 +79,44 @@ func initRing() {
 		return ring[i].hashID < ring[j].hashID
 	})
 	utility.LogMessage("after sorted")
-	// PrintRing()
-	for i := 0; i < len(ring); i++ {
-		utility.LogMessage("loop start")
-		for j := 0; j < replicas-1; j++ {
-			ring[i].successor = append(ring[i].successor, ring[(i+j)%len(ring)].hashID)
+	n := len(ring)
+	for i := 0; i < n; i++ {
+		ring[i].successor = make([]uint32, 0, 2)
+		for j := 1; j <= 2; j++ {
+			ring[i].successor = append(ring[i].successor, ring[(i+j)%n].hashID)
 		}
-		if ring[i].serverName == membership.My_hostname {
-			current_node_index = i
-		}
-		utility.LogMessage("loop stuffff")
 	}
 	utility.LogMessage("Ring init done!")
 	ringLock.Unlock()
 
 	//Pull data from previous node.
 	//Make a call to file server that reqs files from numbers [x,y] inclusive.
-	utility.LogMessage("pull files in init start")
-	pullFiles(ring[((current_node_index-1)%len(ring)+len(ring))%len(ring)].hashID, ring[(current_node_index+1)%len(ring)].hashID, ring[(current_node_index+1)%len(ring)].serverName)
-	// Pull data/files on node from predecessor at node init. // //Make a call to file server that reqs files from numbers [x,y] inclusive. //
-	utility.LogMessage("pull files in init end")
-	//Pull replica files into your system
-	num := ((current_node_index-replicas)%len(ring) + len(ring)) % len(ring)
-	for i := 0; i < replicas-1; i++ {
-		utility.LogMessage("more pull files in init start - loop")
-		pullFiles(ring[(num+i)%len(ring)].hashID, ring[(num+i+1)%len(ring)].hashID, ring[(num+i+1)%len(ring)].serverName)
-	} // can add later - failure to find node/ we can retry to get the files from successor of this node.
 
-	//Add logic to event to pull replica data ? or a push based on add ??
+	low_self, high_self, _ := findFileRanges(membership.My_hostname)
+	node_idx, _ := GetNodeIndex(membership.My_hostname)
+	num := ((node_idx-replicas)%len(ring) + len(ring)) % len(ring)
+
+	utility.LogMessage("pull files in init start")
+	for i := 0; i < replicas; i++ {
+		n := (num + i) % len(ring)
+		if ring[n].serverName != membership.My_hostname {
+			utility.LogMessage("Trying to pull from - " + ring[n].serverName)
+			pullFiles(low_self, high_self, ring[n].serverName)
+		}
+	}
+
+	// pullFiles(ring[((current_node_index-1)%len(ring)+len(ring))%len(ring)].hashID, ring[(current_node_index+1)%len(ring)].hashID, ring[(current_node_index+1)%len(ring)].serverName)
+	// // Pull data/files on node from predecessor at node init. // //Make a call to file server that reqs files from numbers [x,y] inclusive. //
+	// utility.LogMessage("pull files in init end")
+	// //Pull replica files into your system
+	// num := ((current_node_index-replicas)%len(ring) + len(ring)) % len(ring)
+	// for i := 0; i < replicas-1; i++ {
+	// 	utility.LogMessage("more pull files in init start - loop")
+	// 	utility.LogMessage("Trying to pull from - " + ring[(num+i+1)%len(ring)].serverName)
+	// 	pullFiles(ring[(num+i)%len(ring)].hashID, ring[(num+i+1)%len(ring)].hashID, ring[(num+i+1)%len(ring)].serverName)
+	// } // can add later - failure to find node/ we can retry to get the files from successor of this node.
+
+	// //Add logic to event to pull replica data ? or a push based on add ??
 	// Always called when you're the new node in the system
 	// no nodes/ first node in the system
 }
@@ -117,35 +128,31 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 		if nodeInRing(node) {
 			return fmt.Errorf("error - Node %v already in Ring! cannot add", node)
 		}
-		insertion := 0
-		ringLock.Lock()
-		for i := 0; i < len(ring); i++ { // len == 0 cannot happen because 0 members mean we're dead too.
-			if ring[i].hashID < hash_value_of_node && i != len(ring)-1 { // Unless it's the last element, then do the same insertion at the end.
-				continue
-			}
-			// Create ring element
-			var ring_member ringMember
-			ring_member.hashID = hash_value_of_node
-			ring_member.serverName = node
-			ring = append(ring[:i], append([]ringMember{ring_member}, ring[i:]...)...)
-			insertion = i + 1
-			break
-		}
+		//Add to hashmap
 
-		//two nodes behind -  need to change successor
-		num := ((insertion-replicas)%len(ring) + len(ring)) % len(ring)
-		for c := 0; c < replicas; c++ {
-			ring[(num+c)%len(ring)].successor = []uint32{ring[(num+c+1)%len(ring)].hashID, ring[(num+c+2)%len(ring)].hashID}
+		utility.LogMessage("Signal to add New node -" + node)
+		var ring_member ringMember
+		ring_member.hashID = hash_value_of_node
+		ring_member.serverName = node
+		AddRingMember(ring_member)
+
+		utility.LogMessage("Node added to ring")
+		//Update successor for 3 nodes, newly inserted node and two before it ^^ done in addring member.
+
+		low, high, err := findFileRanges(node)
+		if err != nil {
+			utility.LogMessage("error deleting files not in range - " + err.Error())
 		}
-		ringLock.Unlock()
+		dropFilesNotInRange(low, high)
 
 		//if we're part of two (num_replicas - 1) nodes after, drop data replica after a while.
-		for i := 1; i < replicas; i++ {
-			if ring[(insertion+i)%len(ring)].serverName == membership.My_hostname {
-				num := ((insertion+i-replicas-1)%len(ring) + len(ring)) % len(ring)
-				dropFiles(ring[num%len(ring)].hashID, ring[(num+1)%len(ring)].hashID)
-			}
-		}
+		// CHANGE THIS AND KEEP TRACK OF THE FILE RANGES WE NEED TO STORE! USE THIS TO DROP FILES OUTSIDE RANGE. BETTER
+		// for i := 1; i < replicas; i++ {
+		// 	if ring[(insertion+i)%len(ring)].serverName == membership.My_hostname {
+		// 		num := ((insertion+i-replicas-1)%len(ring) + len(ring)) % len(ring)
+		// 		dropFiles(ring[num%len(ring)].hashID, ring[(num+1)%len(ring)].hashID)
+		// 	}
+		// }
 		//if we're part of the two nodes before, we need to replicate data to new node, but this should be pulled from init not here. //NOT done in init
 		return nil
 
@@ -153,31 +160,24 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 		if !nodeInRing(node) {
 			return fmt.Errorf("error - Node %v not in Ring! cannot delete", node)
 		}
-		deletion := 0
-		ringLock.Lock()
-		for i := 0; i < len(ring); i++ {
-			if ring[i].hashID != hash_value_of_node {
-				continue
-			}
-			// Delete ring element
-			ring = append(ring[:i], ring[i+1:]...)
-			deletion = i
-			break
+		//Delete map entry of node
+		deletion, err := DeleteRingMember(node)
+		if err != nil {
+			utility.LogMessage("node deletion in ring errored - " + err.Error())
 		}
 
-		// Nodes behind
-		num := ((deletion-replicas+1)%len(ring) + len(ring)) % len(ring)
-		for c := 0; c < replicas-1; c++ {
-			ring[(num+c)%len(ring)].successor = []uint32{ring[(num+c+1)%len(ring)].hashID, ring[(num+c+2)%len(ring)].hashID}
-		}
-		ringLock.Unlock()
+		deletion = deletion % len(ring) //ensure stable next index of deleted node.
 
 		// The two successors of a deleted element will replicate one node further in.
 		// Node right after deleted node, (at idx deletion%len(ring)th position and two nodes after that will have files added in their replication.
 		for i := 0; i < replicas-1; i++ {
-			if ring[(deletion+i)%len(ring)].serverName == membership.My_hostname {
-				num := (((deletion+i)%len(ring)-replicas)%len(ring) + len(ring)) % len(ring)
-				pullFiles(ring[num].hashID, ring[(num+1)%len(ring)].hashID, ring[(num+1)%len(ring)].serverName)
+			num := (deletion + i) % len(ring)
+			if ring[num].serverName == membership.My_hostname {
+				low, high, _ := findFileRanges(membership.My_hostname)
+				for j := 1; j < replicas; j++ {
+					utility.LogMessage("PULL ON DELETE -from: " + ring[(num-i+len(ring))%len(ring)].serverName + "to: " + membership.My_hostname)
+					pullFiles(low, high, ring[(num-i+len(ring))%len(ring)].serverName)
+				}
 			}
 		}
 
@@ -221,19 +221,11 @@ func GetFileNodes(filename string) []string {
 	}
 
 	for i := 0; i < replicas; i++ {
-		output = append(output, ring[idx+i%len(ring)].serverName)
+		utility.LogMessage(ring[(idx+i)%len(ring)].serverName)
+		output = append(output, ring[(idx+i)%len(ring)].serverName)
 	}
 
 	return output
-}
-
-// Ask node to drop the file list - called when it gets { a files req from a newly added node } OR {sees newly added node and asks the replica + 1th node to drop files which won't be part of added node's hash }
-func dropFiles(low uint32, high uint32) {
-	delete_list := getFileList(low, high)
-	for _, filename := range delete_list {
-		//change to file_transfer function
-		handleDelete(filename)
-	}
 }
 
 // To move to file_transfer
@@ -246,35 +238,7 @@ func handleDelete(filename string) {
 		utility.LogMessage("File does not exist")
 		return
 	}
-
-}
-
-func pullFiles(low uint32, high uint32, server string) {
-	if server == membership.My_hostname {
-		utility.LogMessage("No pulls from self please")
-		return
-	}
-	// IF we have files within this range already -----> add a data struct for this if not there.
-	//Don't do anything
-	//Else
-	// Pull from the correct replicas (for now, 1 call, later to all replicas) -----> pull from server if the var was passed, else usual hashcheck
-	self_list := getFileList(low, high)
-
-	// Get file list for the ranges in the other servers.
-	remote_list := callFileServerNames(server, low, high)
-
-	map_self_list := make(map[string]struct{}, len(self_list))
-	diff := []string{}
-	for _, file := range self_list {
-		map_self_list[file] = struct{}{}
-	}
-	for _, v := range remote_list {
-		if _, found := map_self_list[v]; !found {
-			diff = append(diff, v)
-		}
-	}
-
-	callFileServerFiles(server, diff)
+	delete(utility.HydfsFileStore, filename)
 
 }
 
@@ -304,14 +268,20 @@ func getFileList(low uint32, high uint32) []string {
 	return file_list
 }
 
-func PrintRing() {
-	for _, ringMember := range ring {
-		if ringMember.serverName == membership.My_hostname {
-			fmt.Printf("host: %s, ringID: %d   <----------- Current Server", ringMember.serverName, ringMember.hashID)
-		} else {
-			fmt.Printf("host: %s, ringID: %d", ringMember.serverName, ringMember.hashID)
+func hashwithinRange(value uint32, low uint32, high uint32) bool {
+	if low > high {
+		if low < value && value <= 1023 {
+			return true
+		}
+		if low <= value && value <= high {
+			return true
+		}
+	} else {
+		if low < value && value <= high {
+			return true
 		}
 	}
+	return false
 }
 
 // case "get_files_in_range":

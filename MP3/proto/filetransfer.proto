@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "google/protobuf/timestamp.proto";
+
 package ring;
 
 option go_package = "../ring/";
@@ -19,4 +21,6 @@ message FileResponse {
   bytes content = 2;            // Content of the file in binary format (used for "getfiles" command)
   string hash = 3;              // MD5 hash of the file content (used for "getfiles" command)
   repeated string filenames = 4; // List of filenames (used for "getfilenames" command)
+  google.protobuf.Timestamp timestamp = 5;
+
 }
