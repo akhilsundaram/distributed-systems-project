@@ -221,6 +221,7 @@ func GetFileNodes(filename string) []string {
 	}
 
 	for i := 0; i < replicas; i++ {
+		utility.LogMessage(ring[(idx+i)%len(ring)].serverName)
 		output = append(output, ring[(idx+i)%len(ring)].serverName)
 	}
 
