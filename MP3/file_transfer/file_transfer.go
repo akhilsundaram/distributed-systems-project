@@ -2,6 +2,7 @@ package file_transfer
 
 import (
 	"bytes"
+	context "context"
 	"encoding/json"
 	"fmt"
 	"hydfs/cache"
@@ -14,11 +15,15 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	grpc "google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
-	port    = "6060"
-	timeout = 10 * time.Millisecond
+	port      = "6060"
+	mergeport = "6061"
+	timeout   = 10 * time.Millisecond
 )
 
 type ClientData struct {
@@ -47,6 +52,10 @@ type Response struct {
 	Hash      string
 	RingId    uint32
 	Err       error
+}
+
+type MergeFilesServer struct {
+	UnimplementedMergeServiceServer
 }
 
 // This file will contain file fetching ,
@@ -262,6 +271,13 @@ func handleIncomingFileConnection(conn net.Conn) {
 					utility.LogMessage("Appended content from " + entry.FilePath + " to " + hydfsPath)
 
 					// remove file from directory TODO
+					err = os.Remove(entry.FilePath)
+					if err != nil {
+						errMsg := fmt.Sprintf("Failed to remove file %s: %v", entry.FilePath, err)
+						utility.LogMessage(errMsg)
+					} else {
+						utility.LogMessage("Removed file: " + entry.FilePath)
+					}
 				}
 
 				// once done concatenating, update md5 hash and timestamp
@@ -884,4 +900,96 @@ func ParseCacheResponses(responses []ResponseJson, cachedFileTS time.Time, cache
 
 	utility.LogMessage("No newer versions found in cache responses")
 	return ""
+}
+
+func (s *MergeFilesServer) MergeFiles(req *MergeRequest, stream MergeService_MergeFilesServer) error {
+	utility.LogMessage("RPC server entered Invoked for filename : " + req.Filename)
+	hydfsPath := utility.HYDFS_DIR + "/" + req.Filename
+
+	// Open the file with O_WRONLY (write-only), O_CREATE (create if not exist), and O_TRUNC (truncate if exist)
+	file, err := os.OpenFile(hydfsPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		errMsg := fmt.Sprintf("Failed to open file %s: %v", hydfsPath, err)
+		utility.LogMessage(errMsg)
+		return fmt.Errorf("failed to open file %s: %v", hydfsPath, err)
+	}
+	defer file.Close()
+
+	// Write the data from the request to the file
+	_, err = io.Copy(file, bytes.NewReader(req.Data))
+	if err != nil {
+		errMsg := fmt.Sprintf("Failed to write data to file %s: %v", hydfsPath, err)
+		utility.LogMessage(errMsg)
+		return fmt.Errorf("failed to write data to file %s: %v", hydfsPath, err)
+	}
+
+	utility.LogMessage("File " + req.Filename + " has been successfully overwritten")
+
+	// Send file content and metadata to the client
+	err = stream.Send(&MergeResponse{Ack: "File " + req.Filename + " has been successfully merged"})
+	if err != nil {
+		errMsg := fmt.Sprintf("Failed to send response: %v", err)
+		utility.LogMessage(errMsg)
+		return fmt.Errorf("failed to send response: %v", err)
+	}
+
+	// change the hydfs file store entry
+	FileMetaData, _ := utility.GetHyDFSMetadata(req.Filename)
+	FileMetaData.Hash = req.Hash
+	FileMetaData.Timestamp = req.Timestamp.AsTime()
+	FileMetaData.Appends = 0
+	utility.SetHyDFSMetadata(req.Filename, FileMetaData)
+
+	// change the append file store entry
+	utility.DeleteEntries(req.Filename)
+
+	// clear the append directory with those filenames appends
+	append_path := utility.HYDFS_APPEND + "/" + req.Filename
+	utility.LogMessage("Clearing all files in append directory with " + append_path + " as prefix")
+	utility.ClearAppendFiles(utility.HYDFS_APPEND+"/", req.Filename)
+	return nil
+}
+
+func SendMergedFile(serverIP string, filename string, data []byte, hash string, newTimeStamp time.Time) {
+	conn, err := grpc.Dial(serverIP+":"+mergeport, grpc.WithInsecure())
+	if err != nil {
+		utility.LogMessage("Unable to connect to server - merge rpc server - " + err.Error())
+	}
+	defer conn.Close()
+	utility.LogMessage("created connection with merge server ip : " + serverIP)
+
+	client := NewMergeServiceClient(conn)
+
+	fileRequest := &MergeRequest{
+		Filename:  filename,
+		Data:      data,
+		Hash:      hash,
+		Timestamp: timestamppb.New(newTimeStamp),
+	}
+	// utility.LogMessage("here - 1")
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	// utility.LogMessage("here - 2")
+	stream, err := client.MergeFiles(ctx, fileRequest)
+	if err != nil {
+		utility.LogMessage("error sending file - " + err.Error())
+		return
+		// log.Fatalf("Error calling GetFiles: %v", err)
+	}
+
+	for {
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			utility.LogMessage("EOF received " + err.Error())
+			break
+		}
+		if err != nil {
+			utility.LogMessage("Error receiving stream -  " + err.Error())
+		}
+
+		utility.LogMessage("File received at server - " + resp.Ack)
+	}
+
 }
