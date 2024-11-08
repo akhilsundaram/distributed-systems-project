@@ -166,12 +166,17 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 			utility.LogMessage("node deletion in ring errored - " + err.Error())
 		}
 
+		deletion = deletion % len(ring) //ensure stable next index of deleted node.
+
 		// The two successors of a deleted element will replicate one node further in.
 		// Node right after deleted node, (at idx deletion%len(ring)th position and two nodes after that will have files added in their replication.
 		for i := 0; i < replicas-1; i++ {
-			if ring[(deletion+i)%len(ring)].serverName == membership.My_hostname {
-				num := (((deletion+i)%len(ring)-replicas)%len(ring) + len(ring)) % len(ring)
-				pullFiles(ring[num].hashID, ring[(num+1)%len(ring)].hashID, ring[(num+1)%len(ring)].serverName)
+			num := (deletion + i) % len(ring)
+			if ring[num].serverName == membership.My_hostname {
+				low, high, _ := findFileRanges(membership.My_hostname)
+				for j := 1; j < replicas; j++ {
+					pullFiles(low, high, ring[(num-i+len(ring))%len(ring)].serverName)
+				}
 			}
 		}
 

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"hydfs/ring"
 	"hydfs/utility"
 	"io"
 	"net"
@@ -324,26 +325,29 @@ func HyDFSClient(request ClientData) {
 		request.Data = fileData
 		fileID, senderIPs := GetSuccesorIPsForFilename(filename)
 		request.RingID = fileID
+		request.TimeStamp = time.Now()
 		utility.LogMessage("Successor IPs assigned - " + senderIPs[0] + ", " + senderIPs[1] + ", " + senderIPs[2])
 
 		// remove lines when ring ID integrated
-		clear(senderIPs)
-		senderIPs = []string{"172.22.94.195"}
+		// clear(senderIPs)
+		// senderIPs = []string{"172.22.94.195"}
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			response, err := SendRequest(senderIPs[0], request)
-			if err != nil {
-				utility.LogMessage(fmt.Sprintf("Error in create: %v", err))
-				return
-			}
-			if response.Err != "" {
-				utility.LogMessage(fmt.Sprintf("Error from server: %s", response.Err))
-				return
-			}
-			utility.LogMessage(fmt.Sprintf("File created successfully: %s", string(response.Data)))
-		}()
+		for i := 0; i < len(senderIPs); i++ {
+			wg.Add(1)
+			go func(ip_addr string) {
+				defer wg.Done()
+				response, err := SendRequest(ip_addr, request)
+				if err != nil {
+					utility.LogMessage(fmt.Sprintf("Error in create: %v", err))
+					return
+				}
+				if response.Err != "" {
+					utility.LogMessage(fmt.Sprintf("Error from server: %s", response.Err))
+					return
+				}
+				utility.LogMessage(fmt.Sprintf("File created successfully: %s", string(response.Data)))
+			}(senderIPs[i])
+		}
 
 		// Wait for the goroutine to finish
 		wg.Wait()
@@ -393,11 +397,13 @@ func HyDFSClient(request ClientData) {
 
 func GetSuccesorIPsForFilename(filename string) (uint32, []string) {
 	ringID := utility.Hashmurmur(filename)
+	servers_list := ring.GetFileNodes(filename)
+
+	var ips []string
+	for _, server := range servers_list {
+		ips = append(ips, utility.GetIPAddr(server).String())
+	}
 	utility.LogMessage("Ring ID generated for filename " + filename + ": " + strconv.FormatInt(int64(ringID), 10))
-
-	// ips = hydfs.GetSuccessorNodeIps(ringID)
-	ips := []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"}
-
 	return ringID, ips
 }
 
