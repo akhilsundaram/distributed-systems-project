@@ -231,6 +231,7 @@ func handleDelete(filename string) {
 		utility.LogMessage("File does not exist")
 		return
 	}
+	delete(utility.HydfsFileStore, filename)
 
 }
 

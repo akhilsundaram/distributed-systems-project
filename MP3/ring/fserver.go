@@ -11,6 +11,7 @@ import (
 	"time"
 
 	grpc "google.golang.org/grpc"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type FileServer struct {
@@ -40,12 +41,14 @@ func (s *FileServer) handleGetFiles(req *FileRequest, stream FileService_GetFile
 
 		// get hash
 		file_hash := utility.HydfsFileStore[filename].Hash
+		timestamp_file := utility.HydfsFileStore[filename].Timestamp
 
 		// Send file content and metadata to the client
 		response := &FileResponse{
-			Filename: filename,
-			Content:  content,
-			Hash:     file_hash,
+			Filename:  filename,
+			Content:   content,
+			Hash:      file_hash,
+			Timestamp: timestamppb.New(timestamp_file),
 		}
 		if err := stream.Send(response); err != nil {
 			utility.LogMessage("fserver(grpc) in ring: Failed to Send file " + filename + " becuase of the the err => " + err.Error())
@@ -86,12 +89,12 @@ func callFileServerFiles(server string, files []string) {
 		Command:   "getfiles",
 		Filenames: files,
 	}
-	utility.LogMessage("here - 1")
+	// utility.LogMessage("here - 1")
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	utility.LogMessage("here - 2")
+	// utility.LogMessage("here - 2")
 	stream, err := client.GetFiles(ctx, fileRequest)
 	if err != nil {
 		utility.LogMessage("error getiing file - " + err.Error())
@@ -99,10 +102,9 @@ func callFileServerFiles(server string, files []string) {
 	}
 
 	for {
-		utility.LogMessage("reponse - 1")
 		resp, err := stream.Recv()
 		if err == io.EOF {
-			utility.LogMessage("non eof error ? - " + err.Error())
+			utility.LogMessage(" EOF received " + err.Error())
 			break
 		}
 		if err != nil {
@@ -117,6 +119,11 @@ func callFileServerFiles(server string, files []string) {
 			utility.LogMessage("Error writing to destination file: " + err.Error())
 		}
 		utility.LogMessage("file written")
+		utility.HydfsFileStore[resp.Filename] = utility.FileMetaData{
+			Hash:      resp.Hash,
+			Timestamp: resp.Timestamp.AsTime(),
+			RingId:    utility.Hashmurmur(resp.Filename),
+		}
 	}
 
 }
