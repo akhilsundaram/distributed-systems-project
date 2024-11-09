@@ -2,7 +2,6 @@ package ping
 
 import (
 	"encoding/json"
-	"fmt"
 	"hydfs/buffer"
 	"hydfs/membership"
 	"hydfs/utility"
@@ -314,7 +313,7 @@ func DeclareSuspicion(hostname string, node_id string) error {
 
 	state, _ := membership.GetSuspicion(hostname)
 	if state == -2 || state == membership.Alive { //No suspicion exists, but host does
-		fmt.Printf("\nSUSPICIOUS :: Host %s with MemberID %s\n", hostname, node_id)
+		utility.LogMessage("SUSPICIOUS :: Host " + hostname + " with MemberID " + node_id)
 		inc := membership.GetMemberIncarnation(hostname)
 		membership.UpdateSuspicion(hostname, membership.Suspicious)
 		time.AfterFunc(membership.SuspicionTimeout, func() { stateTransitionOnTimeout(hostname, node_id) })
