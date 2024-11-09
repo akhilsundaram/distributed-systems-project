@@ -22,8 +22,6 @@ var (
 	INTRODUCER_HOST = "fa24-cs425-5901.cs.illinois.edu"
 	status_sus      = false //suspicion.DeclareSuspicion
 	LOGGER_FILE     = "/home/log/hydfs.log"
-	HYDFS_DIR       = "/home/hydfs/files"
-	HYDFS_CACHE     = "/home/hydfs/cache"
 )
 
 func main() {
@@ -36,7 +34,7 @@ func main() {
 
 	file.Close()
 
-	utility.SetupDirectories(HYDFS_DIR, HYDFS_CACHE)
+	utility.SetupDirectories(utility.HYDFS_APPEND, utility.HYDFS_CACHE, utility.HYDFS_DIR, utility.HYDFS_TMP)
 	if err != nil {
 		fmt.Printf("Error setting up directories: %v\n", err)
 		os.Exit(1)

@@ -262,7 +262,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 			}
 			metadata.Appends += 1
 			// update append file path
-			appendPath := utility.HYDFS_APPEND + "/" + parsedData.Filename + "_" + clientAddr + "_" + strconv.Itoa(metadata.Appends)
+			appendPath := utility.HYDFS_APPEND + "/" + parsedData.Filename + "_" + strconv.Itoa(metadata.Appends)
 
 			//append file write
 			err := os.WriteFile(appendPath, parsedData.Data, 0644)
@@ -418,7 +418,7 @@ func HyDFSClient(request ClientData) {
 
 		// add a check for checking if the file is in cache
 		entry, exists := cache.GetCacheEntry(filename)
-		fileID, senderIPs := GetSuccesorIPsForFilename(filename)
+		fileID, senderIPs, _ := GetSuccesorIPsForFilename(filename)
 		request.RingID = fileID
 		var vm_ip string
 
@@ -507,7 +507,6 @@ func HyDFSClient(request ClientData) {
 	case "create":
 		localPath := request.LocalFilePath
 
-		fmt.Printf("Creating file %s in HyDFS from local file %s\n", filename, localPath)
 		if utility.FileExists(localPath) {
 			utility.LogMessage("File at " + localPath + " exists")
 		} else {
@@ -521,7 +520,7 @@ func HyDFSClient(request ClientData) {
 		}
 
 		request.Data = fileData
-		fileID, senderIPs := GetSuccesorIPsForFilename(filename)
+		fileID, senderIPs, senderIDs := GetSuccesorIPsForFilename(filename)
 		request.RingID = fileID
 		request.TimeStamp = time.Now()
 		utility.LogMessage("Successor IPs assigned - " + senderIPs[0] + ", " + senderIPs[1] + ", " + senderIPs[2])
@@ -544,6 +543,7 @@ func HyDFSClient(request ClientData) {
 					return
 				}
 				utility.LogMessage(fmt.Sprintf("File created successfully: %s on %s", string(response.Data), response.IP))
+				fmt.Printf("Created file %s (ID - %s) in HyDFS Node (ID - %s) \n", filename, fileID, senderIDs[i])
 			}(senderIPs[i])
 		}
 
@@ -566,7 +566,7 @@ func HyDFSClient(request ClientData) {
 		}
 
 		request.Data = fileData
-		fileID, senderIPs := GetSuccesorIPsForFilename(filename)
+		fileID, senderIPs, _ := GetSuccesorIPsForFilename(filename)
 		request.RingID = fileID
 		request.TimeStamp = time.Now()
 		utility.LogMessage("Successor IPs for append - " + senderIPs[0] + ", " + senderIPs[1] + ", " + senderIPs[2])
@@ -598,7 +598,7 @@ func HyDFSClient(request ClientData) {
 		fmt.Printf("Merging all replicas of %s in HyDFS\n", filename)
 
 		// handleMerge(filename)
-		fileID, senderIPs := GetSuccesorIPsForFilename(filename)
+		fileID, senderIPs, _ := GetSuccesorIPsForFilename(filename)
 		request.RingID = fileID
 		request.TimeStamp = time.Now()
 		fmt.Printf("Merging file %s (ID = %d) at HyDFS node %s \n", filename, fileID, senderIPs[0])
@@ -627,7 +627,7 @@ func HyDFSClient(request ClientData) {
 		// handleDelete(filename)
 
 	case "ls":
-		fileID, _ := GetSuccesorIPsForFilename(filename)
+		fileID, _, _ := GetSuccesorIPsForFilename(filename)
 		fmt.Printf("Listing VM addresses storing %s (ring id - %d)\n", filename, fileID)
 		request.RingID = fileID
 		VMs := ring.GetFileNodes(filename)
@@ -640,7 +640,7 @@ func HyDFSClient(request ClientData) {
 	}
 }
 
-func GetSuccesorIPsForFilename(filename string) (uint32, []string) {
+func GetSuccesorIPsForFilename(filename string) (uint32, []string, []string) {
 	ringID := utility.Hashmurmur(filename)
 	servers_list := ring.GetFileNodes(filename)
 
@@ -649,7 +649,7 @@ func GetSuccesorIPsForFilename(filename string) (uint32, []string) {
 		ips = append(ips, utility.GetIPAddr(server).String())
 	}
 	utility.LogMessage("Ring ID generated for filename " + filename + ": " + strconv.FormatInt(int64(ringID), 10))
-	return ringID, ips
+	return ringID, ips, servers_list
 }
 
 func SendRequestToNodes(ips []string, request ClientData) []Response {
