@@ -57,7 +57,7 @@ var (
 	//Shared Suspicion table lists
 	suspicion_table  = map[string]SuspicionState{}
 	susLock          sync.RWMutex
-	SuspicionEnabled = false
+	SuspicionEnabled = true
 	siglock          sync.Mutex
 	SuspicionTimeout = time.Second * 5
 

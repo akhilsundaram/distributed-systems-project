@@ -6,9 +6,9 @@ import (
 	"hydfs/membership"
 	"hydfs/utility"
 	"io"
-	"log"
 	"os"
 	"path"
+	"strconv"
 	"time"
 
 	grpc "google.golang.org/grpc"
@@ -61,6 +61,10 @@ func (s *FileServer) handleGetFiles(req *FileRequest, stream FileService_GetFile
 
 func (s *FileServer) handleGetFileNames(req *FileRequest, stream FileService_GetFilesServer) error {
 	output := getFileList(req.Ranges[0], req.Ranges[1])
+	utility.LogMessage("files requested at ranges - " + strconv.FormatUint(uint64(req.Ranges[0]), 10) + "," + strconv.FormatUint(uint64(req.Ranges[1]), 10))
+	for _, v := range output {
+		utility.LogMessage("file found in range - " + v)
+	}
 
 	// Send file content and metadata to the client
 	response := &FileResponse{
@@ -99,7 +103,8 @@ func callFileServerFiles(server string, files []string) {
 	stream, err := client.GetFiles(ctx, fileRequest)
 	if err != nil {
 		utility.LogMessage("error getiing file - " + err.Error())
-		log.Fatalf("Error calling GetFiles: %v", err)
+		return
+		// log.Fatalf("Error calling GetFiles: %v", err)
 	}
 
 	for {
@@ -150,7 +155,9 @@ func callFileServerNames(server string, low uint32, high uint32) []string {
 
 	stream, err := client.GetFiles(ctx, fileRequest)
 	if err != nil {
-		log.Fatalf("Error calling GetFiles: %v", err)
+		// log.Fatalf("Error calling GetFiles: %v", err)
+		utility.LogMessage("Error calling GetFiles: " + err.Error())
+		return []string{}
 	}
 
 	resp, err := stream.Recv()
