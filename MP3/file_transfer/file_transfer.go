@@ -3,6 +3,8 @@ package file_transfer
 import (
 	"bytes"
 	context "context"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"hydfs/cache"
@@ -42,6 +44,7 @@ type ResponseJson struct {
 	TimeStamp time.Time `json:"timestamp,omitempty"`
 	Hash      string    `json:"hash,omitempty"`
 	RingId    uint32    `json:"ring_id,omitempty"`
+	HasAppend bool      `json:"has_append,omitempty"`
 	Err       string    `json:"error,omitempty"`
 }
 
@@ -74,6 +77,21 @@ func HyDFSServer() {
 		return
 	}
 	defer listener.Close()
+
+	// Start file rpc server for ring
+	merge_listener, listener_error := net.Listen("tcp", ":"+mergeport)
+	if listener_error != nil {
+		utility.LogMessage("Failed to listen on port - " + mergeport + " : " + err.Error())
+	}
+
+	server := grpc.NewServer()
+	RegisterMergeServiceServer(server, &MergeFilesServer{})
+	go func() {
+		utility.LogMessage("RPC merge server goroutine entered")
+		if err := server.Serve(merge_listener); err != nil {
+			utility.LogMessage("Init Merge replication server error : " + err.Error())
+		}
+	}()
 
 	utility.LogMessage("HyDFS Server is listening on port = " + port)
 
@@ -138,7 +156,48 @@ func handleIncomingFileConnection(conn net.Conn) {
 				resp.Err = "Error reading file: " + err.Error()
 				utility.LogMessage(resp.Err)
 			} else {
-				resp.Data = fileData
+				// check if file has appends
+				// if yes, then concatenate and send the file , but dont change the original file entry
+				metadata, exists := utility.GetHyDFSMetadata(parsedData.Filename)
+				if exists && metadata.Appends > 0 {
+					appendEntries := utility.GetEntries(parsedData.Filename)
+					sort.Slice(appendEntries, func(i, j int) bool {
+						return appendEntries[i].Timestamp.Before(appendEntries[j].Timestamp)
+					})
+					for _, entry := range appendEntries {
+						sourceFile, err := os.Open(entry.FilePath)
+						if err != nil {
+							// resp.Err = "Failed to open append file " + entry.FilePath + " : " + err.Error()
+							utility.LogMessage("Failed to open append file " + entry.FilePath + " : " + err.Error())
+							continue // Skip this file and move to the next one
+						}
+						defer sourceFile.Close()
+						// add data to fileData parameter
+
+						appendData, err := io.ReadAll(sourceFile)
+						if err != nil {
+							// resp.Err = "Failed to read append file " + entry.FilePath + " : " + err.Error()
+							utility.LogMessage("Failed to read append file " + entry.FilePath + " : " + err.Error())
+							continue // Skip this file and move to the next one
+						}
+
+						// Append the data to fileData
+						fileData = append(fileData, appendData...)
+						utility.LogMessage("Get operation : Appended content from " + entry.FilePath)
+					}
+
+					hash := md5.Sum(fileData)
+					// Convert the hash to a hexadecimal string
+					md5String := hex.EncodeToString(hash[:])
+					// Now md5String contains the MD5 hash of fileData
+					utility.LogMessage("MD5 hash of the appended file: " + md5String)
+
+					resp.Hash = md5String
+					resp.HasAppend = true
+				} else {
+					// else if file has no appends, just send the original fileData
+					resp.Data = fileData
+				}
 				utility.LogMessage("File " + hydfsPath + " read successfully")
 			}
 		}
@@ -366,6 +425,10 @@ func HyDFSClient(request ClientData) {
 		// if found in cache, do pre-flight request asking for data from replicas
 		// check if replica time stamps are same or older than the one in cache
 		// if cache has most recent entry , then update cache counter
+
+		// for now, test without cache
+
+		exists = false
 		if exists {
 			utility.LogMessage(filename + " found in cache, entry : " + entry.Filename + ", " + entry.Hash + ", " + entry.Timestamp.String())
 			responses := GetFilenameReplicasMetadata(filename, senderIPs)
@@ -792,6 +855,7 @@ func ParseGetRespFromReplicas(responses []ResponseJson, primaryNodeIP string, lo
 		}
 	}
 
+	// can rework quorum for appends. need to check hash and timestamp both
 	// Check for quorum (at least 2 matching responses)
 	for i := 0; i < len(validResponses); i++ {
 		matchCount = 1
