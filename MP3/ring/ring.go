@@ -141,7 +141,7 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 		utility.LogMessage("Node added to ring")
 		//Update successor for 3 nodes, newly inserted node and two before it ^^ done in addring member.
 
-		low, high, err := findFileRanges(node)
+		low, high, err := findFileRanges(membership.My_hostname)
 		if err != nil {
 			utility.LogMessage("error deleting files not in range - " + err.Error())
 		}

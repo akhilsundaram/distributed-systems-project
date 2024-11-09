@@ -90,7 +90,7 @@ func dropFiles(low uint32, high uint32) {
 
 // Ask node to drop the file list - called when it gets { a files req from a newly added node } OR {sees newly added node and asks the replica + 1th node to drop files which won't be part of added node's hash }
 func dropFilesNotInRange(low uint32, high uint32) {
-	PrintRing()
+	// PrintRing()
 	utility.LogMessage("Files tried to be dropped: ")
 	needed_files := getFileList(high, low)
 	needed := make(map[string]struct{})
