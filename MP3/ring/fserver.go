@@ -6,7 +6,6 @@ import (
 	"hydfs/membership"
 	"hydfs/utility"
 	"io"
-	"log"
 	"os"
 	"path"
 	"time"
@@ -99,7 +98,8 @@ func callFileServerFiles(server string, files []string) {
 	stream, err := client.GetFiles(ctx, fileRequest)
 	if err != nil {
 		utility.LogMessage("error getiing file - " + err.Error())
-		log.Fatalf("Error calling GetFiles: %v", err)
+		return
+		// log.Fatalf("Error calling GetFiles: %v", err)
 	}
 
 	for {
@@ -150,7 +150,9 @@ func callFileServerNames(server string, low uint32, high uint32) []string {
 
 	stream, err := client.GetFiles(ctx, fileRequest)
 	if err != nil {
-		log.Fatalf("Error calling GetFiles: %v", err)
+		// log.Fatalf("Error calling GetFiles: %v", err)
+		utility.LogMessage("Error calling GetFiles: " + err.Error())
+		return
 	}
 
 	resp, err := stream.Recv()
