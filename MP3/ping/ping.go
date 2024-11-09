@@ -265,7 +265,7 @@ func SuspicionHandler(Message, Node_id, hostname string, incarnation int) {
 				membership.UpdateSuspicion(hostname, membership.Suspicious)
 				membership.SetMemberIncarnation(hostname, incarnation)
 				buffer.WriteToBuffer("s", Node_id, hostname, incarnation)
-				fmt.Printf("\nSUSPICIOUS :: Host %s with MemberID %s\n", hostname, Node_id)
+				utility.LogMessage("SUSPICIOUS :: Host " + hostname + " with MemberID " + Node_id)
 				time.AfterFunc(membership.SuspicionTimeout, func() { stateTransitionOnTimeout(hostname, Node_id) })
 			}
 			if sus_state == membership.Suspicious {

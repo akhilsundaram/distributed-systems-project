@@ -26,13 +26,21 @@ type FileMetaData struct {
 	Hash      string
 	Timestamp time.Time
 	RingId    uint32
+	Appends   int
+}
+
+type FileAppend struct {
+	FilePath  string
+	Timestamp time.Time
+	IP        string
 }
 
 var (
-	LOGGER_FILE = "/home/log/hydfs.log"
-	HYDFS_DIR   = "/home/hydfs/files"
-	HYDFS_CACHE = "/home/hydfs/cache"
-	HYDFS_TMP   = "/home/hydfs/tmp"
+	LOGGER_FILE  = "/home/log/hydfs.log"
+	HYDFS_DIR    = "/home/hydfs/files"
+	HYDFS_CACHE  = "/home/hydfs/cache"
+	HYDFS_TMP    = "/home/hydfs/tmp"
+	HYDFS_APPEND = "/home/hydfs/append"
 )
 
 /* LOGGER STUFF */
@@ -45,6 +53,12 @@ func initLogger() {
 		}
 		logger = log.New(logFile, "", log.LstdFlags)
 	})
+}
+
+func init() {
+	AppendsFileStore = &FileAppendsTracker{
+		files: make(map[string][]FileAppend),
+	}
 }
 
 func LogMessage(message string) {
@@ -76,6 +90,13 @@ func GetIPAddr(host string) net.IP {
 
 var HydfsFileStore = map[string]FileMetaData{} //key is filename
 
+type FileAppendsTracker struct {
+	mu    sync.RWMutex
+	files map[string][]FileAppend
+}
+
+var AppendsFileStore *FileAppendsTracker
+
 func SetupDirectories(directories ...string) error {
 
 	for _, dir := range directories {
@@ -101,6 +122,26 @@ func SetupDirectories(directories ...string) error {
 		}
 	}
 	return nil
+}
+
+func AddAppendsEntry(filename, filepath string, timestamp time.Time, ip string) {
+	AppendsFileStore.mu.Lock()
+	defer AppendsFileStore.mu.Unlock()
+
+	entry := FileAppend{
+		FilePath:  filepath,
+		Timestamp: timestamp,
+		IP:        ip,
+	}
+
+	AppendsFileStore.files[filename] = append(AppendsFileStore.files[filename], entry)
+}
+
+func GetEntries(filename string) []FileAppend {
+	AppendsFileStore.mu.RLock()
+	defer AppendsFileStore.mu.RUnlock()
+
+	return AppendsFileStore.files[filename]
 }
 
 func clearDirectory(dir string) {
@@ -160,6 +201,37 @@ func CompareFiles(file1, file2 string) (bool, error) {
 	}
 
 	return hash1 == hash2, nil
+}
+
+func CopyFile(src, dst string) error {
+	// Open the source file
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	// Create the destination file
+	destinationFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destinationFile.Close()
+
+	// Copy the content from source to destination
+	_, err = io.Copy(destinationFile, sourceFile)
+	if err != nil {
+		return err
+	}
+
+	// Flush the contents to the disk (in case of buffered writes)
+	err = destinationFile.Sync()
+	if err != nil {
+		return err
+	}
+
+	LogMessage("File copied from " + src + " to " + dst)
+	return nil
 }
 
 // Hashing function
