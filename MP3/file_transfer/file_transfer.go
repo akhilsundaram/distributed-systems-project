@@ -19,7 +19,7 @@ import (
 	"time"
 
 	grpc "google.golang.org/grpc"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -81,7 +81,7 @@ func HyDFSServer() {
 	// Start file rpc server for ring
 	merge_listener, listener_error := net.Listen("tcp", ":"+mergeport)
 	if listener_error != nil {
-		utility.LogMessage("Failed to listen on port - " + mergeport + " : " + err.Error())
+		utility.LogMessage("Failed to listen on port - " + mergeport + " : " + listener_error.Error())
 	}
 
 	server := grpc.NewServer()
