@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"strconv"
 	"time"
 
 	grpc "google.golang.org/grpc"
@@ -60,6 +61,10 @@ func (s *FileServer) handleGetFiles(req *FileRequest, stream FileService_GetFile
 
 func (s *FileServer) handleGetFileNames(req *FileRequest, stream FileService_GetFilesServer) error {
 	output := getFileList(req.Ranges[0], req.Ranges[1])
+	utility.LogMessage("files requested at ranges - " + strconv.FormatUint(uint64(req.Ranges[0]), 10) + "," + strconv.FormatUint(uint64(req.Ranges[1]), 10))
+	for _, v := range output {
+		utility.LogMessage("file found in range - " + v)
+	}
 
 	// Send file content and metadata to the client
 	response := &FileResponse{
