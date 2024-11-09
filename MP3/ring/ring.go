@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -101,6 +102,7 @@ func initRing() {
 		n := (num + i) % len(ring)
 		if ring[n].serverName != membership.My_hostname {
 			utility.LogMessage("Trying to pull from - " + ring[n].serverName)
+			utility.LogMessage("with ranges - [" + strconv.FormatUint(uint64(low_self), 10) + "," + strconv.FormatUint(uint64(high_self), 10))
 			pullFiles(low_self, high_self, ring[n].serverName)
 		}
 	}
@@ -176,6 +178,7 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 				low, high, _ := findFileRanges(membership.My_hostname)
 				for j := 1; j < replicas; j++ {
 					utility.LogMessage("PULL ON DELETE -from: " + ring[(num-i+len(ring))%len(ring)].serverName + "to: " + membership.My_hostname)
+					utility.LogMessage("with ranges - [" + strconv.FormatUint(uint64(low), 10) + "," + strconv.FormatUint(uint64(high), 10))
 					pullFiles(low, high, ring[(num-i+len(ring))%len(ring)].serverName)
 				}
 			}
