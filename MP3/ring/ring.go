@@ -97,7 +97,7 @@ func initRing() {
 	num := ((node_idx-replicas)%len(ring) + len(ring)) % len(ring)
 
 	utility.LogMessage("pull files in init start")
-	for i := 0; i < replicas; i++ {
+	for i := 0; i < replicas*2; i++ {
 		n := (num + i) % len(ring)
 		if ring[n].serverName != membership.My_hostname {
 			utility.LogMessage("Trying to pull from - " + ring[n].serverName)
