@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -145,6 +146,13 @@ func GetEntries(filename string) []FileAppend {
 	return AppendsFileStore.files[filename]
 }
 
+func DeleteEntries(filename string) {
+	AppendsFileStore.mu.RLock()
+	defer AppendsFileStore.mu.RUnlock()
+
+	delete(AppendsFileStore.files, filename)
+}
+
 // GetMetadata retrieves metadata for a file
 func GetHyDFSMetadata(filename string) (FileMetaData, bool) {
 	hydfsFileStoreMutex.RLock()
@@ -270,4 +278,31 @@ func CopyFile(src, dst string) error {
 // Hashing function
 func Hashmurmur(name string) uint32 {
 	return murmur3.Sum32([]byte(name)) % 1024
+}
+
+func ClearAppendFiles(directoryPath, prefix string) error {
+
+	return filepath.Walk(directoryPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err // If there's an error accessing the path, return it
+		}
+
+		// Skip directories
+		if info.IsDir() {
+			return nil
+		}
+
+		// Check if the file name starts with the prefix
+		if strings.HasPrefix(info.Name(), prefix) {
+			err := os.Remove(path)
+			if err != nil {
+				errMsg := fmt.Sprintf("Failed to remove file %s: %v", path, err)
+				LogMessage(errMsg)
+				return err // Or continue to next file if you prefer: return nil
+			}
+			LogMessage("Removed file: " + path)
+		}
+
+		return nil
+	})
 }

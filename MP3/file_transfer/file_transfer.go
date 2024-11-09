@@ -2,6 +2,9 @@ package file_transfer
 
 import (
 	"bytes"
+	context "context"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"hydfs/cache"
@@ -14,11 +17,15 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	grpc "google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
-	port    = "6060"
-	timeout = 10 * time.Millisecond
+	port      = "6060"
+	mergeport = "6061"
+	timeout   = 10 * time.Millisecond
 )
 
 type ClientData struct {
@@ -37,6 +44,7 @@ type ResponseJson struct {
 	TimeStamp time.Time `json:"timestamp,omitempty"`
 	Hash      string    `json:"hash,omitempty"`
 	RingId    uint32    `json:"ring_id,omitempty"`
+	HasAppend bool      `json:"has_append,omitempty"`
 	Err       string    `json:"error,omitempty"`
 }
 
@@ -47,6 +55,10 @@ type Response struct {
 	Hash      string
 	RingId    uint32
 	Err       error
+}
+
+type MergeFilesServer struct {
+	UnimplementedMergeServiceServer
 }
 
 // This file will contain file fetching ,
@@ -65,6 +77,21 @@ func HyDFSServer() {
 		return
 	}
 	defer listener.Close()
+
+	// Start file rpc server for ring
+	merge_listener, listener_error := net.Listen("tcp", ":"+mergeport)
+	if listener_error != nil {
+		utility.LogMessage("Failed to listen on port - " + mergeport + " : " + err.Error())
+	}
+
+	server := grpc.NewServer()
+	RegisterMergeServiceServer(server, &MergeFilesServer{})
+	go func() {
+		utility.LogMessage("RPC merge server goroutine entered")
+		if err := server.Serve(merge_listener); err != nil {
+			utility.LogMessage("Init Merge replication server error : " + err.Error())
+		}
+	}()
 
 	utility.LogMessage("HyDFS Server is listening on port = " + port)
 
@@ -129,7 +156,48 @@ func handleIncomingFileConnection(conn net.Conn) {
 				resp.Err = "Error reading file: " + err.Error()
 				utility.LogMessage(resp.Err)
 			} else {
-				resp.Data = fileData
+				// check if file has appends
+				// if yes, then concatenate and send the file , but dont change the original file entry
+				metadata, exists := utility.GetHyDFSMetadata(parsedData.Filename)
+				if exists && metadata.Appends > 0 {
+					appendEntries := utility.GetEntries(parsedData.Filename)
+					sort.Slice(appendEntries, func(i, j int) bool {
+						return appendEntries[i].Timestamp.Before(appendEntries[j].Timestamp)
+					})
+					for _, entry := range appendEntries {
+						sourceFile, err := os.Open(entry.FilePath)
+						if err != nil {
+							// resp.Err = "Failed to open append file " + entry.FilePath + " : " + err.Error()
+							utility.LogMessage("Failed to open append file " + entry.FilePath + " : " + err.Error())
+							continue // Skip this file and move to the next one
+						}
+						defer sourceFile.Close()
+						// add data to fileData parameter
+
+						appendData, err := io.ReadAll(sourceFile)
+						if err != nil {
+							// resp.Err = "Failed to read append file " + entry.FilePath + " : " + err.Error()
+							utility.LogMessage("Failed to read append file " + entry.FilePath + " : " + err.Error())
+							continue // Skip this file and move to the next one
+						}
+
+						// Append the data to fileData
+						fileData = append(fileData, appendData...)
+						utility.LogMessage("Get operation : Appended content from " + entry.FilePath)
+					}
+
+					hash := md5.Sum(fileData)
+					// Convert the hash to a hexadecimal string
+					md5String := hex.EncodeToString(hash[:])
+					// Now md5String contains the MD5 hash of fileData
+					utility.LogMessage("MD5 hash of the appended file: " + md5String)
+
+					resp.Hash = md5String
+					resp.HasAppend = true
+				} else {
+					// else if file has no appends, just send the original fileData
+					resp.Data = fileData
+				}
 				utility.LogMessage("File " + hydfsPath + " read successfully")
 			}
 		}
@@ -262,6 +330,13 @@ func handleIncomingFileConnection(conn net.Conn) {
 					utility.LogMessage("Appended content from " + entry.FilePath + " to " + hydfsPath)
 
 					// remove file from directory TODO
+					err = os.Remove(entry.FilePath)
+					if err != nil {
+						errMsg := fmt.Sprintf("Failed to remove file %s: %v", entry.FilePath, err)
+						utility.LogMessage(errMsg)
+					} else {
+						utility.LogMessage("Removed file: " + entry.FilePath)
+					}
 				}
 
 				// once done concatenating, update md5 hash and timestamp
@@ -350,6 +425,10 @@ func HyDFSClient(request ClientData) {
 		// if found in cache, do pre-flight request asking for data from replicas
 		// check if replica time stamps are same or older than the one in cache
 		// if cache has most recent entry , then update cache counter
+
+		// for now, test without cache
+
+		exists = false
 		if exists {
 			utility.LogMessage(filename + " found in cache, entry : " + entry.Filename + ", " + entry.Hash + ", " + entry.Timestamp.String())
 			responses := GetFilenameReplicasMetadata(filename, senderIPs)
@@ -776,6 +855,7 @@ func ParseGetRespFromReplicas(responses []ResponseJson, primaryNodeIP string, lo
 		}
 	}
 
+	// can rework quorum for appends. need to check hash and timestamp both
 	// Check for quorum (at least 2 matching responses)
 	for i := 0; i < len(validResponses); i++ {
 		matchCount = 1
@@ -884,4 +964,96 @@ func ParseCacheResponses(responses []ResponseJson, cachedFileTS time.Time, cache
 
 	utility.LogMessage("No newer versions found in cache responses")
 	return ""
+}
+
+func (s *MergeFilesServer) MergeFiles(req *MergeRequest, stream MergeService_MergeFilesServer) error {
+	utility.LogMessage("RPC server entered Invoked for filename : " + req.Filename)
+	hydfsPath := utility.HYDFS_DIR + "/" + req.Filename
+
+	// Open the file with O_WRONLY (write-only), O_CREATE (create if not exist), and O_TRUNC (truncate if exist)
+	file, err := os.OpenFile(hydfsPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		errMsg := fmt.Sprintf("Failed to open file %s: %v", hydfsPath, err)
+		utility.LogMessage(errMsg)
+		return fmt.Errorf("failed to open file %s: %v", hydfsPath, err)
+	}
+	defer file.Close()
+
+	// Write the data from the request to the file
+	_, err = io.Copy(file, bytes.NewReader(req.Data))
+	if err != nil {
+		errMsg := fmt.Sprintf("Failed to write data to file %s: %v", hydfsPath, err)
+		utility.LogMessage(errMsg)
+		return fmt.Errorf("failed to write data to file %s: %v", hydfsPath, err)
+	}
+
+	utility.LogMessage("File " + req.Filename + " has been successfully overwritten")
+
+	// Send file content and metadata to the client
+	err = stream.Send(&MergeResponse{Ack: "File " + req.Filename + " has been successfully merged"})
+	if err != nil {
+		errMsg := fmt.Sprintf("Failed to send response: %v", err)
+		utility.LogMessage(errMsg)
+		return fmt.Errorf("failed to send response: %v", err)
+	}
+
+	// change the hydfs file store entry
+	FileMetaData, _ := utility.GetHyDFSMetadata(req.Filename)
+	FileMetaData.Hash = req.Hash
+	FileMetaData.Timestamp = req.Timestamp.AsTime()
+	FileMetaData.Appends = 0
+	utility.SetHyDFSMetadata(req.Filename, FileMetaData)
+
+	// change the append file store entry
+	utility.DeleteEntries(req.Filename)
+
+	// clear the append directory with those filenames appends
+	append_path := utility.HYDFS_APPEND + "/" + req.Filename
+	utility.LogMessage("Clearing all files in append directory with " + append_path + " as prefix")
+	utility.ClearAppendFiles(utility.HYDFS_APPEND+"/", req.Filename)
+	return nil
+}
+
+func SendMergedFile(serverIP string, filename string, data []byte, hash string, newTimeStamp time.Time) {
+	conn, err := grpc.Dial(serverIP+":"+mergeport, grpc.WithInsecure())
+	if err != nil {
+		utility.LogMessage("Unable to connect to server - merge rpc server - " + err.Error())
+	}
+	defer conn.Close()
+	utility.LogMessage("created connection with merge server ip : " + serverIP)
+
+	client := NewMergeServiceClient(conn)
+
+	fileRequest := &MergeRequest{
+		Filename:  filename,
+		Data:      data,
+		Hash:      hash,
+		Timestamp: timestamppb.New(newTimeStamp),
+	}
+	// utility.LogMessage("here - 1")
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	// utility.LogMessage("here - 2")
+	stream, err := client.MergeFiles(ctx, fileRequest)
+	if err != nil {
+		utility.LogMessage("error sending file - " + err.Error())
+		return
+		// log.Fatalf("Error calling GetFiles: %v", err)
+	}
+
+	for {
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			utility.LogMessage("EOF received " + err.Error())
+			break
+		}
+		if err != nil {
+			utility.LogMessage("Error receiving stream -  " + err.Error())
+		}
+
+		utility.LogMessage("File received at server - " + resp.Ack)
+	}
+
 }
