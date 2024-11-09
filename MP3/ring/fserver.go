@@ -152,7 +152,7 @@ func callFileServerNames(server string, low uint32, high uint32) []string {
 	if err != nil {
 		// log.Fatalf("Error calling GetFiles: %v", err)
 		utility.LogMessage("Error calling GetFiles: " + err.Error())
-		return
+		return []string{}
 	}
 
 	resp, err := stream.Recv()
