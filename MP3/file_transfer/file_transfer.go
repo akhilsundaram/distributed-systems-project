@@ -1,15 +1,16 @@
 package file_transfer
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"hydfs/cache"
 	"hydfs/ring"
 	"hydfs/utility"
 	"io"
 	"net"
 	"os"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -107,7 +108,8 @@ func handleIncomingFileConnection(conn net.Conn) {
 	utility.LogMessage("Incoming connection received, cmd = " + cmd)
 
 	// Process the request and prepare the response
-	serverAddr := conn.RemoteAddr().String()
+	serverAddr := conn.LocalAddr().String()
+	clientAddr := conn.RemoteAddr().String()
 	resp := ResponseJson{
 		IP: serverAddr,
 	}
@@ -135,6 +137,21 @@ func handleIncomingFileConnection(conn net.Conn) {
 		//sending file data back to the client
 
 		utility.LogMessage("File " + hydfsPath + " sent successfully")
+	case "cache":
+		hydfsPath := utility.HYDFS_DIR + "/" + parsedData.Filename
+		value, exists := utility.HydfsFileStore[parsedData.Filename]
+		if exists {
+			utility.LogMessage("Returning File metadata for " + hydfsPath + " in hydfs file store")
+			resp.Hash = value.Hash
+			resp.TimeStamp = value.Timestamp
+			resp.RingId = value.RingId
+		} else {
+			utility.LogMessage("File metadata for " + hydfsPath + "not found in hydfs file store")
+			// for filename, v := range utility.HydfsFileStore {
+			//fmt.Printf("Filename: %s, Ring ID: %d, md5 hash: %s, timestamp: %s", filename, v.RingId, v.Hash, v.Timestamp)
+			//}
+			resp.Err = "File does not exist on this replica's hydfs file store"
+		}
 
 	case "create":
 		hydfsPath := utility.HYDFS_DIR + "/" + parsedData.Filename
@@ -156,6 +173,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 				Hash:      filehash,
 				Timestamp: parsedData.TimeStamp,
 				RingId:    parsedData.RingID,
+				Appends:   0,
 			}
 			resp.Data = []byte("File created successfully: " + hydfsPath)
 			utility.LogMessage(string(resp.Data))
@@ -163,42 +181,116 @@ func handleIncomingFileConnection(conn net.Conn) {
 		// won't be sending create req for the same file
 	case "append":
 		hydfsPath := utility.HYDFS_DIR + "/" + parsedData.Filename
-		if utility.FileExists(hydfsPath) {
-			fmt.Println("File exists")
+		if !utility.FileExists(hydfsPath) {
+			resp.Err = "File does not exist on this replica"
+			utility.LogMessage(resp.Err)
 		} else {
-			fmt.Println("File does not exist")
-		}
+			metadata, exists := utility.HydfsFileStore[parsedData.Filename]
+			if !exists {
+				resp.Err = "File exists on local FS but not a part of HydfsFileStore"
+				utility.LogMessage(resp.Err)
+			}
+			metadata.Appends += 1
+			// update append file path
+			appendPath := utility.HYDFS_APPEND + "/" + parsedData.Filename + "_" + clientAddr + "_" + strconv.Itoa(metadata.Appends)
 
+			//append file write
+			err := os.WriteFile(appendPath, parsedData.Data, 0644)
+			if err != nil {
+				resp.Err = "Error writing append file: " + err.Error()
+				utility.LogMessage(resp.Err)
+			} else {
+				utility.LogMessage("File write for append success : " + appendPath)
+				utility.AddAppendsEntry(parsedData.Filename, parsedData.LocalFilePath, parsedData.TimeStamp, clientAddr)
+				utility.HydfsFileStore[parsedData.Filename] = metadata
+				//appends_list := utility.GetEntries(parsedData.Filename)
+				utility.LogMessage("appends List for file : " + parsedData.Filename)
+				//for _, entry := range appends_list {
+				//	utility.LogMessage("FilePath: " + entry.FilePath + "Timestamp: " + entry.Timestamp.String() + "Client IP: " + entry.IP)
+				//}
+			}
+		}
 		// handleAppend(filename, localPath)
 
 	case "merge":
 		hydfsPath := utility.HYDFS_DIR + "/" + parsedData.Filename
 		fmt.Printf("Merging all replicas of %s in HyDFS\n", hydfsPath)
 
-		// Check with hash value being sent, if hash is diff then
-		// ask for file and make changes to hydfs file
+		// Check if file exists
+		if !utility.FileExists(hydfsPath) {
+			resp.Err = "File does not exist on this replica"
+			utility.LogMessage(resp.Err)
+		} else {
+			metadata, exists := utility.HydfsFileStore[parsedData.Filename]
+			if !exists {
+				resp.Err = "File exists on local FS but not a part of HydfsFileStore"
+				utility.LogMessage(resp.Err)
+			}
+			// Check if file has appends
+			if metadata.Appends > 0 {
+				// If yes, concatenate
+				appendEntries := utility.GetEntries(parsedData.Filename)
+				// Sort entries according to time stamp, ensuring that we have same order of appends for the same client
+				sort.Slice(appendEntries, func(i, j int) bool {
+					return appendEntries[i].Timestamp.Before(appendEntries[j].Timestamp)
+				})
+
+				file, err := os.OpenFile(hydfsPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				if err != nil {
+					resp.Err = "Failed to open file for merge: " + err.Error()
+					utility.LogMessage(resp.Err)
+				}
+				defer file.Close()
+
+				for _, entry := range appendEntries {
+					sourceFile, err := os.Open(entry.FilePath)
+					if err != nil {
+						resp.Err = "Failed to open append file " + entry.FilePath + " : " + err.Error()
+						utility.LogMessage(resp.Err)
+					}
+					defer sourceFile.Close()
+
+					_, err = io.Copy(file, sourceFile)
+					if err != nil {
+						resp.Err = "Failed to append file content " + entry.FilePath + " : " + err.Error()
+						utility.LogMessage(resp.Err)
+					}
+
+					utility.LogMessage("Appended content from " + entry.FilePath + " to " + hydfsPath)
+
+					// remove file from directory TODO
+				}
+
+				// once done concatenating, update md5 hash and timestamp
+				newMD5Hash, err := utility.GetMD5(hydfsPath)
+				if err != nil {
+					utility.LogMessage("Error in generating MD5 has for the merged file")
+				}
+
+				metadata := utility.HydfsFileStore[parsedData.Filename]
+				metadata.Hash = newMD5Hash
+				metadata.Timestamp = time.Now()
+				metadata.Appends = 0
+
+				utility.HydfsFileStore[parsedData.Filename] = metadata
+				// send signal to other replicas to pick file from this node / send a merge write request to override the file and meta data
+				// send response to client on success after your completion / after all nodes complete
+				utility.LogMessage("Updated Hash and Timestamp of the merged file")
+				resp.Data = []byte("All entries appended successfully to " + hydfsPath)
+				utility.LogMessage(string(resp.Data))
+			} else {
+				// no need to do any merge
+				// return
+				resp.Data = []byte("No appends found, no need to merge: " + hydfsPath)
+				utility.LogMessage(string(resp.Data))
+			}
+		}
 
 	case "delete":
 		hydfsPath := utility.HYDFS_DIR + "/" + parsedData.Filename
 		fmt.Printf("Deleting %s from HyDFS\n", hydfsPath)
 
 		// handleDelete(filename)
-
-	case "ls":
-		hydfsPath := utility.HYDFS_DIR + "/" + parsedData.Filename
-		fmt.Printf("Listing VM addresses storing %s\n", hydfsPath)
-
-		// handleLs(filename)
-
-	case "store":
-		fmt.Println("Listing all files being stored on this VM")
-
-		// handleStore()
-
-	case "list_mem_ids":
-		fmt.Println("Displaying current membership list along with Node ID on ring")
-
-		// handleListMemIds()
 
 	default:
 		utility.LogMessage("Unknown command: " + cmd)
@@ -244,32 +336,56 @@ func HyDFSClient(request ClientData) {
 		// will change this condition to include caching, but right now we overwrite files
 		if utility.FileExists(localPath) {
 			utility.LogMessage("File exists, will be overwritten")
-		} else {
-			utility.LogMessage("File does not exist, will be created")
 		}
-		// add a check for checking if the file is in cache
-		// if yes, then ensure we pull from there and update its LRU counter in the cache
-		// can implement LRU in memory, as a variable just like file hash and timestamp that we have right now. See implementations for this , using heap ?
-		// need to push out the entry which has not been used / used the least
 
-		// filename = filename of file in hydfs
+		// add a check for checking if the file is in cache
+		entry, exists := cache.GetCacheEntry(filename)
 		fileID, senderIPs := GetSuccesorIPsForFilename(filename)
 		request.RingID = fileID
-		utility.LogMessage("Successor IPs assigned - " + senderIPs[0] + ", " + senderIPs[1] + ", " + senderIPs[2])
+		var vm_ip string
 
-		// remove lines when ring ID integrated
-		clear(senderIPs)
-		senderIPs = []string{"172.22.94.195"}
+		// if found in cache, do pre-flight request asking for data from replicas
+		// check if replica time stamps are same or older than the one in cache
+		// if cache has most recent entry , then update cache counter
+		if exists {
+			utility.LogMessage(filename + " found in cache, entry : " + entry.Filename + ", " + entry.Hash + ", " + entry.Timestamp.String())
+			responses := GetFilenameReplicasMetadata(filename, senderIPs)
+			vm_ip = ParseCacheResponses(responses, entry.Timestamp, entry.Hash)
+			if vm_ip == "" {
+				utility.LogMessage("Cache entry TS same as most recent update, using cache to serve request")
+				// if cache has most recent entry , then update cache counter / put it at start of the q
+				// then, use the contents of the cache file and store it a the location provided
+				cache_filename := utility.HYDFS_CACHE + "/" + filename
+				utility.LogMessage("Copying " + cache_filename + " to " + localPath)
 
-		responses := SendRequestToNodes(senderIPs, request)
-		for _, response := range responses {
-			if response.Err != nil {
-				utility.LogMessage("Error from " + response.IP + ": " + response.Err.Error())
+				err := utility.CopyFile(cache_filename, localPath)
+				if err != nil {
+					utility.LogMessage("Error copying file from cache: " + err.Error())
+				}
+				cache.IncrementCacheEntryCounter(filename)
 			} else {
-				utility.LogMessage("File recevied successfully from " + response.IP)
+				// if not , then use the ip returned by cache to request for file data
+				// can be handled by the else case below
+				utility.LogMessage("Cache entry stale, requesting vm ip - " + vm_ip + " to send latest version")
 			}
 		}
-		// handleGet(filename, localPath)
+		if !exists || vm_ip != "" {
+			// if not found in cache, get the file by quorum and update cache
+			utility.LogMessage("No cache entry found for filename : " + filename + " continuing with get method call")
+			// filename = filename of file in hydfs
+
+			utility.LogMessage("Successor IPs for file - " + senderIPs[0] + ", " + senderIPs[1] + ", " + senderIPs[2])
+
+			// remove lines when ring ID integrated
+			// clear(senderIPs)
+			// senderIPs = []string{"172.22.94.195"}
+
+			responses := GetFileFromReplicas(senderIPs, request)
+			latestResponse := ParseGetRespFromReplicas(responses, senderIPs[0], localPath)
+			// Add response to cache
+			cache.AddOrUpdateCacheEntry(filename, latestResponse.Hash, latestResponse.RingId, latestResponse.TimeStamp, localPath)
+
+		}
 
 	case "get_from_replica":
 		localPath := request.LocalFilePath
@@ -345,7 +461,7 @@ func HyDFSClient(request ClientData) {
 					utility.LogMessage(fmt.Sprintf("Error from server: %s", response.Err))
 					return
 				}
-				utility.LogMessage(fmt.Sprintf("File created successfully: %s", string(response.Data)))
+				utility.LogMessage(fmt.Sprintf("File created successfully: %s on %s", string(response.Data), response.IP))
 			}(senderIPs[i])
 		}
 
@@ -357,11 +473,42 @@ func HyDFSClient(request ClientData) {
 		// we won't be sending create req for the same file
 	case "append":
 		localPath := request.LocalFilePath
-		if utility.FileExists(localPath) {
-			fmt.Println("File exists")
-		} else {
+		if !utility.FileExists(localPath) {
 			fmt.Println("File does not exist")
+			return
 		}
+		fileData, err := os.ReadFile(localPath)
+		if err != nil {
+			utility.LogMessage("Error reading local file: " + err.Error())
+			return
+		}
+
+		request.Data = fileData
+		fileID, senderIPs := GetSuccesorIPsForFilename(filename)
+		request.RingID = fileID
+		request.TimeStamp = time.Now()
+		utility.LogMessage("Successor IPs for append - " + senderIPs[0] + ", " + senderIPs[1] + ", " + senderIPs[2])
+
+		for i := 0; i < len(senderIPs); i++ {
+			wg.Add(1)
+			go func(ip_addr string) {
+				defer wg.Done()
+				response, err := SendRequest(ip_addr, request)
+				if err != nil {
+					utility.LogMessage(fmt.Sprintf("Error in create: %v", err))
+					return
+				}
+				if response.Err != "" {
+					utility.LogMessage(fmt.Sprintf("Error from server: %s", response.Err))
+					return
+				}
+				utility.LogMessage(fmt.Sprintf("File appended successfully: %s on %s", string(response.Data), response.IP))
+			}(senderIPs[i])
+		}
+
+		// Wait for the goroutine to finish
+		wg.Wait()
+		utility.LogMessage("File append operation completed")
 
 		// handleAppend(filename, localPath)
 
@@ -369,6 +516,28 @@ func HyDFSClient(request ClientData) {
 		fmt.Printf("Merging all replicas of %s in HyDFS\n", filename)
 
 		// handleMerge(filename)
+		fileID, senderIPs := GetSuccesorIPsForFilename(filename)
+		request.RingID = fileID
+		request.TimeStamp = time.Now()
+		fmt.Printf("Merging file %s (ID = %d) at HyDFS node %s \n", filename, fileID, senderIPs[0])
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			response, err := SendRequest(senderIPs[0], request)
+			if err != nil {
+				utility.LogMessage(fmt.Sprintf("Error in merge: %v", err))
+				return
+			}
+			if response.Err != "" {
+				utility.LogMessage(fmt.Sprintf("Error from server: %s", response.Err))
+				return
+			}
+		}()
+
+		// Wait for the goroutine to finish
+		wg.Wait()
+		utility.LogMessage("File merge operation completed")
 
 	case "delete":
 		fmt.Printf("Deleting %s from HyDFS\n", filename)
@@ -376,19 +545,13 @@ func HyDFSClient(request ClientData) {
 		// handleDelete(filename)
 
 	case "ls":
-		fmt.Printf("Listing VM addresses storing %s\n", filename)
-
-		// handleLs(filename)
-
-	case "store":
-		fmt.Println("Listing all files being stored on this VM")
-
-		// handleStore()
-
-	case "list_mem_ids":
-		fmt.Println("Displaying current membership list along with Node ID on ring")
-
-		// handleListMemIds()
+		fileID, _ := GetSuccesorIPsForFilename(filename)
+		fmt.Printf("Listing VM addresses storing %s (ring id - %d)\n", filename, fileID)
+		request.RingID = fileID
+		VMs := ring.GetFileNodes(filename)
+		for i := 0; i < len(VMs); i++ {
+			fmt.Printf("%d. %s , ring id - %d\n", i, VMs[i], utility.Hashmurmur(VMs[i]))
+		}
 
 	default:
 		utility.LogMessage("Unknown command: " + cmd)
@@ -542,90 +705,180 @@ func collectResponses(responses <-chan Response, request ClientData, limit int) 
 	return result
 }
 
+func GetFileFromReplicas(senderIPs []string, request ClientData) []ResponseJson {
+	var wg sync.WaitGroup
+	responseChannel := make(chan ResponseJson, len(senderIPs))
+
+	for _, ip := range senderIPs {
+		wg.Add(1)
+		go func(ip string) {
+			defer wg.Done()
+			response, err := SendRequest(ip, request)
+			if err != nil {
+				utility.LogMessage(fmt.Sprintf("Error in request to %s: %v", ip, err))
+				responseChannel <- ResponseJson{IP: ip, Err: err.Error()}
+				return
+			}
+
+			if response.Err != "" {
+				utility.LogMessage(fmt.Sprintf("Error from server %s: %s", ip, response.Err))
+			}
+
+			responseChannel <- *response
+		}(ip)
+	}
+
+	// Close the channel when all goroutines are done
+	go func() {
+		wg.Wait()
+		close(responseChannel)
+	}()
+
+	// Collect all responses
+	var responses []ResponseJson
+	for response := range responseChannel {
+		responses = append(responses, response)
+	}
+
+	return responses
+}
+
+// Quorum of 2 nodes should be met to print out a file / save it
+// else , just use primary node result
+func ParseGetRespFromReplicas(responses []ResponseJson, primaryNodeIP string, localPath string) ResponseJson {
+	var validResponses []ResponseJson
+	var primaryResponse ResponseJson
+	var matchCount int
+	var latestTimestamp time.Time
+	var latestResponse ResponseJson
+
+	for _, response := range responses {
+		// Skip responses with errors
+		if response.Err != "" {
+			utility.LogMessage(fmt.Sprintf("Skipping response from %s due to error: %s", response.IP, response.Err))
+			continue
+		}
+
+		validResponses = append(validResponses, response)
+
+		// Store the primary node response
+		if response.IP == primaryNodeIP {
+			primaryResponse = response
+		}
+
+		// Keep track of the latest timestamp
+		if response.TimeStamp.After(latestTimestamp) {
+			latestTimestamp = response.TimeStamp
+			latestResponse = response
+		}
+	}
+
+	// Check for quorum (at least 2 matching responses)
+	for i := 0; i < len(validResponses); i++ {
+		matchCount = 1
+		for j := i + 1; j < len(validResponses); j++ {
+			if validResponses[i].TimeStamp == validResponses[j].TimeStamp &&
+				validResponses[i].Hash == validResponses[j].Hash {
+				matchCount++
+				if matchCount >= 2 {
+					// Quorum met, write this data to file
+					writeResponseToFile(validResponses[i].Data, localPath)
+					utility.LogMessage(fmt.Sprintf("Quorum met. Writing data from %s to %s", validResponses[i].IP, localPath))
+					return validResponses[i]
+				}
+			}
+		}
+	}
+
+	// If no quorum, use the primary node response
+	if primaryResponse.Data != nil {
+		writeResponseToFile(primaryResponse.Data, localPath)
+		utility.LogMessage(fmt.Sprintf("No quorum met. Using primary node (%s) data for %s", primaryNodeIP, localPath))
+		return primaryResponse
+	} else if latestResponse.Data != nil {
+		// If primary node doesn't have data, use the latest response
+		writeResponseToFile(latestResponse.Data, localPath)
+		utility.LogMessage(fmt.Sprintf("No quorum met and no primary data. Using latest data from %s for %s", latestResponse.IP, localPath))
+		return latestResponse
+	} else {
+		utility.LogMessage("No valid data found to write to file")
+	}
+	return primaryResponse
+}
+
 func writeResponseToFile(data []byte, filePath string) error {
 	return os.WriteFile(filePath, data, 0644)
 }
 
-// not used
-func WriteToConnBuffer(conn net.Conn, filePath string) error {
-	// Open the file
-	file, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("error opening file: %v", err)
-	}
-	defer file.Close()
+// Cache - pre get check to see whether cache should be used or not, method # 1
+func GetFilenameReplicasMetadata(filename string, senderIPs []string) []ResponseJson {
+	var wg sync.WaitGroup
+	responseChannel := make(chan ResponseJson, len(senderIPs))
 
-	// scanner to read the file
-	fileScanner := bufio.NewScanner(file)
+	for _, ip := range senderIPs {
+		wg.Add(1)
+		go func(ip string) {
+			defer wg.Done()
 
-	// Write Buffer
-	bufW := bufio.NewWriter(conn)
-
-	// Read and write file line by line
-	for fileScanner.Scan() {
-		line := fileScanner.Text()
-		if line != "" {
-			_, err := bufW.WriteString(line)
-			if err != nil {
-				return fmt.Errorf("error writing file line to write buffer: %v", err)
+			requestData := ClientData{
+				Operation: "cache",
+				Filename:  filename,
 			}
 
-			// Write newline character at the end of each line
-			err = bufW.WriteByte('\n')
+			response, err := SendRequest(ip, requestData)
 			if err != nil {
-				return fmt.Errorf("error writing newline to buffer: %v", err)
+				utility.LogMessage(fmt.Sprintf("Error in request to %s: %v", ip, err))
+				responseChannel <- ResponseJson{IP: ip, Err: err.Error()}
+				return
 			}
-		}
+
+			if response.Err != "" {
+				utility.LogMessage(fmt.Sprintf("Error from server %s: %s", ip, response.Err))
+			}
+
+			responseChannel <- *response
+		}(ip)
 	}
 
-	// Check for errors during file scanning
-	if err := fileScanner.Err(); err != nil {
-		return fmt.Errorf("error reading file: %v", err)
+	// Close the channel when all goroutines are done
+	go func() {
+		wg.Wait()
+		close(responseChannel)
+	}()
+
+	// Collect all responses
+	var responses []ResponseJson
+	for response := range responseChannel {
+		responses = append(responses, response)
 	}
 
-	// Flush
-	err = bufW.Flush()
-	if err != nil {
-		return fmt.Errorf("error on buffer writer flush: %v", err)
-	}
-
-	return nil
+	return responses
 }
 
-// not used
-func ReadFromConnBuffer(conn net.Conn, filePath string) error {
-	// Create or open the file for writing
-	file, err := os.Create(filePath)
-	if err != nil {
-		return fmt.Errorf("error creating file: %v", err)
-	}
-	defer file.Close()
-
-	// Create a buffered reader for the connection
-	bufR := bufio.NewReader(conn)
-
-	// Create a buffered writer for the file
-	bufW := bufio.NewWriter(file)
-	defer bufW.Flush()
-
-	// Read from connection and write to file
-	buffer := make([]byte, 4096) // 4KB buffer
-
-	for {
-		n, err := bufR.Read(buffer)
-		if err != nil {
-			if err == io.EOF {
-				break // End of file, exit loop
-			}
-			return fmt.Errorf("error reading from connection: %v", err)
+// Read cache responses, returns IP to query
+func ParseCacheResponses(responses []ResponseJson, cachedFileTS time.Time, cachedFileHash string) string {
+	for _, response := range responses {
+		// Skip responses with errors
+		if response.Err != "" {
+			utility.LogMessage(fmt.Sprintf("Skipping response from %s due to error: %s", response.IP, response.Err))
+			continue
 		}
 
-		// Write the read bytes to the file
-		_, err = bufW.Write(buffer[:n])
-		if err != nil {
-			return fmt.Errorf("error writing to file: %v", err)
+		// Compare response timestamp with cached file timestamp
+		if response.TimeStamp.After(cachedFileTS) {
+			utility.LogMessage(fmt.Sprintf("Found newer version on %s. Local: %v, Remote: %v",
+				response.IP, cachedFileTS, response.TimeStamp))
+			return response.IP
+		}
+
+		// If timestamps are equal, compare hashes
+		if response.TimeStamp.Equal(cachedFileTS) && response.Hash != cachedFileHash {
+			utility.LogMessage(fmt.Sprintf("Found different version with same timestamp on %s. Local hash: %s, Remote hash: %s",
+				response.IP, cachedFileHash, response.Hash))
+			return response.IP
 		}
 	}
 
-	return nil
+	utility.LogMessage("No newer versions found in cache responses")
+	return ""
 }
