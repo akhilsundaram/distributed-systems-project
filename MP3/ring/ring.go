@@ -178,9 +178,10 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 			if ring[num].serverName == membership.My_hostname {
 				low, high, _ := findFileRanges(membership.My_hostname)
 				for j := 1; j < replicas; j++ {
-					utility.LogMessage("PULL ON DELETE -from: " + ring[(num-i+len(ring))%len(ring)].serverName + "to: " + membership.My_hostname)
+					pull_from := (num - j + len(ring)) % len(ring)
+					utility.LogMessage("PULL ON DELETE -from: " + ring[(num-j+len(ring))%len(ring)].serverName + "to: " + membership.My_hostname)
 					utility.LogMessage("with ranges - [" + strconv.FormatUint(uint64(low), 10) + "," + strconv.FormatUint(uint64(high), 10))
-					pullFiles(low, high, ring[(num-i+len(ring))%len(ring)].serverName)
+					pullFiles(low, high, ring[pull_from].serverName)
 				}
 			}
 		}
