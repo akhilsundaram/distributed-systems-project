@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -97,10 +98,11 @@ func initRing() {
 	num := ((node_idx-replicas)%len(ring) + len(ring)) % len(ring)
 
 	utility.LogMessage("pull files in init start")
-	for i := 0; i < replicas; i++ {
+	for i := 0; i < replicas*2; i++ {
 		n := (num + i) % len(ring)
 		if ring[n].serverName != membership.My_hostname {
 			utility.LogMessage("Trying to pull from - " + ring[n].serverName)
+			utility.LogMessage("with ranges - [" + strconv.FormatUint(uint64(low_self), 10) + "," + strconv.FormatUint(uint64(high_self), 10))
 			pullFiles(low_self, high_self, ring[n].serverName)
 		}
 	}
@@ -139,11 +141,12 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 		utility.LogMessage("Node added to ring")
 		//Update successor for 3 nodes, newly inserted node and two before it ^^ done in addring member.
 
-		low, high, err := findFileRanges(node)
+		low, high, err := findFileRanges(membership.My_hostname)
 		if err != nil {
 			utility.LogMessage("error deleting files not in range - " + err.Error())
 		}
 		dropFilesNotInRange(low, high)
+		utility.LogMessage("Dropping files out of range - [" + strconv.FormatUint(uint64(low), 10) + "," + strconv.FormatUint(uint64(high), 10) + "]")
 
 		//if we're part of two (num_replicas - 1) nodes after, drop data replica after a while.
 		// CHANGE THIS AND KEEP TRACK OF THE FILE RANGES WE NEED TO STORE! USE THIS TO DROP FILES OUTSIDE RANGE. BETTER
@@ -170,12 +173,13 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 
 		// The two successors of a deleted element will replicate one node further in.
 		// Node right after deleted node, (at idx deletion%len(ring)th position and two nodes after that will have files added in their replication.
-		for i := 0; i < replicas-1; i++ {
+		for i := 0; i < replicas; i++ {
 			num := (deletion + i) % len(ring)
 			if ring[num].serverName == membership.My_hostname {
 				low, high, _ := findFileRanges(membership.My_hostname)
 				for j := 1; j < replicas; j++ {
 					utility.LogMessage("PULL ON DELETE -from: " + ring[(num-i+len(ring))%len(ring)].serverName + "to: " + membership.My_hostname)
+					utility.LogMessage("with ranges - [" + strconv.FormatUint(uint64(low), 10) + "," + strconv.FormatUint(uint64(high), 10))
 					pullFiles(low, high, ring[(num-i+len(ring))%len(ring)].serverName)
 				}
 			}
@@ -250,10 +254,7 @@ func getFileList(low uint32, high uint32) []string {
 	var file_list []string
 	if low > high {
 		for filename, metadata := range utility.HydfsFileStore {
-			if low < metadata.RingId && metadata.RingId <= 1023 {
-				file_list = append(file_list, filename)
-			}
-			if low <= metadata.RingId && metadata.RingId <= high {
+			if low < metadata.RingId && metadata.RingId <= 1023 || (0 <= metadata.RingId && metadata.RingId <= high) {
 				file_list = append(file_list, filename)
 			}
 		}

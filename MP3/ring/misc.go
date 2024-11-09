@@ -90,9 +90,12 @@ func dropFiles(low uint32, high uint32) {
 
 // Ask node to drop the file list - called when it gets { a files req from a newly added node } OR {sees newly added node and asks the replica + 1th node to drop files which won't be part of added node's hash }
 func dropFilesNotInRange(low uint32, high uint32) {
+	// PrintRing()
+	utility.LogMessage("Files tried to be dropped: ")
 	needed_files := getFileList(high, low)
 	needed := make(map[string]struct{})
 	for _, item := range needed_files {
+		utility.LogMessage("Deletion marked for - " + item)
 		needed[item] = struct{}{} // Using an empty struct to save memory
 	}
 
@@ -109,11 +112,11 @@ func PrintRing() {
 		if err != nil {
 			utility.LogMessage("error getting file ranges while printing")
 		}
-		println(ringMember.serverName)
+		// println(ringMember.serverName)
 		if ringMember.serverName == membership.My_hostname {
-			fmt.Printf("host: %s, ringID: %d, successors: %d & %d, fileranges: [%d - %d]   <----------- Current Server\n", ringMember.serverName, ringMember.hashID, ringMember.successor[0], ringMember.successor[1], low, high)
+			fmt.Printf("host: %s, ringID: %d, successors: [%d, %d], fileranges: [%d - %d] <----\n", ringMember.serverName, ringMember.hashID, ringMember.successor[0], ringMember.successor[1], low, high)
 		} else {
-			fmt.Printf("host: %s, ringID: %d, successors: %d & %d, fileranges: [%d - %d] \n", ringMember.serverName, ringMember.hashID, ringMember.successor[0], ringMember.successor[1], low, high)
+			fmt.Printf("host: %s, ringID: %d, successors: [%d, %d], fileranges: [%d - %d] \n", ringMember.serverName, ringMember.hashID, ringMember.successor[0], ringMember.successor[1], low, high)
 		}
 	}
 }
