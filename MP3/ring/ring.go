@@ -170,7 +170,7 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 
 		// The two successors of a deleted element will replicate one node further in.
 		// Node right after deleted node, (at idx deletion%len(ring)th position and two nodes after that will have files added in their replication.
-		for i := 0; i < replicas-1; i++ {
+		for i := 0; i < replicas; i++ {
 			num := (deletion + i) % len(ring)
 			if ring[num].serverName == membership.My_hostname {
 				low, high, _ := findFileRanges(membership.My_hostname)
