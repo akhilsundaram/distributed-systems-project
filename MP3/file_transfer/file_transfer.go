@@ -531,7 +531,7 @@ func HyDFSClient(request ClientData) {
 
 		for i := 0; i < len(senderIPs); i++ {
 			wg.Add(1)
-			go func(ip_addr string) {
+			go func(ip_addr string, sender_id string) {
 				defer wg.Done()
 				response, err := SendRequest(ip_addr, request)
 				if err != nil {
@@ -543,8 +543,8 @@ func HyDFSClient(request ClientData) {
 					return
 				}
 				utility.LogMessage(fmt.Sprintf("File created successfully: %s on %s", string(response.Data), response.IP))
-				fmt.Printf("Created file %s (ID - %s) in HyDFS Node (ID - %s) \n", filename, fileID, senderIDs[i])
-			}(senderIPs[i])
+				fmt.Printf("Created file %s (ID - %d) in HyDFS Node (ID - %s) \n", filename, fileID, sender_id)
+			}(senderIPs[i], senderIDs[i])
 		}
 
 		// Wait for the goroutine to finish
