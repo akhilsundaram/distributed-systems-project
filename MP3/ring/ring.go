@@ -254,10 +254,7 @@ func getFileList(low uint32, high uint32) []string {
 	var file_list []string
 	if low > high {
 		for filename, metadata := range utility.HydfsFileStore {
-			if low < metadata.RingId && metadata.RingId <= 1023 {
-				file_list = append(file_list, filename)
-			}
-			if low <= metadata.RingId && metadata.RingId <= high {
+			if low < metadata.RingId && metadata.RingId <= 1023 || (0 <= metadata.RingId && metadata.RingId <= high) {
 				file_list = append(file_list, filename)
 			}
 		}
