@@ -146,7 +146,7 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 			utility.LogMessage("error deleting files not in range - " + err.Error())
 		}
 		dropFilesNotInRange(low, high)
-		utility.LogMessage("[" + strconv.FormatUint(uint64(low), 10) + "," + strconv.FormatUint(uint64(high), 10) + "]")
+		utility.LogMessage("Dropping files out of range - [" + strconv.FormatUint(uint64(low), 10) + "," + strconv.FormatUint(uint64(high), 10) + "]")
 
 		//if we're part of two (num_replicas - 1) nodes after, drop data replica after a while.
 		// CHANGE THIS AND KEEP TRACK OF THE FILE RANGES WE NEED TO STORE! USE THIS TO DROP FILES OUTSIDE RANGE. BETTER
