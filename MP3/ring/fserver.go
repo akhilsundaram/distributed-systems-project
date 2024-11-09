@@ -26,6 +26,8 @@ func (s *FileServer) GetFiles(req *FileRequest, stream FileService_GetFilesServe
 		return s.handleGetFiles(req, stream)
 	case "getfilenames":
 		return s.handleGetFileNames(req, stream)
+	case "getappendfiles":
+		return s.handleGetAppendFiles(req, stream)
 	default:
 		return fmt.Errorf("not a correct req - wrong command passed to grpc ring fserver")
 	}
@@ -82,8 +84,34 @@ func (s *FileServer) handleGetFileNames(req *FileRequest, stream FileService_Get
 	return nil
 }
 
+func (s *FileServer) handleGetAppendFiles(req *FileRequest, stream FileService_GetFilesServer) error {
+	append_list := utility.GetEntries(req.Filename)
+	for _, appendFile := range append_list {
+		content, err := os.ReadFile(appendFile.FilePath)
+		if err != nil {
+			utility.LogMessage("fserver(grpc) in ring: Failed to read append file at," + appendFile.FilePath + " of " + req.Filename + " becuase of the the err => " + err.Error())
+			continue
+		}
+
+		// Send file content and metadata to the client
+		response := &FileResponse{
+			Filename:  req.Filename,
+			Filepath:  appendFile.FilePath,
+			Content:   content,
+			Timestamp: timestamppb.New(appendFile.Timestamp),
+			Ip:        appendFile.IP,
+		}
+		if err := stream.Send(response); err != nil {
+			utility.LogMessage("fserver(grpc) in ring: Failed to read append file at," + appendFile.FilePath + " of " + req.Filename + " becuase of the the err => " + err.Error())
+			continue
+		}
+	}
+	return nil
+}
+
 func callFileServerFiles(server string, files []string) {
 	serverIP := utility.GetIPAddr(server)
+	var files_with_appends []string
 	conn, err := grpc.Dial(serverIP.String()+":"+port, grpc.WithInsecure())
 	if err != nil {
 		utility.LogMessage("Unable to connect to server - ring rpc fserver - " + err.Error())
@@ -139,8 +167,16 @@ func callFileServerFiles(server string, files []string) {
 			Hash:      resp.Hash,
 			Timestamp: resp.Timestamp.AsTime(),
 			RingId:    utility.Hashmurmur(resp.Filename),
+			Appends:   int(resp.Append),
 		}
 		utility.SetHyDFSMetadata(resp.Filename, NewFileMetaData)
+		if resp.Append > 0 {
+			files_with_appends = append(files_with_appends, resp.Filename)
+		}
+	}
+
+	for _, file := range files_with_appends {
+		callFileServerAppendFiles(server, file)
 	}
 
 }
@@ -182,6 +218,54 @@ func callFileServerNames(server string, low uint32, high uint32) []string {
 	}
 
 	return resp.Filenames
+}
+
+func callFileServerAppendFiles(server string, filename string) {
+	serverIP := utility.GetIPAddr(server)
+	conn, err := grpc.Dial(serverIP.String()+":"+port, grpc.WithInsecure())
+	if err != nil {
+		utility.LogMessage("Unable to connect to server - ring rpc fserver - " + err.Error())
+	}
+	defer conn.Close()
+	utility.LogMessage("created conn with server: " + server)
+
+	client := NewFileServiceClient(conn)
+
+	fileRequest := &FileRequest{
+		Command:  "getappendfiles",
+		Filename: filename,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	stream, err := client.GetFiles(ctx, fileRequest)
+	if err != nil {
+		utility.LogMessage("error getting append file - " + err.Error())
+		return
+	}
+
+	for {
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			utility.LogMessage(" EOF received, stopping file recv " + err.Error())
+			break
+		}
+		if err != nil {
+			utility.LogMessage("Error receiving stream -  " + err.Error())
+		}
+
+		utility.LogMessage("Append file received and to be written at client - " + resp.Filepath)
+
+		// Write the content to the destination file
+		err = os.WriteFile(resp.Filepath, resp.Content, 0644)
+		if err != nil {
+			utility.LogMessage("Error writing to destination file: " + err.Error())
+		}
+		utility.LogMessage("append file written")
+		utility.AddAppendsEntry(resp.Filename, resp.Filepath, resp.Timestamp.AsTime(), resp.Ip)
+	}
+
 }
 
 func pullFiles(low uint32, high uint32, server string) {

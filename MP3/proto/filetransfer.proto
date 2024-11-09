@@ -11,9 +11,10 @@ service FileService {
 }
 
 message FileRequest {
-  string command = 1;           // Command: "getfiles" or "getfilenames"
+  string command = 1;           // Command: "getfiles" or "getfilenames" or "getappendfiles"
   repeated string filenames = 2; // List of filenames requested by the client
   repeated uint32 ranges = 3;
+  string filename = 4;
 }
 
 message FileResponse {
@@ -23,4 +24,6 @@ message FileResponse {
   repeated string filenames = 4; // List of filenames (used for "getfilenames" command)
   google.protobuf.Timestamp timestamp = 5;
   int64 append = 6;
+  string ip = 7;
+  string filepath = 8;
 }
