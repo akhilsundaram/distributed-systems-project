@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+package file_transfer;
+
+option go_package = "../file_transfer/";
+
+service MergeService {
+  rpc MergeFiles(MergeRequest) returns (stream MergeResponse);
+}
+
+message MergeRequest {
+  bytes data = 1;
+  string hash = 2;
+  google.protobuf.Timestamp timestamp = 3;
+}
+
+message MergeResponse {
+  string ack = 1;
+}

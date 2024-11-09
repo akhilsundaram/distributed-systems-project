@@ -22,5 +22,5 @@ message FileResponse {
   string hash = 3;              // MD5 hash of the file content (used for "getfiles" command)
   repeated string filenames = 4; // List of filenames (used for "getfilenames" command)
   google.protobuf.Timestamp timestamp = 5;
-
+  int64 append = 6;
 }
