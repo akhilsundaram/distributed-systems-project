@@ -3,6 +3,7 @@ module hydfs
 go 1.21.11
 
 require (
+	github.com/golang/protobuf v1.5.0
 	github.com/spaolacci/murmur3 v1.1.0
 	google.golang.org/grpc v1.67.1
 	google.golang.org/protobuf v1.35.1
