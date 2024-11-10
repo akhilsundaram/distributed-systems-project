@@ -68,15 +68,19 @@ func (s *FileServer) handleGetFiles(req *FileRequest, stream FileService_GetFile
 }
 
 func (s *FileServer) handleGetFileNames(req *FileRequest, stream FileService_GetFilesServer) error {
-	output := getFileList(req.Ranges[0], req.Ranges[1])
+	output_files := getFileList(req.Ranges[0], req.Ranges[1])
 	utility.LogMessage("files requested at ranges - " + strconv.FormatUint(uint64(req.Ranges[0]), 10) + "," + strconv.FormatUint(uint64(req.Ranges[1]), 10))
-	for _, v := range output {
-		utility.LogMessage("file found in range - " + v)
+	var output_appends []int64
+	for _, file_name := range output_files {
+		utility.LogMessage("file found in range - " + file_name)
+		val, _ := utility.GetHyDFSMetadata(file_name)
+		output_appends = append(output_appends, int64(val.Appends))
 	}
 
 	// Send file content and metadata to the client
 	response := &FileResponse{
-		Filenames: output,
+		Filenames: output_files,
+		Appends:   output_appends,
 	}
 
 	if err := stream.Send(response); err != nil {
@@ -183,7 +187,7 @@ func callFileServerFiles(server string, files []string) {
 
 }
 
-func callFileServerNames(server string, low uint32, high uint32) []string {
+func callFileServerNames(server string, low uint32, high uint32) ([]string, []int64) {
 	serverIP := utility.GetIPAddr(server)
 	conn, err := grpc.Dial(serverIP.String()+":"+port, grpc.WithInsecure())
 	if err != nil {
@@ -206,7 +210,7 @@ func callFileServerNames(server string, low uint32, high uint32) []string {
 	if err != nil {
 		// log.Fatalf("Error calling GetFiles: %v", err)
 		utility.LogMessage("Error calling GetFiles: " + err.Error())
-		return []string{}
+		return []string{}, []int64{}
 	}
 
 	resp, err := stream.Recv()
@@ -219,7 +223,7 @@ func callFileServerNames(server string, low uint32, high uint32) []string {
 		utility.LogMessage("filename sent - " + v)
 	}
 
-	return resp.Filenames
+	return resp.Filenames, resp.Appends
 }
 
 func callFileServerAppendFiles(server string, filename string) {
@@ -282,7 +286,7 @@ func pullFiles(low uint32, high uint32, server string) {
 	self_list := getFileList(low, high)
 
 	// Get file list for the ranges in the other servers.
-	remote_list := callFileServerNames(server, low, high)
+	remote_list, remote_appends := callFileServerNames(server, low, high)
 	if len(remote_list) == 0 {
 		utility.LogMessage("No files received in the range")
 		return
@@ -291,16 +295,28 @@ func pullFiles(low uint32, high uint32, server string) {
 
 	map_self_list := make(map[string]struct{}, len(self_list))
 	diff := []string{}
+	diff_appends := []string{}
 	for _, file := range self_list {
 		map_self_list[file] = struct{}{}
 	}
-	for _, v := range remote_list {
+	for i, v := range remote_list {
 		if _, found := map_self_list[v]; !found {
 			diff = append(diff, v)
 			utility.LogMessage("file to get final! => " + v)
+		} else {
+			file_info, _ := utility.GetHyDFSMetadata(v)
+			append_num := file_info.Appends
+
+			if int64(append_num) < remote_appends[i] {
+				diff_appends = append(diff_appends, v)
+			}
 		}
 	}
 
 	callFileServerFiles(server, diff)
+	for _, file_name := range diff_appends {
+		utility.LogMessage("inconsistent appends - pulling from  - " + file_name)
+		callFileServerAppendFiles(server, file_name)
+	}
 
 }
