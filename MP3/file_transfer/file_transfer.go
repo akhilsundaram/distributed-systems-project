@@ -318,6 +318,9 @@ func handleIncomingFileConnection(conn net.Conn) {
 				utility.LogMessage(resp.Err)
 			}
 			// Check if file has appends
+
+			start_time := time.Now()
+			utility.LogTest("MERGE HAS STARTED !!! PRAY !!! startime - " + start_time.String())
 			if metadata.Appends > 0 {
 				// If yes, concatenate
 				appendEntries := utility.GetEntries(parsedData.Filename)
@@ -395,6 +398,10 @@ func handleIncomingFileConnection(conn net.Conn) {
 				wg.Wait()
 				// send response to client on success after your completion / after all nodes complete
 				resp.Data = []byte("All entries appended successfully to " + hydfsPath)
+				time_taken := time.Since(start_time).Milliseconds()
+				utility.LogTest("MERGE HAS ENDED !!! REJOICE !!! ")
+				utility.LogTest(fmt.Sprintf("Time taken (ms) to merge on client %s and its replicas for filename %s is : " + strconv.FormatInt(time_taken, 10)))
+
 				utility.LogMessage(string(resp.Data))
 			} else {
 				// no need to do any merge
