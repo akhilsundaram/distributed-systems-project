@@ -100,7 +100,7 @@ func dropFilesNotInRange(low uint32, high uint32) {
 	}
 
 	hydfs := utility.GetAllHyDFSMetadata()
-	for filename, _ := range hydfs {
+	for filename := range hydfs {
 		if _, exists := needed[filename]; exists {
 			handleDelete(filename)
 			appends_of_file := utility.GetEntries(filename)
@@ -113,7 +113,9 @@ func dropFilesNotInRange(low uint32, high uint32) {
 }
 
 func PrintRing() {
+	count := 0
 	for _, ringMember := range ring {
+		count += 1
 		low, high, err := findFileRanges(ringMember.serverName)
 		if err != nil {
 			utility.LogMessage("error getting file ranges while printing")
@@ -123,6 +125,21 @@ func PrintRing() {
 			fmt.Printf("host: %s, ringID: %d, successors: [%d, %d], fileranges: [%d - %d] <----\n", ringMember.serverName, ringMember.hashID, ringMember.successor[0], ringMember.successor[1], low, high)
 		} else {
 			fmt.Printf("host: %s, ringID: %d, successors: [%d, %d], fileranges: [%d - %d] \n", ringMember.serverName, ringMember.hashID, ringMember.successor[0], ringMember.successor[1], low, high)
+		}
+	}
+	fmt.Printf("Total Nodes in the ring : %d\n", count)
+}
+
+func PrintVMRingID() {
+	for _, ringMember := range ring {
+		low, high, err := findFileRanges(ringMember.serverName)
+		if err != nil {
+			utility.LogMessage("error getting file ranges while printing")
+		}
+		// println(ringMember.serverName)
+		if ringMember.serverName == membership.My_hostname {
+			fmt.Printf("VM host: %s, ringID: %d, successors: [%d, %d], fileranges: [%d - %d] \n", ringMember.serverName, ringMember.hashID, ringMember.successor[0], ringMember.successor[1], low, high)
+			break
 		}
 	}
 }
