@@ -137,6 +137,12 @@ func handleIncomingFileConnection(conn net.Conn) {
 	// Process the request and prepare the response
 	serverAddr := conn.LocalAddr().String()
 	clientAddr := conn.RemoteAddr().String()
+	clientIp, _, err := net.SplitHostPort(clientAddr)
+	if err != nil {
+		// If there's an error (e.g., if the address doesn't have a port),
+		// just return the original string
+		utility.LogMessage("Error in getting ip from conn addr " + err.Error())
+	}
 	resp := ResponseJson{
 		IP: serverAddr,
 	}
@@ -357,9 +363,29 @@ func handleIncomingFileConnection(conn net.Conn) {
 				metadata.Appends = 0
 
 				utility.SetHyDFSMetadata(parsedData.Filename, metadata)
-				// send signal to other replicas to pick file from this node / send a merge write request to override the file and meta data
-				// send response to client on success after your completion / after all nodes complete
 				utility.LogMessage("Updated Hash and Timestamp of the merged file")
+				// send signal to other replicas to pick file from this node / send a merge write request to override the file and meta data
+				var wg sync.WaitGroup
+				_, senderIPs, _ := GetSuccesorIPsForFilename(parsedData.Filename)
+				utility.LogMessage("Sending merge request to replicas for file ID ")
+				data, err := os.ReadFile(hydfsPath)
+				if err != nil {
+					errMsg := fmt.Sprintf("error reading merged and concatenated file:  %s: %v", hydfsPath, err)
+					utility.LogMessage(errMsg)
+				}
+
+				for i := 0; i < len(senderIPs); i++ {
+					if senderIPs[i] != clientIp {
+						wg.Add(1)
+						go func(ip_addr string) {
+							defer wg.Done()
+							SendMergedFile(ip_addr, parsedData.Filename, data, newMD5Hash, metadata.Timestamp)
+						}(senderIPs[i])
+					}
+				}
+
+				wg.Wait()
+				// send response to client on success after your completion / after all nodes complete
 				resp.Data = []byte("All entries appended successfully to " + hydfsPath)
 				utility.LogMessage(string(resp.Data))
 			} else {
