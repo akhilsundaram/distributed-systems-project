@@ -6,6 +6,7 @@ import (
 	"hydfs/utility"
 	"maps"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -203,6 +204,10 @@ func DeleteMember(node_id string, hostname string) error {
 		}
 		RingMemberchan <- newMessage
 		utility.LogMessage("Sent message to Ring Channel - Delete")
+		if hostname == My_hostname {
+			fmt.Printf("Node marked as failed, FAIL-STOP Mechanism applied, stopping process\n")
+			os.Exit(1)
+		}
 	}()
 	return nil
 }
