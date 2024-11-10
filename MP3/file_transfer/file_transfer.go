@@ -86,7 +86,10 @@ func HyDFSServer() {
 		utility.LogMessage("Failed to listen on port - " + mergeport + " : " + listener_error.Error())
 	}
 
-	server := grpc.NewServer()
+	server := grpc.NewServer(
+		grpc.MaxRecvMsgSize(128*1024*1024), // Increase to 128 MB
+		grpc.MaxSendMsgSize(128*1024*1024),
+	)
 	RegisterMergeServiceServer(server, &MergeFilesServer{})
 	go func() {
 		utility.LogMessage("RPC merge server goroutine entered")
@@ -1016,7 +1019,11 @@ func (s *MergeFilesServer) MergeFiles(req *MergeRequest, stream MergeService_Mer
 }
 
 func SendMergedFile(serverIP string, filename string, data []byte, hash string, newTimeStamp time.Time) {
-	conn, err := grpc.Dial(serverIP+":"+mergeport, grpc.WithInsecure())
+	conn, err := grpc.Dial(serverIP+":"+mergeport, grpc.WithInsecure(), grpc.WithDefaultCallOptions(
+		grpc.MaxCallRecvMsgSize(128*1024*1024), // Increase to 128 MB
+		grpc.MaxCallSendMsgSize(128*1024*1024), // Increase to 128 MB
+	))
+
 	if err != nil {
 		utility.LogMessage("Unable to connect to server - merge rpc server - " + err.Error())
 	}
