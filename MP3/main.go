@@ -118,6 +118,7 @@ func main() {
 		fmt.Println("  create            - push a local file to HyDFS")
 		fmt.Println("  append            - append contents of a local file to file in HyDFS")
 		fmt.Println("  merge             - merge all replicas of a file in HyDFS ")
+		fmt.Println("  multiappend       - run concurrent appends from VMs to one file")
 		fmt.Println("  ls                - list VM addresses where a file being stored")  // (along with the VMs’ IDs on the ring)
 		fmt.Println("  store             - list all files (with ids) being stored on VM") // also the VM ID
 		fmt.Println("  list_mem_ids      - Display current membership list along with Node ID on ring")
@@ -255,6 +256,7 @@ func main() {
 				// requestData.Operation = "store"
 				// file_transfer.HyDFSClient(requestData)
 				hydfsFS := utility.GetAllHyDFSMetadata()
+				ring.PrintVMRingID()
 				for filename, v := range hydfsFS {
 					fmt.Printf("Filename: %s, Ring ID: %d, md5 hash: %s, timestamp: %s\n", filename, v.RingId, v.Hash, v.Timestamp)
 				}
