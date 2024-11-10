@@ -49,6 +49,7 @@ func (s *FileServer) handleGetFiles(req *FileRequest, stream FileService_GetFile
 		FileMetaData, _ := utility.GetHyDFSMetadata(filename)
 		file_hash := FileMetaData.Hash
 		timestamp_file := FileMetaData.Timestamp
+		append_ctr := FileMetaData.Appends
 
 		// Send file content and metadata to the client
 		response := &FileResponse{
@@ -56,6 +57,7 @@ func (s *FileServer) handleGetFiles(req *FileRequest, stream FileService_GetFile
 			Content:   content,
 			Hash:      file_hash,
 			Timestamp: timestamppb.New(timestamp_file),
+			Append:    int64(append_ctr),
 		}
 		if err := stream.Send(response); err != nil {
 			utility.LogMessage("fserver(grpc) in ring: Failed to Send file " + filename + " becuase of the the err => " + err.Error())
