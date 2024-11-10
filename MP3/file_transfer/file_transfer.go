@@ -15,6 +15,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -698,6 +699,8 @@ func GetSuccesorIPsForFilename(filename string) (uint32, []string, []string) {
 
 func SendRequest(ip string, request ClientData) (*ResponseJson, error) {
 	// Establish TCP connection
+	ip = strings.Trim(ip, " ")
+
 	utility.LogMessage("Sending TCP request to " + ip)
 
 	// Marshal the request to JSON
