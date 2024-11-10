@@ -100,7 +100,7 @@ func dropFilesNotInRange(low uint32, high uint32) {
 	}
 
 	hydfs := utility.GetAllHyDFSMetadata()
-	for filename, _ := range hydfs {
+	for filename := range hydfs {
 		if _, exists := needed[filename]; exists {
 			handleDelete(filename)
 		}
