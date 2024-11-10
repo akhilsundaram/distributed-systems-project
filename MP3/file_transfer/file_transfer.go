@@ -164,6 +164,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 					sort.Slice(appendEntries, func(i, j int) bool {
 						return appendEntries[i].Timestamp.Before(appendEntries[j].Timestamp)
 					})
+
 					for _, entry := range appendEntries {
 						sourceFile, err := os.Open(entry.FilePath)
 						if err != nil {
@@ -194,6 +195,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 
 					resp.Hash = md5String
 					resp.HasAppend = true
+					resp.Data = fileData
 				} else {
 					// else if file has no appends, just send the original fileData
 					resp.Data = fileData
@@ -236,7 +238,8 @@ func handleIncomingFileConnection(conn net.Conn) {
 			utility.LogMessage(resp.Err)
 		} else {
 			// write to virtual representation
-			filehash, _ := utility.GetMD5(parsedData.Filename)
+			filehash, _ := utility.GetMD5(hydfsPath)
+			utility.LogMessage("MD5 hash of file " + hydfsPath + " : " + filehash)
 			// utility.GetHyDFSMetadata(parsedData.Filename)
 			fileMetaData := utility.FileMetaData{
 				Hash:      filehash,
@@ -709,7 +712,7 @@ func SendRequest(ip string, request ClientData) (*ResponseJson, error) {
 		// Read in small chunks
 		chunk := make([]byte, 4096)
 		n, err := conn.Read(chunk)
-		utility.LogMessage("reading in chunks : " + string(chunk[:n]))
+		// utility.LogMessage("reading in chunks : " + string(chunk[:n]))
 		if err != nil {
 			if err == io.EOF {
 				utility.LogMessage("EOF")
@@ -721,8 +724,8 @@ func SendRequest(ip string, request ClientData) (*ResponseJson, error) {
 			}
 			return nil, fmt.Errorf("error reading response from %s: %v", ip, err)
 		}
-		data := chunk[:n]
-		utility.LogMessage("reading in chunks : " + string(data))
+		// data := chunk[:n]
+		// utility.LogMessage("reading in chunks : " + string(data))
 		buffer.Write(chunk[:n])
 	}
 
