@@ -413,6 +413,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 		// forward requests to each successor ip for append operation
 		reqData := parsedData
 		filename := parsedData.Filename
+
 		reqData.MultiAppend = true
 		reqData.Operation = "append"
 		SendAppends(reqData, filename)
@@ -647,10 +648,10 @@ func HyDFSClient(request ClientData, options ...[]string) {
 
 		// no wait groups needed
 		for i := 0; i < len(vmList); i++ {
-			go func(ip_addr string, localfilepath string) {
-				fmt.Printf("signal being sent to VM %s for appending %s ", ip_addr, localfilepath)
-				request.LocalFilePath = localfilepath
-				response, err := SendRequest(ip_addr, request)
+			go func(ip_addr string, localfilepath string, mrequest ClientData) {
+				// fmt.Printf("signal being sent to VM %s for appending %s ", ip_addr, localfilepath)
+				mrequest.LocalFilePath = localfilepath
+				response, err := SendRequest(ip_addr, mrequest)
 				if err != nil {
 					utility.LogMessage(fmt.Sprintf("Error in multiappend: %v", err))
 					return
@@ -659,8 +660,8 @@ func HyDFSClient(request ClientData, options ...[]string) {
 					utility.LogMessage(fmt.Sprintf("Error from server: %s", response.Err))
 					return
 				}
-				fmt.Printf("signal sent to VM %s for appending %s on file : %s\n", ip_addr, localfilepath, request.Filename)
-			}(vmList[i], localFileList[i])
+				fmt.Printf("signal sent to VM %s for appending %s \n", ip_addr, localfilepath)
+			}(vmList[i], localFileList[i], request)
 		}
 		// :multiappend; 172.22.158.195, 172.22.94.195 ; /home/hydfs/1.txt, /home/hydfs/2.txt,
 
