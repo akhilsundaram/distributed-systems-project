@@ -53,10 +53,10 @@ var (
 )
 
 /* LOGGER STUFF */
-func initLogger(log_file string) {
+func initLogger() {
 	once.Do(func() {
 		var err error
-		logFile, err = os.OpenFile(log_file, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		logFile, err = os.OpenFile(LOGGER_FILE, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -64,10 +64,10 @@ func initLogger(log_file string) {
 	})
 }
 
-func tinitLogger(log_file string) {
-	once.Do(func() {
+func tinitLogger() {
+	tonce.Do(func() {
 		var err error
-		tlogFile, err = os.OpenFile(log_file, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		tlogFile, err = os.OpenFile(TEST_LOGGER_FILE, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -82,7 +82,7 @@ func init() {
 }
 
 func LogMessage(message string) {
-	initLogger(LOGGER_FILE)
+	initLogger()
 	mu.Lock()
 	defer mu.Unlock()
 	logger.Println(message)
