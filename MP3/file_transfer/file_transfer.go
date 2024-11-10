@@ -1055,6 +1055,9 @@ func SendMergedFile(serverIP string, filename string, data []byte, hash string, 
 func SendAppends(request ClientData, filename string) {
 	var wg sync.WaitGroup
 	localPath := request.LocalFilePath
+	if request.MultiAppend {
+		utility.LogMessage("entered append for multiappend - for -> " + filename + " localfilepath -> " + localPath)
+	}
 	if !utility.FileExists(localPath) {
 		fmt.Println("File does not exist : " + localPath)
 		return
