@@ -639,6 +639,15 @@ func HyDFSClient(request ClientData, options ...[]string) {
 			}
 		}
 
+		fmt.Println("VM IPs:")
+		for _, ip := range vmList {
+			fmt.Println(ip)
+		}
+
+		fmt.Println("\nLocal Files:")
+		for _, file := range localFileList {
+			fmt.Println(file)
+		}
 		// no wait groups needed
 		for i := 0; i < len(vmList); i++ {
 			go func(ip_addr string, lfilepath string) {

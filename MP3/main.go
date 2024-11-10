@@ -251,15 +251,7 @@ func main() {
 					// Extract VM IPs and local filenames
 					vmIPs := strings.Split(strings.TrimSpace(parts[1]), ",")
 					localFiles := strings.Split(strings.TrimSpace(parts[2]), ",")
-					fmt.Println("VM IPs:")
-					for _, ip := range vmIPs {
-						fmt.Println(ip)
-					}
 
-					fmt.Println("\nLocal Files:")
-					for _, file := range localFiles {
-						fmt.Println(file)
-					}
 					requestData.Operation = "multiappend"
 					requestData.Filename = filename
 
