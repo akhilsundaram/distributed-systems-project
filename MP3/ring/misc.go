@@ -113,7 +113,9 @@ func dropFilesNotInRange(low uint32, high uint32) {
 }
 
 func PrintRing() {
+	count := 0
 	for _, ringMember := range ring {
+		count += 1
 		low, high, err := findFileRanges(ringMember.serverName)
 		if err != nil {
 			utility.LogMessage("error getting file ranges while printing")
@@ -125,6 +127,7 @@ func PrintRing() {
 			fmt.Printf("host: %s, ringID: %d, successors: [%d, %d], fileranges: [%d - %d] \n", ringMember.serverName, ringMember.hashID, ringMember.successor[0], ringMember.successor[1], low, high)
 		}
 	}
+	fmt.Printf("Total Nodes in the ring : %d\n", count)
 }
 
 func PrintVMRingID() {
