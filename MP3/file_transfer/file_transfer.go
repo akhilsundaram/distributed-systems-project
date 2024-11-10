@@ -414,7 +414,9 @@ func handleIncomingFileConnection(conn net.Conn) {
 		reqData := parsedData
 		filename := parsedData.Filename
 		reqData.MultiAppend = true
+
 		SendAppends(reqData, filename)
+		return
 
 	default:
 		utility.LogMessage("Unknown command: " + cmd)
@@ -642,10 +644,6 @@ func HyDFSClient(request ClientData, options ...[]string) {
 		fmt.Printf("VM IP len : %d\n", len(vmList))
 		fmt.Printf("File list len : %d\n", len(localFileList))
 
-		fmt.Println("\nLocal Files:")
-		for _, file := range localFileList {
-			fmt.Println(file)
-		}
 		// no wait groups needed
 		for i := 0; i < len(vmList); i++ {
 			go func(ip_addr string, lfilepath string) {
@@ -1051,7 +1049,7 @@ func SendAppends(request ClientData, filename string) {
 	var wg sync.WaitGroup
 	localPath := request.LocalFilePath
 	if !utility.FileExists(localPath) {
-		fmt.Println("File does not exist")
+		fmt.Println("File does not exist : " + localPath)
 		return
 	}
 	fileData, err := os.ReadFile(localPath)
