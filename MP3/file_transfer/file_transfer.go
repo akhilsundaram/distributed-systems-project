@@ -164,6 +164,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 					sort.Slice(appendEntries, func(i, j int) bool {
 						return appendEntries[i].Timestamp.Before(appendEntries[j].Timestamp)
 					})
+
 					for _, entry := range appendEntries {
 						sourceFile, err := os.Open(entry.FilePath)
 						if err != nil {
@@ -194,6 +195,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 
 					resp.Hash = md5String
 					resp.HasAppend = true
+					resp.Data = fileData
 				} else {
 					// else if file has no appends, just send the original fileData
 					resp.Data = fileData
