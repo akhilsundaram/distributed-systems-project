@@ -118,7 +118,6 @@ func main() {
 		fmt.Println("  create            - push a local file to HyDFS")
 		fmt.Println("  append            - append contents of a local file to file in HyDFS")
 		fmt.Println("  merge             - merge all replicas of a file in HyDFS ")
-		fmt.Println("  delete            - delete a file completely from HyDFS")
 		fmt.Println("  ls                - list VM addresses where a file being stored")  // (along with the VMs’ IDs on the ring)
 		fmt.Println("  store             - list all files (with ids) being stored on VM") // also the VM ID
 		fmt.Println("  list_mem_ids      - Display current membership list along with Node ID on ring")
@@ -168,32 +167,32 @@ func main() {
 			// MP3 Commands
 			case "get":
 				fmt.Println("Enter HyDFS filename to fetch, and store into local file.")
-				fmt.Print("Usage - get HyDFSfilename /path/to/localfilename : ")
+				fmt.Print("Usage - HyDFSfilename /path/to/localfilename : ")
 				scanner.Scan()
 				args := strings.Fields(scanner.Text())
-				if len(args) != 3 || args[0] != "get" {
+				if len(args) != 2 {
 					fmt.Println("Invalid input. Usage: get <HyDFS_filename> <local_filename>")
 				} else {
-					fmt.Printf("Fetching %s from HyDFS to %s\n", args[1], args[2])
+					fmt.Printf("Fetching %s from HyDFS to %s\n", args[0], args[1])
 					// get here with args[0] and args[1]
-					requestData.Operation = args[0]
-					requestData.Filename = args[1]
-					requestData.LocalFilePath = args[2]
+					requestData.Operation = "get"
+					requestData.Filename = args[0]
+					requestData.LocalFilePath = args[1]
 					file_transfer.HyDFSClient(requestData)
 				}
 			case "get_from_replica":
 				fmt.Println("Enter VMaddress, HyDFS filename, and local filename to write the file to.")
-				fmt.Print("Usage - get_from_replica VMaddress HyDFSfilename /path/to/localfilename : ")
+				fmt.Print("Usage - VMaddress HyDFSfilename /path/to/localfilename : ")
 				scanner.Scan()
 				args := strings.Fields(scanner.Text())
-				if len(args) != 4 || args[0] != "get_from_replica" {
+				if len(args) != 3 {
 					fmt.Println("Invalid input. Usage: get_from_replica <VM_address> <HyDFS_filename> <local_filename> ")
 				} else {
 					// get_from_replica here with args[0], args[1], and args[2]
-					requestData.Operation = args[0]
-					requestData.NodeAddr = args[1]
-					requestData.Filename = args[2]
-					requestData.LocalFilePath = args[3]
+					requestData.Operation = "get_from_replica"
+					requestData.NodeAddr = args[0]
+					requestData.Filename = args[1]
+					requestData.LocalFilePath = args[2]
 					file_transfer.HyDFSClient(requestData)
 				}
 			case "create":
@@ -201,28 +200,28 @@ func main() {
 				fmt.Print("Usage - create localfilename HyDFSfilename : ")
 				scanner.Scan()
 				args := strings.Fields(scanner.Text())
-				if len(args) != 3 || args[0] != "create" {
-					fmt.Println("Invalid input. Usage: create <local_filename> <HyDFS_filename>")
+				if len(args) != 2 {
+					fmt.Println("Invalid input. Usage: <local_filename> <HyDFS_filename>")
 				} else {
 					// create here with args[0] and args[1]
-					requestData.Operation = args[0]
-					requestData.LocalFilePath = args[1]
-					requestData.Filename = args[2]
+					requestData.Operation = "create"
+					requestData.LocalFilePath = args[0]
+					requestData.Filename = args[1]
 					file_transfer.HyDFSClient(requestData)
 				}
 			case "append":
 				fmt.Println("Enter local filename to append to HyDFS file.")
-				fmt.Print("Usage - append localfilename HyDFSfilename : ")
+				fmt.Print("Usage - localfilename HyDFSfilename : ")
 				scanner.Scan()
 				args := strings.Fields(scanner.Text())
-				if len(args) != 3 || args[0] != "append" {
+				if len(args) != 2 {
 					fmt.Println("Invalid input. Usage: append <local_filename> <HyDFS_filename>")
 				} else {
 					fmt.Printf("Appending %s to %s in HyDFS\n", args[0], args[1])
 					// append function here with args[0] and args[1]
-					requestData.Operation = args[0]
-					requestData.LocalFilePath = args[1]
-					requestData.Filename = args[2]
+					requestData.Operation = "append"
+					requestData.LocalFilePath = args[0]
+					requestData.Filename = args[1]
 					file_transfer.HyDFSClient(requestData)
 				}
 			case "merge":
