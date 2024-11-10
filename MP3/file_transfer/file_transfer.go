@@ -639,10 +639,8 @@ func HyDFSClient(request ClientData, options ...[]string) {
 			}
 		}
 
-		fmt.Println("VM IPs:")
-		for _, ip := range vmList {
-			fmt.Println(ip)
-		}
+		fmt.Printf("VM IP len : %d\n", len(vmList))
+		fmt.Printf("File list len : %d\n", len(localFileList))
 
 		fmt.Println("\nLocal Files:")
 		for _, file := range localFileList {
