@@ -417,7 +417,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 
 		reqData.MultiAppend = true
 		reqData.Operation = "append"
-		SendAppends(reqData, filename)
+		go SendAppends(reqData, filename)
 		resp.Data = []byte("Append request from VM " + clientIp + "sent")
 		utility.LogMessage(string(resp.Data))
 
@@ -1059,16 +1059,18 @@ func SendAppends(request ClientData, filename string) {
 		fmt.Println("File does not exist : " + localPath)
 		return
 	}
+	utility.LogMessage("here - 1")
 	fileData, err := os.ReadFile(localPath)
 	if err != nil {
 		utility.LogMessage("Error reading local file: " + err.Error())
 		return
 	}
-
+	utility.LogMessage("here - 2")
 	request.Data = fileData
 	fileID, senderIPs, _ := GetSuccesorIPsForFilename(filename)
 	request.RingID = fileID
 	request.TimeStamp = time.Now()
+	utility.LogMessage("here - 3")
 	utility.LogMessage("Successor IPs for append - " + senderIPs[0] + ", " + senderIPs[1] + ", " + senderIPs[2])
 
 	for i := 0; i < len(senderIPs); i++ {
