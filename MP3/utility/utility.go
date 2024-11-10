@@ -23,6 +23,13 @@ var (
 	mu      sync.Mutex
 )
 
+var (
+	tlogFile *os.File
+	tlogger  *log.Logger
+	tonce    sync.Once
+	tmu      sync.Mutex
+)
+
 type FileMetaData struct {
 	Hash      string
 	Timestamp time.Time
@@ -42,7 +49,7 @@ var (
 	HYDFS_CACHE      = "/home/hydfs/cache"
 	HYDFS_TMP        = "/home/hydfs/tmp"
 	HYDFS_APPEND     = "/home/hydfs/append"
-	TEST_LOGGER_FILE = "/home/hydfs/test.log"
+	TEST_LOGGER_FILE = "/home/log/test.log"
 )
 
 /* LOGGER STUFF */
@@ -54,6 +61,17 @@ func initLogger(log_file string) {
 			log.Fatal(err)
 		}
 		logger = log.New(logFile, "", log.LstdFlags)
+	})
+}
+
+func tinitLogger(log_file string) {
+	once.Do(func() {
+		var err error
+		tlogFile, err = os.OpenFile(log_file, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err != nil {
+			log.Fatal(err)
+		}
+		tlogger = log.New(tlogFile, "", log.LstdFlags)
 	})
 }
 
@@ -71,10 +89,10 @@ func LogMessage(message string) {
 }
 
 func LogTest(message string) {
-	initLogger(TEST_LOGGER_FILE)
-	mu.Lock()
-	defer mu.Unlock()
-	logger.Println(message)
+	tinitLogger(TEST_LOGGER_FILE)
+	tmu.Lock()
+	defer tmu.Unlock()
+	tlogger.Println(message)
 }
 
 /* IP ADDRESS  && NET */
