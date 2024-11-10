@@ -416,7 +416,8 @@ func handleIncomingFileConnection(conn net.Conn) {
 		reqData.MultiAppend = true
 
 		SendAppends(reqData, filename)
-		return
+		resp.Data = []byte("Append request from VM " + clientIp + "sent")
+		utility.LogMessage(string(resp.Data))
 
 	default:
 		utility.LogMessage("Unknown command: " + cmd)
@@ -646,8 +647,9 @@ func HyDFSClient(request ClientData, options ...[]string) {
 
 		// no wait groups needed
 		for i := 0; i < len(vmList); i++ {
-			go func(ip_addr string, lfilepath string) {
-				request.LocalFilePath = lfilepath
+			go func(ip_addr string, localfilepath string) {
+				fmt.Printf("signal being sent to VM %s for appending %s ", ip_addr, localfilepath)
+				request.LocalFilePath = localfilepath
 				response, err := SendRequest(ip_addr, request)
 				if err != nil {
 					utility.LogMessage(fmt.Sprintf("Error in multiappend: %v", err))
@@ -657,7 +659,7 @@ func HyDFSClient(request ClientData, options ...[]string) {
 					utility.LogMessage(fmt.Sprintf("Error from server: %s", response.Err))
 					return
 				}
-				fmt.Printf("signal sent to VM %s for appending %s on file : %s\n", ip_addr, lfilepath, request.Filename)
+				fmt.Printf("signal sent to VM %s for appending %s on file : %s\n", ip_addr, localfilepath, request.Filename)
 			}(vmList[i], localFileList[i])
 		}
 
