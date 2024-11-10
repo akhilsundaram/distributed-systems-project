@@ -49,7 +49,7 @@ var (
 	HYDFS_CACHE      = "/home/hydfs/cache"
 	HYDFS_TMP        = "/home/hydfs/tmp"
 	HYDFS_APPEND     = "/home/hydfs/append"
-	TEST_LOGGER_FILE = "/home/log/test.log"
+	TEST_LOGGER_FILE = "/home/log/mp3test.log"
 )
 
 /* LOGGER STUFF */

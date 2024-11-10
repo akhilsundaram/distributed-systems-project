@@ -9,6 +9,7 @@ import (
 	"hydfs/ping"
 	"hydfs/ring"
 	"hydfs/utility"
+	"math/rand"
 	"os"
 	"os/signal"
 	"strconv"
@@ -19,9 +20,10 @@ import (
 )
 
 var (
-	INTRODUCER_HOST = "fa24-cs425-5901.cs.illinois.edu"
-	status_sus      = false //suspicion.DeclareSuspicion
-	LOGGER_FILE     = "/home/log/hydfs.log"
+	INTRODUCER_HOST  = "fa24-cs425-5901.cs.illinois.edu"
+	status_sus       = false //suspicion.DeclareSuspicion
+	LOGGER_FILE      = "/home/log/hydfs.log"
+	TEST_LOGGER_FILE = "/home/log/mp3test.log"
 )
 
 func main() {
@@ -33,6 +35,13 @@ func main() {
 	}
 
 	file.Close()
+
+	testfile, err := os.OpenFile(TEST_LOGGER_FILE, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		fmt.Println("Error Opening file : " + err.Error())
+	}
+
+	testfile.Close()
 
 	utility.SetupDirectories(utility.HYDFS_APPEND, utility.HYDFS_CACHE, utility.HYDFS_DIR, utility.HYDFS_TMP)
 	if err != nil {
@@ -122,6 +131,9 @@ func main() {
 		fmt.Println("  ls                - list VM addresses where a file being stored")  // (along with the VMs’ IDs on the ring)
 		fmt.Println("  store             - list all files (with ids) being stored on VM") // also the VM ID
 		fmt.Println("  list_mem_ids      - Display current membership list along with Node ID on ring")
+		fmt.Println("  run_merge_test    - Trigger 1000 concurrent appends and calc the merge time ")
+		fmt.Println("  toggle_cache      - toggle cache enable/disable status")
+		fmt.Println("  cache_status      - Display current cache enable/disable status")
 		fmt.Println("  exit              - Exit the program")
 		fmt.Println("************************************************")
 		utility.LogTest("TESTINGGGG")
@@ -298,6 +310,63 @@ func main() {
 				fmt.Println("Displaying current membership list along with Node ID on ring")
 				ring.PrintRing()
 				// list_mem_ids function here
+			case "toggle_cache":
+				var result string
+				toggle := !file_transfer.Cache_status
+				file_transfer.Cache_status = toggle
+
+				if file_transfer.Cache_status {
+					result = "enabled"
+				} else {
+					result = "disabled"
+				}
+				fmt.Printf("cache status set to : %s\n", result)
+
+				// list_mem_ids function here
+			case "cache_status":
+				var result string
+				if file_transfer.Cache_status {
+					result = "enabled"
+				} else {
+					result = "disabled"
+				}
+				fmt.Printf("current cache status : %s\n", result)
+
+			case "run_merge_test":
+				var concurrentAppends int
+				var fileSize int
+				var filePath string
+				// Prompt for number of concurrent appends
+				fmt.Print("Enter the number of concurrent client appends (1, 2, 5, or 10): ")
+				_, err := fmt.Scanf("%d", &concurrentAppends)
+				if err != nil || (concurrentAppends != 1 && concurrentAppends != 2 && concurrentAppends != 5 && concurrentAppends != 10) {
+					fmt.Println("Invalid input. Please enter 1, 2, 5, or 10.")
+					continue
+				}
+
+				// Prompt for file size
+				fmt.Print("Enter the file size for testing in MB (4 or 40 KB): ")
+				_, err = fmt.Scanf("%d", &fileSize)
+				if err != nil || (fileSize != 4 && fileSize != 40) {
+					fmt.Println("Invalid input. Please enter number 4 or 40")
+					continue
+				}
+				fmt.Print("Enter filename for hydfs file name :")
+				filename := strings.TrimSpace(scanner.Text())
+
+				if fileSize == 4 {
+					filePath = "/home/anuragc3/cs425/g59/MP3/data/test2/4kb_file.txt"
+				} else {
+					filePath = "/home/anuragc3/cs425/g59/MP3/data/test2/40kb_file.txt"
+				}
+
+				fmt.Printf("File size selected: %d KB\n", fileSize)
+				fmt.Printf("File path: %s\n", filePath)
+
+				requestData.Operation = "multiappend"
+				requestData.Filename = filename
+				runMergeTest(concurrentAppends, filePath, requestData)
+				// list_mem_ids function here
 			default:
 				fmt.Printf("Unknown command: %s\n", cmd)
 			}
@@ -311,4 +380,34 @@ func ContinouslySendPings() {
 	// pingpong.SendPing(status_sus, ping_count)
 	ping.Sender(status_sus)
 	// time.Sleep(300 * time.Millisecond)
+}
+
+func runMergeTest(concurrentAppends int, filePath string, request file_transfer.ClientData) {
+	fmt.Printf("Running merge test with %d concurrent appends and %s MB file size\n", concurrentAppends, filePath)
+
+	// TODO: Add code to plot the results
+	ip := []string{"172.22.158.195", "172.22.94.195", "172.22.156.196", "172.22.158.196", "172.22.94.196", "172.22.156.197",
+		"172.22.158.197", "172.22.94.197", "172.22.156.198", "172.22.158.198"}
+
+	// Seed the random number generator
+	rand.Seed(time.Now().UnixNano())
+
+	// Shuffle the copy of the slice
+	rand.Shuffle(len(ip), func(i, j int) {
+		ip[i], ip[j] = ip[j], ip[i]
+	})
+
+	// Return the first concurrentAppends elements
+	if concurrentAppends > len(ip) {
+		concurrentAppends = len(ip)
+	}
+	vmList := ip[:concurrentAppends]
+
+	localFileList := make([]string, 0, concurrentAppends)
+
+	for i := 0; i < concurrentAppends; i++ {
+		localFileList = append(localFileList, filePath)
+	}
+
+	file_transfer.HyDFSClient(request, vmList, localFileList)
 }
