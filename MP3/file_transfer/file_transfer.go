@@ -236,8 +236,8 @@ func handleIncomingFileConnection(conn net.Conn) {
 			utility.LogMessage(resp.Err)
 		} else {
 			// write to virtual representation
-			filehash, _ := utility.GetMD5(parsedData.Filename)
-			utility.LogMessage("MD5 hash of file " + parsedData.Filename + " : " + filehash)
+			filehash, _ := utility.GetMD5(hydfsPath)
+			utility.LogMessage("MD5 hash of file " + hydfsPath + " : " + filehash)
 			// utility.GetHyDFSMetadata(parsedData.Filename)
 			fileMetaData := utility.FileMetaData{
 				Hash:      filehash,
