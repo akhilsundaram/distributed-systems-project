@@ -124,6 +124,7 @@ func main() {
 		fmt.Println("  list_mem_ids      - Display current membership list along with Node ID on ring")
 		fmt.Println("  exit              - Exit the program")
 		fmt.Println("************************************************")
+		utility.LogTest("TESTINGGGG")
 		scanner := bufio.NewScanner(os.Stdin)
 		for {
 			fmt.Print("Enter command: ")
