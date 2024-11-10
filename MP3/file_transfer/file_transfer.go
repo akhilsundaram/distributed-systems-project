@@ -414,7 +414,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 		reqData := parsedData
 		filename := parsedData.Filename
 		reqData.MultiAppend = true
-
+		reqData.Operation = "append"
 		SendAppends(reqData, filename)
 		resp.Data = []byte("Append request from VM " + clientIp + "sent")
 		utility.LogMessage(string(resp.Data))
@@ -662,6 +662,7 @@ func HyDFSClient(request ClientData, options ...[]string) {
 				fmt.Printf("signal sent to VM %s for appending %s on file : %s\n", ip_addr, localfilepath, request.Filename)
 			}(vmList[i], localFileList[i])
 		}
+		// :multiappend; 172.22.158.195, 172.22.94.195 ; /home/hydfs/1.txt, /home/hydfs/2.txt,
 
 	case "delete":
 		fmt.Printf("Deleting %s from HyDFS\n", filename)
