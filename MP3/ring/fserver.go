@@ -118,7 +118,10 @@ func (s *FileServer) handleGetAppendFiles(req *FileRequest, stream FileService_G
 func callFileServerFiles(server string, files []string) {
 	serverIP := utility.GetIPAddr(server)
 	var files_with_appends []string
-	conn, err := grpc.Dial(serverIP.String()+":"+port, grpc.WithInsecure())
+	conn, err := grpc.Dial(serverIP.String()+":"+port, grpc.WithInsecure(), grpc.WithDefaultCallOptions(
+		grpc.MaxCallRecvMsgSize(128*1024*1024), // Increase to 16 MB
+		grpc.MaxCallSendMsgSize(128*1024*1024), // Increase to 16 MB
+	))
 	if err != nil {
 		utility.LogMessage("Unable to connect to server - ring rpc fserver - " + err.Error())
 	}
@@ -196,7 +199,10 @@ func callFileServerFiles(server string, files []string) {
 
 func callFileServerNames(server string, low uint32, high uint32) ([]string, []int64) {
 	serverIP := utility.GetIPAddr(server)
-	conn, err := grpc.Dial(serverIP.String()+":"+port, grpc.WithInsecure())
+	conn, err := grpc.Dial(serverIP.String()+":"+port, grpc.WithInsecure(), grpc.WithDefaultCallOptions(
+		grpc.MaxCallRecvMsgSize(128*1024*1024), // Increase to 16 MB
+		grpc.MaxCallSendMsgSize(128*1024*1024), // Increase to 16 MB
+	))
 	if err != nil {
 		utility.LogMessage("Unable to connect to server - ring rpc fserver - " + err.Error())
 	}
@@ -235,7 +241,10 @@ func callFileServerNames(server string, low uint32, high uint32) ([]string, []in
 
 func callFileServerAppendFiles(server string, filename string) {
 	serverIP := utility.GetIPAddr(server)
-	conn, err := grpc.Dial(serverIP.String()+":"+port, grpc.WithInsecure())
+	conn, err := grpc.Dial(serverIP.String()+":"+port, grpc.WithInsecure(), grpc.WithDefaultCallOptions(
+		grpc.MaxCallRecvMsgSize(128*1024*1024), // Increase to 16 MB
+		grpc.MaxCallSendMsgSize(128*1024*1024), // Increase to 16 MB
+	))
 	if err != nil {
 		utility.LogMessage("Unable to connect to server - ring rpc fserver - " + err.Error())
 	}

@@ -43,7 +43,10 @@ func StartRing() {
 	if err != nil {
 		log.Fatalf("Failed to listen on port: %v", err)
 	}
-	server := grpc.NewServer()
+	server := grpc.NewServer(
+		grpc.MaxRecvMsgSize(128*1024*1024), // Increase to 16 MB
+		grpc.MaxSendMsgSize(128*1024*1024), // Increase to 16 MB
+	)
 	RegisterFileServiceServer(server, &FileServer{})
 	go func() {
 		utility.LogMessage("RPC server goroutine entered")
