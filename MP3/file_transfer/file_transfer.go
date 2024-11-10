@@ -15,6 +15,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,6 +37,7 @@ type ClientData struct {
 	Data          []byte    `json:"data,omitempty"`
 	RingID        uint32    `json:"ringId,omitempty"`
 	TimeStamp     time.Time `json:"timestamp,omitempty"`
+	MultiAppend   bool      `json:"multiappend,omitempty"`
 }
 
 type ResponseJson struct {
@@ -272,6 +274,9 @@ func handleIncomingFileConnection(conn net.Conn) {
 				resp.Err = "File exists on local FS but not a part of HydfsFileStore"
 				utility.LogMessage(resp.Err)
 			}
+			if parsedData.MultiAppend {
+				fmt.Printf("Starting multiappend op from VM : %s, appending file : %s to filename : %s\n", clientAddr, parsedData.LocalFilePath, parsedData.Filename)
+			}
 			metadata.Appends += 1
 			// update append file path
 			appendPath := utility.HYDFS_APPEND + "/" + parsedData.Filename + "_" + strconv.Itoa(metadata.Appends)
@@ -288,6 +293,9 @@ func handleIncomingFileConnection(conn net.Conn) {
 				// utility.HydfsFileStore[parsedData.Filename] = metadata
 				//appends_list := utility.GetEntries(parsedData.Filename)
 				utility.LogMessage("appends List for file : " + parsedData.Filename)
+				if parsedData.MultiAppend {
+					fmt.Printf("Completed multiappend op from VM : %s, append stored at: %s\n", clientAddr, appendPath)
+				}
 				//for _, entry := range appends_list {
 				//	utility.LogMessage("FilePath: " + entry.FilePath + "Timestamp: " + entry.Timestamp.String() + "Client IP: " + entry.IP)
 				//}
@@ -402,6 +410,17 @@ func handleIncomingFileConnection(conn net.Conn) {
 
 		// handleDelete(filename)
 
+	case "multiappend":
+		// forward requests to each successor ip for append operation
+		reqData := parsedData
+		filename := parsedData.Filename
+
+		reqData.MultiAppend = true
+		reqData.Operation = "append"
+		SendAppends(reqData, filename)
+		resp.Data = []byte("Append request from VM " + clientIp + " sent")
+		utility.LogMessage(string(resp.Data))
+
 	default:
 		utility.LogMessage("Unknown command: " + cmd)
 	}
@@ -425,7 +444,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 	utility.LogMessage("Response sent successfully")
 }
 
-func HyDFSClient(request ClientData) {
+func HyDFSClient(request ClientData, options ...[]string) {
 
 	cmd := request.Operation
 	filename := request.Filename
@@ -585,44 +604,7 @@ func HyDFSClient(request ClientData) {
 		// handleCreate(filename, localPath)
 		// we won't be sending create req for the same file
 	case "append":
-		localPath := request.LocalFilePath
-		if !utility.FileExists(localPath) {
-			fmt.Println("File does not exist")
-			return
-		}
-		fileData, err := os.ReadFile(localPath)
-		if err != nil {
-			utility.LogMessage("Error reading local file: " + err.Error())
-			return
-		}
-
-		request.Data = fileData
-		fileID, senderIPs, _ := GetSuccesorIPsForFilename(filename)
-		request.RingID = fileID
-		request.TimeStamp = time.Now()
-		utility.LogMessage("Successor IPs for append - " + senderIPs[0] + ", " + senderIPs[1] + ", " + senderIPs[2])
-
-		for i := 0; i < len(senderIPs); i++ {
-			wg.Add(1)
-			go func(ip_addr string) {
-				defer wg.Done()
-				response, err := SendRequest(ip_addr, request)
-				if err != nil {
-					utility.LogMessage(fmt.Sprintf("Error in create: %v", err))
-					return
-				}
-				if response.Err != "" {
-					utility.LogMessage(fmt.Sprintf("Error from server: %s", response.Err))
-					return
-				}
-				utility.LogMessage(fmt.Sprintf("File appended successfully: %s on %s", string(response.Data), response.IP))
-			}(senderIPs[i])
-		}
-
-		// Wait for the goroutine to finish
-		wg.Wait()
-		utility.LogMessage("File append operation completed")
-
+		SendAppends(request, filename)
 		// handleAppend(filename, localPath)
 
 	case "merge":
@@ -649,7 +631,40 @@ func HyDFSClient(request ClientData) {
 		// Wait for the goroutine to finish
 		wg.Wait()
 		utility.LogMessage("File merge operation completed")
-		fmt.Printf("File merge operation completed")
+		fmt.Printf("File merge operation completed\n")
+
+	case "multiappend":
+		fileID, _, _ := GetSuccesorIPsForFilename(filename)
+		request.RingID = fileID
+		var vmList, localFileList []string
+		if len(options) > 0 {
+			vmList = options[0]
+			if len(options) > 1 {
+				localFileList = options[1]
+			}
+		}
+
+		fmt.Printf("VM IP len : %d\n", len(vmList))
+		fmt.Printf("File list len : %d\n", len(localFileList))
+
+		// no wait groups needed
+		for i := 0; i < len(vmList); i++ {
+			go func(ip_addr string, localfilepath string, mrequest ClientData) {
+				// fmt.Printf("signal being sent to VM %s for appending %s ", ip_addr, localfilepath)
+				mrequest.LocalFilePath = localfilepath
+				response, err := SendRequest(ip_addr, mrequest)
+				if err != nil {
+					utility.LogMessage(fmt.Sprintf("Error in multiappend: %v", err))
+					return
+				}
+				if response.Err != "" {
+					utility.LogMessage(fmt.Sprintf("Error from server: %s", response.Err))
+					return
+				}
+				fmt.Printf("signal sent to VM %s for appending %s \n", ip_addr, localfilepath)
+			}(vmList[i], localFileList[i], request)
+		}
+		// :multiappend; 172.22.158.195, 172.22.94.195 ; /home/hydfs/1.txt, /home/hydfs/2.txt,
 
 	case "delete":
 		fmt.Printf("Deleting %s from HyDFS\n", filename)
@@ -684,6 +699,8 @@ func GetSuccesorIPsForFilename(filename string) (uint32, []string, []string) {
 
 func SendRequest(ip string, request ClientData) (*ResponseJson, error) {
 	// Establish TCP connection
+	ip = strings.Trim(ip, " ")
+
 	utility.LogMessage("Sending TCP request to " + ip)
 
 	// Marshal the request to JSON
@@ -1032,5 +1049,54 @@ func SendMergedFile(serverIP string, filename string, data []byte, hash string, 
 
 		utility.LogMessage("File received at server - " + resp.Ack)
 	}
+
+}
+
+func SendAppends(request ClientData, filename string) {
+	var wg sync.WaitGroup
+	localPath := request.LocalFilePath
+	if request.MultiAppend {
+		utility.LogMessage("entered append for multiappend - for -> " + filename + " localfilepath -> " + localPath)
+	}
+	if !utility.FileExists(localPath) {
+		fmt.Println("File does not exist : " + localPath)
+		return
+	}
+	utility.LogMessage("here - 1")
+	fileData, err := os.ReadFile(localPath)
+	if err != nil {
+		utility.LogMessage("Error reading local file: " + err.Error())
+		return
+	}
+	utility.LogMessage("here - 2")
+	request.Data = fileData
+	fileID, senderIPs, _ := GetSuccesorIPsForFilename(filename)
+	request.RingID = fileID
+	request.TimeStamp = time.Now()
+	utility.LogMessage("here - 3")
+	utility.LogMessage("Successor IPs for append - " + senderIPs[0] + ", " + senderIPs[1] + ", " + senderIPs[2])
+
+	for i := 0; i < len(senderIPs); i++ {
+		wg.Add(1)
+		go func(ip_addr string) {
+			defer wg.Done()
+			response, err := SendRequest(ip_addr, request)
+			if err != nil {
+				utility.LogMessage(fmt.Sprintf("Error in create: %v", err))
+				return
+			}
+			if response.Err != "" {
+				utility.LogMessage(fmt.Sprintf("Error from server: %s", response.Err))
+				return
+			}
+			utility.LogMessage(fmt.Sprintf("File appended successfully: %s on %s", string(response.Data), response.IP))
+		}(senderIPs[i])
+	}
+
+	// Wait for the goroutine to finish
+	wg.Wait()
+	utility.LogMessage("File append operation completed")
+
+	// handleAppend(filename, localPath)
 
 }

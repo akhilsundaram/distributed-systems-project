@@ -199,7 +199,7 @@ func main() {
 				}
 			case "create":
 				fmt.Println("Enter local filename  to upload to HyDFS file.")
-				fmt.Print("Usage - create localfilename HyDFSfilename : ")
+				fmt.Print("Usage - localfilename HyDFSfilename : ")
 				scanner.Scan()
 				args := strings.Fields(scanner.Text())
 				if len(args) != 2 {
@@ -235,6 +235,38 @@ func main() {
 				requestData.Operation = "merge"
 				requestData.Filename = filename
 				file_transfer.HyDFSClient(requestData)
+			case "multiappend":
+				fmt.Print("Enter HyDFS file name, VMs, and local file names to append. ")
+				fmt.Print("Usage - filename; VMi, … VMj ; localfilenamei,....localfilenamej :")
+				scanner.Scan()
+				input := scanner.Text()
+
+				// Split the input into parts
+				parts := strings.Split(input, ";")
+				if len(parts) != 3 {
+					fmt.Println("Invalid input format")
+				} else {
+					// Extract filename
+					filename := strings.TrimSpace(parts[0])
+
+					// Extract VM IPs and local filenames
+					vmIPs := strings.Split(strings.TrimSpace(parts[1]), ",")
+					localFiles := strings.Split(strings.TrimSpace(parts[2]), ", ")
+
+					for i, ip := range vmIPs {
+						vmIPs[i] = strings.TrimSpace(ip)
+					}
+
+					// For localFiles
+					for i, file := range localFiles {
+						localFiles[i] = strings.TrimSpace(file)
+					}
+
+					requestData.Operation = "multiappend"
+					requestData.Filename = filename
+
+					file_transfer.HyDFSClient(requestData, vmIPs, localFiles)
+				}
 			case "delete":
 				fmt.Print("Enter filename to delete from HyDFS: ")
 				scanner.Scan()
