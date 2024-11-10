@@ -26,4 +26,5 @@ message FileResponse {
   int64 append = 6;
   string ip = 7;
   string filepath = 8;
+  repeated int64 appends = 9;
 }
