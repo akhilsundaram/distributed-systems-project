@@ -188,7 +188,9 @@ func callFileServerFiles(server string, files []string) {
 	}
 	time_taken := time.Since(start_time).Milliseconds()
 	if del_check {
-		utility.LogTest("Bandwidth used for delete: " + strconv.FormatInt(time_taken, 10))
+		utility.LogTest("Time used for getting data: " + strconv.FormatInt(time_taken, 10))
+		utility.LogTest("Data received: " + strconv.FormatInt(datatransferred, 10))
+		utility.LogTest("Bandwidth: " + strconv.FormatInt(datatransferred/time_taken, 10))
 	}
 
 	for _, file := range files_with_appends {
