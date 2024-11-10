@@ -430,11 +430,9 @@ func handleIncomingFileConnection(conn net.Conn) {
 		reqData.MultiAppend = true
 		reqData.Operation = "append"
 
-		for i := 0; i < 1000; i++ {
-			SendAppends(reqData, filename)
-			// Optional: Add a small delay between appends if needed
-			// time.Sleep(time.Millisecond * 10)
-		}
+		SendAppends(reqData, filename)
+		// Optional: Add a small delay between appends if needed
+		// time.Sleep(time.Millisecond * 10)
 
 		resp.Data = []byte("Append request from VM " + clientIp + " sent")
 		utility.LogMessage(string(resp.Data))
