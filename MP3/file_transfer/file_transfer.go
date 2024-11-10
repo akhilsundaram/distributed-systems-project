@@ -297,7 +297,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 
 	case "merge":
 		hydfsPath := utility.HYDFS_DIR + "/" + parsedData.Filename
-		fmt.Printf("Merging all replicas of %s in HyDFS\n", hydfsPath)
+		// fmt.Printf("Merging all replicas of %s in HyDFS\n", hydfsPath)
 
 		// Check if file exists
 		if !utility.FileExists(hydfsPath) {
@@ -626,13 +626,11 @@ func HyDFSClient(request ClientData) {
 		// handleAppend(filename, localPath)
 
 	case "merge":
-		fmt.Printf("Merging all replicas of %s in HyDFS\n", filename)
-
 		// handleMerge(filename)
 		fileID, senderIPs, _ := GetSuccesorIPsForFilename(filename)
 		request.RingID = fileID
 		request.TimeStamp = time.Now()
-		fmt.Printf("Merging file %s (ID = %d) at HyDFS node %s \n", filename, fileID, senderIPs[0])
+		fmt.Printf("Merging file %s (ID = %d) , request sent to HyDFS node %s \n", filename, fileID, senderIPs[0])
 
 		wg.Add(1)
 		go func() {
@@ -651,6 +649,7 @@ func HyDFSClient(request ClientData) {
 		// Wait for the goroutine to finish
 		wg.Wait()
 		utility.LogMessage("File merge operation completed")
+		fmt.Printf("File merge operation completed")
 
 	case "delete":
 		fmt.Printf("Deleting %s from HyDFS\n", filename)
