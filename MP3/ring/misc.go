@@ -103,6 +103,11 @@ func dropFilesNotInRange(low uint32, high uint32) {
 	for filename, _ := range hydfs {
 		if _, exists := needed[filename]; exists {
 			handleDelete(filename)
+			appends_of_file := utility.GetEntries(filename)
+			if len(appends_of_file) > 0 {
+				utility.DeleteEntries(filename)
+				utility.ClearAppendFiles(utility.HYDFS_APPEND, filename)
+			}
 		}
 	}
 }
