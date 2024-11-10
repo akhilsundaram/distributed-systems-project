@@ -89,7 +89,7 @@ func LogMessage(message string) {
 }
 
 func LogTest(message string) {
-	tinitLogger(TEST_LOGGER_FILE)
+	tinitLogger()
 	tmu.Lock()
 	defer tmu.Unlock()
 	tlogger.Println(message)
