@@ -417,7 +417,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 
 		reqData.MultiAppend = true
 		reqData.Operation = "append"
-		go SendAppends(reqData, filename)
+		SendAppends(reqData, filename)
 		resp.Data = []byte("Append request from VM " + clientIp + " sent")
 		utility.LogMessage(string(resp.Data))
 
