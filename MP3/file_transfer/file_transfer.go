@@ -215,6 +215,9 @@ func handleIncomingFileConnection(conn net.Conn) {
 			resp.Hash = value.Hash
 			resp.TimeStamp = value.Timestamp
 			resp.RingId = value.RingId
+			if value.Appends > 0 {
+				resp.HasAppend = true
+			}
 		} else {
 			utility.LogMessage("File metadata for " + hydfsPath + "not found in hydfs file store")
 			// for filename, v := utility.GetAllHyDFSMetadata() {
@@ -431,7 +434,6 @@ func HyDFSClient(request ClientData) {
 
 		// for now, test without cache
 
-		exists = false
 		if exists {
 			utility.LogMessage(filename + " found in cache, entry : " + entry.Filename + ", " + entry.Hash + ", " + entry.Timestamp.String())
 			responses := GetFilenameReplicasMetadata(filename, senderIPs)
@@ -451,7 +453,7 @@ func HyDFSClient(request ClientData) {
 			} else {
 				// if not , then use the ip returned by cache to request for file data
 				// can be handled by the else case below
-				utility.LogMessage("Cache entry stale, requesting vm ip - " + vm_ip + " to send latest version")
+				utility.LogMessage("Cache entry stale, requesting vms to send latest version")
 			}
 		}
 		if !exists || vm_ip != "" {
@@ -655,26 +657,6 @@ func GetSuccesorIPsForFilename(filename string) (uint32, []string, []string) {
 	return ringID, ips, servers_list
 }
 
-func SendRequestToNodes(ips []string, request ClientData) []Response {
-	responses := make(chan Response, len(ips))
-	var wg sync.WaitGroup
-	utility.LogMessage("")
-	for _, ip := range ips {
-		wg.Add(1)
-		go func(ip string) {
-			defer wg.Done()
-			SendRequest(ip, request)
-		}(ip)
-	}
-
-	go func() {
-		wg.Wait()
-		close(responses)
-	}()
-
-	return collectResponses(responses, request, len(ips))
-}
-
 func SendRequest(ip string, request ClientData) (*ResponseJson, error) {
 	// Establish TCP connection
 	utility.LogMessage("Sending TCP request to " + ip)
@@ -748,46 +730,6 @@ func SendRequest(ip string, request ClientData) (*ResponseJson, error) {
 	}
 
 	return &response, nil
-}
-
-func collectResponses(responses <-chan Response, request ClientData, limit int) []Response {
-	// After getting response, what should be done to the response before sending control
-	// back to the client terminal
-	var result []Response
-	cmd := request.Operation
-	counter := 0
-	utility.LogMessage("Recevied response from server")
-	for resp := range responses {
-
-		if resp.Err != nil {
-			// recieve error , parsed from conn buffer
-			utility.LogMessage("Error from ip " + resp.IP + " - " + resp.Err.Error())
-		} else {
-			switch cmd {
-			case "get":
-				utility.LogMessage("File Get Ack from IP : " + resp.IP + ", file timestamp = " + resp.TimeStamp.String())
-				err := writeResponseToFile(resp.Data, request.LocalFilePath)
-				if err != nil {
-					resp.Err = fmt.Errorf("failed to write response to file: %v", err)
-				}
-				fmt.Println("File written at path : " + request.LocalFilePath)
-			case "merge":
-				utility.LogMessage("File Merge request Ack from IP : " + resp.IP + ", file timestamp = " + resp.TimeStamp.String())
-			case "create":
-				// handle write responses
-				utility.LogMessage("File Write Ack from IP (written successfully): " + resp.IP + ", ack msg : " + string(resp.Data))
-				counter += 1
-			default:
-				utility.LogMessage("Unknown command in CollectResponses: " + cmd)
-			}
-			result = append(result, resp)
-		}
-		if len(result) == limit {
-			// at how many responses do we stop parsing , eg if we quorum == 2 , then set limit to 2
-			break
-		}
-	}
-	return result
 }
 
 func GetFileFromReplicas(senderIPs []string, request ClientData) []ResponseJson {
@@ -961,6 +903,13 @@ func ParseCacheResponses(responses []ResponseJson, cachedFileTS time.Time, cache
 		if response.TimeStamp.Equal(cachedFileTS) && response.Hash != cachedFileHash {
 			utility.LogMessage(fmt.Sprintf("Found different version with same timestamp on %s. Local hash: %s, Remote hash: %s",
 				response.IP, cachedFileHash, response.Hash))
+			return response.IP
+		}
+
+		// pre flight cache check resp tells us that the file name has some appends, in this case always refresh cache
+		if response.HasAppend {
+			utility.LogMessage("HYDFS node " + response.IP + " has appends for the file which we are checking")
+			utility.LogMessage("Because of this, we will be sending request to all VMs and refreshing cache entry")
 			return response.IP
 		}
 	}
