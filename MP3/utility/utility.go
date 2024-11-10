@@ -37,18 +37,19 @@ type FileAppend struct {
 }
 
 var (
-	LOGGER_FILE  = "/home/log/hydfs.log"
-	HYDFS_DIR    = "/home/hydfs/files"
-	HYDFS_CACHE  = "/home/hydfs/cache"
-	HYDFS_TMP    = "/home/hydfs/tmp"
-	HYDFS_APPEND = "/home/hydfs/append"
+	LOGGER_FILE      = "/home/log/hydfs.log"
+	HYDFS_DIR        = "/home/hydfs/files"
+	HYDFS_CACHE      = "/home/hydfs/cache"
+	HYDFS_TMP        = "/home/hydfs/tmp"
+	HYDFS_APPEND     = "/home/hydfs/append"
+	TEST_LOGGER_FILE = "/home/hydfs/test.log"
 )
 
 /* LOGGER STUFF */
-func initLogger() {
+func initLogger(log_file string) {
 	once.Do(func() {
 		var err error
-		logFile, err = os.OpenFile(LOGGER_FILE, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		logFile, err = os.OpenFile(log_file, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -63,7 +64,14 @@ func init() {
 }
 
 func LogMessage(message string) {
-	initLogger()
+	initLogger(LOGGER_FILE)
+	mu.Lock()
+	defer mu.Unlock()
+	logger.Println(message)
+}
+
+func LogTest(message string) {
+	initLogger(TEST_LOGGER_FILE)
 	mu.Lock()
 	defer mu.Unlock()
 	logger.Println(message)

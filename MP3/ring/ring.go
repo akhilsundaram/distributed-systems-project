@@ -27,6 +27,8 @@ var (
 	replicas  = 3
 	ringLock  sync.Mutex
 	port      = "5050"
+	//TEST ONLY
+	del_check = false
 )
 
 /*Initialize a new server for hydfs ring.*/
@@ -106,21 +108,6 @@ func initRing() {
 			pullFiles(low_self, high_self, ring[n].serverName)
 		}
 	}
-
-	// pullFiles(ring[((current_node_index-1)%len(ring)+len(ring))%len(ring)].hashID, ring[(current_node_index+1)%len(ring)].hashID, ring[(current_node_index+1)%len(ring)].serverName)
-	// // Pull data/files on node from predecessor at node init. // //Make a call to file server that reqs files from numbers [x,y] inclusive. //
-	// utility.LogMessage("pull files in init end")
-	// //Pull replica files into your system
-	// num := ((current_node_index-replicas)%len(ring) + len(ring)) % len(ring)
-	// for i := 0; i < replicas-1; i++ {
-	// 	utility.LogMessage("more pull files in init start - loop")
-	// 	utility.LogMessage("Trying to pull from - " + ring[(num+i+1)%len(ring)].serverName)
-	// 	pullFiles(ring[(num+i)%len(ring)].hashID, ring[(num+i+1)%len(ring)].hashID, ring[(num+i+1)%len(ring)].serverName)
-	// } // can add later - failure to find node/ we can retry to get the files from successor of this node.
-
-	// //Add logic to event to pull replica data ? or a push based on add ??
-	// Always called when you're the new node in the system
-	// no nodes/ first node in the system
 }
 
 func UpdateRingMemeber(node string, action membership.MemberState) error {
@@ -160,6 +147,8 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 		return nil
 
 	case membership.Delete: // remove from ring
+		start_time := time.Now()
+		test_check := false
 		if !nodeInRing(node) {
 			return fmt.Errorf("error - Node %v not in Ring! cannot delete", node)
 		}
@@ -173,6 +162,7 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 
 		// The two successors of a deleted element will replicate one node further in.
 		// Node right after deleted node, (at idx deletion%len(ring)th position and two nodes after that will have files added in their replication.
+		del_check = true
 		for i := 0; i < replicas; i++ {
 			num := (deletion + i) % len(ring)
 			if ring[num].serverName == membership.My_hostname {
@@ -181,17 +171,15 @@ func UpdateRingMemeber(node string, action membership.MemberState) error {
 					pull_from := (num - j + len(ring)) % len(ring)
 					utility.LogMessage("PULL ON DELETE -from: " + ring[(num-j+len(ring))%len(ring)].serverName + "to: " + membership.My_hostname)
 					utility.LogMessage("with ranges - [" + strconv.FormatUint(uint64(low), 10) + "," + strconv.FormatUint(uint64(high), 10))
-					pullFiles(low, high, ring[pull_from].serverName)
+					test_check = test_check || pullFiles(low, high, ring[pull_from].serverName)
 				}
 			}
 		}
-
-		// partial optimization - do later. In the 3rd node after deleted node, we only need to pull a partial subset of nodes instead of everything,
-		// But we can handle it in pullfiles, NO NEED HERE
-		// if ring[(deletion+replicas-1)%len(ring)].serverName == membership.My_hostname {
-		// 	num := ((deletion-1)%len(ring) + len(ring)) % len(ring)
-		// 	pullFiles(ring[num].hashID, hash_value_of_node, ring[deletion%len(ring)].serverName)
-		// }
+		del_check = false
+		end_time := time.Since(start_time)
+		if test_check {
+			utility.LogTest("Duration for replication: " + strconv.FormatInt(int64(end_time.Milliseconds()), 10))
+		}
 		return nil
 
 	}

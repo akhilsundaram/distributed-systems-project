@@ -138,6 +138,8 @@ func callFileServerFiles(server string, files []string) {
 	defer cancel()
 
 	// utility.LogMessage("here - 2")
+	start_time := time.Now()
+	var datatransferred int64 = 0
 	stream, err := client.GetFiles(ctx, fileRequest)
 	if err != nil {
 		utility.LogMessage("error getiing file - " + err.Error())
@@ -169,6 +171,7 @@ func callFileServerFiles(server string, files []string) {
 		//	Timestamp: resp.Timestamp.AsTime(),
 		//	RingId:    utility.Hashmurmur(resp.Filename),
 		//}
+		datatransferred += int64(len(resp.Content))
 		NewFileMetaData := utility.FileMetaData{
 			Hash:      resp.Hash,
 			Timestamp: resp.Timestamp.AsTime(),
@@ -179,6 +182,10 @@ func callFileServerFiles(server string, files []string) {
 		if resp.Append > 0 {
 			files_with_appends = append(files_with_appends, resp.Filename)
 		}
+	}
+	time_taken := time.Since(start_time).Milliseconds()
+	if del_check {
+		utility.LogTest("Bandwidth used for delete: " + strconv.FormatInt(time_taken, 10))
 	}
 
 	for _, file := range files_with_appends {
@@ -274,10 +281,10 @@ func callFileServerAppendFiles(server string, filename string) {
 
 }
 
-func pullFiles(low uint32, high uint32, server string) {
+func pullFiles(low uint32, high uint32, server string) bool {
 	if server == membership.My_hostname {
 		utility.LogMessage("No pulls from self please")
-		return
+		return false
 	}
 	// IF we have files within this range already -----> add a data struct for this if not there.
 	//Don't do anything
@@ -289,7 +296,7 @@ func pullFiles(low uint32, high uint32, server string) {
 	remote_list, remote_appends := callFileServerNames(server, low, high)
 	if len(remote_list) == 0 {
 		utility.LogMessage("No files received in the range")
-		return
+		return false
 	}
 	utility.LogMessage("files to pull")
 
@@ -313,10 +320,19 @@ func pullFiles(low uint32, high uint32, server string) {
 		}
 	}
 
-	callFileServerFiles(server, diff)
+	if len(diff) > 0 {
+		callFileServerFiles(server, diff)
+	}
+
 	for _, file_name := range diff_appends {
 		utility.LogMessage("inconsistent appends - pulling from  - " + file_name)
 		callFileServerAppendFiles(server, file_name)
 	}
+
+	//Testing only
+	if len(diff) > 0 || len(diff_appends) > 0 {
+		return true
+	}
+	return false
 
 }
