@@ -379,15 +379,29 @@ func main() {
 					file_transfer.HyDFSClient(req_data)
 				}
 				fmt.Println("Files created successfully")
-			case "test3.1":
+			case "test4.1":
 				fmt.Println("With cache ON (default): ")
 				start_time := time.Now()
 				for i := 0; i < 25000; i++ {
 					file_name := strconv.Itoa(rand.Intn(10000))
 					var req_data file_transfer.ClientData
-					req_data.Operation = "get"
-					req_data.Filename = file_name
-					req_data.LocalFilePath = "/home/test/get/" + file_name
+					rand.Seed(time.Now().UnixNano())
+
+					// Generate a random integer between 1 and 10
+					randomInt := rand.Intn(10) + 1
+
+					// Perform different operations based on the value of randomInt
+					if randomInt == 1 {
+						// appends
+						req_data.Operation = "append"
+						req_data.Filename = file_name
+						req_data.LocalFilePath = "/home/code/g59/MP3/data/test2/4kb_file.txt"
+					} else {
+						// get
+						req_data.Operation = "get"
+						req_data.Filename = file_name
+						req_data.LocalFilePath = "/home/test/get/" + file_name
+					}
 					file_transfer.HyDFSClient(req_data)
 					if i%2500 == 0 {
 						fmt.Printf("at file num : %d\n", i)
@@ -403,9 +417,24 @@ func main() {
 					for i := 0; i < 25000; i++ {
 						file_name := strconv.Itoa(rand.Intn(10000))
 						var req_data file_transfer.ClientData
-						req_data.Operation = "get"
-						req_data.Filename = file_name
-						req_data.LocalFilePath = "/home/test/get/" + file_name
+
+						rand.Seed(time.Now().UnixNano())
+
+						// Generate a random integer between 1 and 10
+						randomInt := rand.Intn(10) + 1
+
+						// Perform different operations based on the value of randomInt
+						if randomInt == 1 {
+							// appends
+							req_data.Operation = "append"
+							req_data.Filename = file_name
+							req_data.LocalFilePath = "/home/code/g59/MP3/data/test2/4kb_file.txt"
+						} else {
+							// get
+							req_data.Operation = "get"
+							req_data.Filename = file_name
+							req_data.LocalFilePath = "/home/test/get/" + file_name
+						}
 						file_transfer.HyDFSClient(req_data)
 						if i%2500 == 0 {
 							fmt.Printf("at file num : %d\n", i)
@@ -416,7 +445,7 @@ func main() {
 
 				}
 
-			case "test3.2":
+			case "test4.2":
 				zipf_file_list := generateZipfList(25000, 10000)
 				fmt.Println("With cache ON (default): ")
 				var time_taken int64 = 0
@@ -424,9 +453,23 @@ func main() {
 				for i := 0; i < 25000; i++ {
 					file_name := strconv.Itoa(zipf_file_list[i])
 					var req_data file_transfer.ClientData
-					req_data.Operation = "get"
-					req_data.Filename = file_name
-					req_data.LocalFilePath = "/home/test/get/" + file_name
+					rand.Seed(time.Now().UnixNano())
+
+					// Generate a random integer between 1 and 10
+					randomInt := rand.Intn(10) + 1
+
+					// Perform different operations based on the value of randomInt
+					if randomInt == 1 {
+						// appends
+						req_data.Operation = "append"
+						req_data.Filename = file_name
+						req_data.LocalFilePath = "/home/code/g59/MP3/data/test2/4kb_file.txt"
+					} else {
+						// get
+						req_data.Operation = "get"
+						req_data.Filename = file_name
+						req_data.LocalFilePath = "/home/test/get/" + file_name
+					}
 					file_transfer.HyDFSClient(req_data)
 					if i%2500 == 0 {
 						fmt.Printf("at file num : %d\n", i)
@@ -441,9 +484,23 @@ func main() {
 					for i := 0; i < 25000; i++ {
 						file_name := strconv.Itoa(zipf_file_list[i])
 						var req_data file_transfer.ClientData
-						req_data.Operation = "get"
-						req_data.Filename = file_name
-						req_data.LocalFilePath = "/home/test/get/" + file_name
+						rand.Seed(time.Now().UnixNano())
+
+						// Generate a random integer between 1 and 10
+						randomInt := rand.Intn(10) + 1
+
+						// Perform different operations based on the value of randomInt
+						if randomInt == 1 {
+							// appends
+							req_data.Operation = "append"
+							req_data.Filename = file_name
+							req_data.LocalFilePath = "/home/code/g59/MP3/data/test2/4kb_file.txt"
+						} else {
+							// get
+							req_data.Operation = "get"
+							req_data.Filename = file_name
+							req_data.LocalFilePath = "/home/test/get/" + file_name
+						}
 						file_transfer.HyDFSClient(req_data)
 						if i%2500 == 0 {
 							fmt.Printf("at file num : %d\n", i)

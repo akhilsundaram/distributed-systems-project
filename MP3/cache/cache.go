@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const MaxCacheSize = 4
+const MaxCacheSize = 20 // 50% of 40MB
 
 const MaxCacheSizeBytes = MaxCacheSize * 1024 * 1024 // 100 MB
 
