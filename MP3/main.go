@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"hydfs/cache"
 	"hydfs/file_transfer"
 	"hydfs/introducer"
 	"hydfs/membership"
@@ -302,6 +303,7 @@ func main() {
 				// file_transfer.HyDFSClient(requestData)
 				hydfsFS := utility.GetAllHyDFSMetadata()
 				ring.PrintVMRingID()
+				fmt.Printf("Total number of files in HYDFS: %d\n", len(hydfsFS))
 				for filename, v := range hydfsFS {
 					fmt.Printf("Filename: %s, Ring ID: %d, md5 hash: %s, timestamp: %s\n", filename, v.RingId, v.Hash, v.Timestamp)
 				}
@@ -367,6 +369,77 @@ func main() {
 				requestData.Filename = filename
 				runMergeTest(concurrentAppends, filePath, requestData)
 				// list_mem_ids function here
+			case "test_create":
+				for i := 0; i <= 10000; i++ {
+					var req_data file_transfer.ClientData
+					file_name := strconv.Itoa(i)
+					req_data.Operation = "create"
+					req_data.LocalFilePath = "/home/code/g59/MP3/data/test2/4kb_file.txt"
+					req_data.Filename = file_name
+					file_transfer.HyDFSClient(req_data)
+				}
+				fmt.Println("Files created successfully")
+			case "test3.1":
+				fmt.Println("With cache ON (default): ")
+				var time_taken int64 = 0
+				for i := 0; i < 25000; i++ {
+					file_name := strconv.Itoa(rand.Intn(10000))
+					var req_data file_transfer.ClientData
+					req_data.Operation = "get"
+					req_data.Filename = file_name
+					req_data.LocalFilePath = "/home/test/get/" + file_name
+					start_time := time.Now()
+					file_transfer.HyDFSClient(req_data)
+					time_taken += time.Since(start_time).Milliseconds()
+				}
+				fmt.Printf("Time taken for 25k files, CacheSize: %d% => total time: %dms, average latency: %dms \n", (cache.MaxCacheSize/40)*100, time_taken, time_taken/25000)
+				if cache.MaxCacheSize == 4 {
+					fmt.Println("With cache OFF (default): ")
+					file_transfer.Cache_status = false
+					var time_taken int64 = 0
+					for i := 0; i < 25000; i++ {
+						file_name := strconv.Itoa(rand.Intn(10000))
+						var req_data file_transfer.ClientData
+						req_data.Operation = "get"
+						req_data.Filename = file_name
+						req_data.LocalFilePath = "/home/test/get/" + file_name
+						start_time := time.Now()
+						file_transfer.HyDFSClient(req_data)
+						time_taken += time.Since(start_time).Milliseconds()
+					}
+				}
+
+			case "test3.2":
+				zipf_file_list := generateZipfList(25000, 10000)
+				fmt.Println("With cache ON (default): ")
+				var time_taken int64 = 0
+				for i := 0; i < 25000; i++ {
+					file_name := strconv.Itoa(zipf_file_list[i])
+					var req_data file_transfer.ClientData
+					req_data.Operation = "get"
+					req_data.Filename = file_name
+					req_data.LocalFilePath = "/home/test/get/" + file_name
+					start_time := time.Now()
+					file_transfer.HyDFSClient(req_data)
+					time_taken += time.Since(start_time).Milliseconds()
+				}
+				fmt.Printf("Time taken for 25k files, CacheSize: %dMB => total time: %dms, average latency: %dms \n", cache.MaxCacheSize*10, time_taken, time_taken/25000)
+				if cache.MaxCacheSize == 4 {
+					fmt.Println("With cache OFF (default): ")
+					file_transfer.Cache_status = false
+					var time_taken int64 = 0
+					for i := 0; i < 25000; i++ {
+						file_name := strconv.Itoa(zipf_file_list[i])
+						var req_data file_transfer.ClientData
+						req_data.Operation = "get"
+						req_data.Filename = file_name
+						req_data.LocalFilePath = "/home/test/get/" + file_name
+						start_time := time.Now()
+						file_transfer.HyDFSClient(req_data)
+						time_taken += time.Since(start_time).Milliseconds()
+					}
+				}
+
 			default:
 				fmt.Printf("Unknown command: %s\n", cmd)
 			}
@@ -374,6 +447,17 @@ func main() {
 	}()
 
 	wg.Wait()
+}
+
+func generateZipfList(size int, max uint64) []int {
+	s := 1.2 // moderate skew
+	v := 1.0 // Scaling factor
+	zipf := rand.NewZipf(rand.New(rand.NewSource(rand.Int63())), s, v, max)
+	zipfList := make([]int, size)
+	for i := 0; i < size; i++ {
+		zipfList[i] = int(zipf.Uint64())
+	}
+	return zipfList
 }
 
 func ContinouslySendPings() {

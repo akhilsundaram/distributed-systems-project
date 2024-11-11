@@ -495,7 +495,7 @@ func HyDFSClient(request ClientData, options ...[]string) {
 
 		// for now, test without cache
 
-		if exists {
+		if exists && Cache_status {
 			utility.LogMessage(filename + " found in cache, entry : " + entry.Filename + ", " + entry.Hash + ", " + entry.Timestamp.String())
 			responses := GetFilenameReplicasMetadata(filename, senderIPs)
 			vm_ip = ParseCacheResponses(responses, entry.Timestamp, entry.Hash)

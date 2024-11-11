@@ -8,8 +8,9 @@ import (
 	"time"
 )
 
-const MaxCacheSize = 5
-const MaxCacheSizeBytes = 100 * 1024 * 1024 // 100 MB
+const MaxCacheSize = 4
+
+const MaxCacheSizeBytes = MaxCacheSize * 1024 * 1024 // 100 MB
 
 type CachedFileEntry struct {
 	Filename    string
