@@ -352,6 +352,7 @@ func main() {
 					continue
 				}
 				fmt.Print("Enter filename for hydfs file name :")
+				scanner.Scan()
 				filename := strings.TrimSpace(scanner.Text())
 
 				if fileSize == 4 {
