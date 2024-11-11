@@ -358,7 +358,7 @@ func main() {
 				if fileSize == 4 {
 					filePath = "/home/code/g59/MP3/data/test2/4kb_file.txt"
 				} else {
-					filePath = "/home/code/g59/MP3/data/test2//40kb_file.txt"
+					filePath = "/home/code/g59/MP3/data/test2/40kb_file.txt"
 				}
 
 				fmt.Printf("File size selected: %d KB\n", fileSize)
