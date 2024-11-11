@@ -406,7 +406,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 				time_taken := time.Since(start_time).Milliseconds()
 				utility.LogTest("MERGE HAS ENDED !!! REJOICE !!! ")
 				utility.LogTest(fmt.Sprintf("Time taken (ms) to merge on client %s and its replicas for filename %s is : " + strconv.FormatInt(time_taken, 10)))
-
+				fmt.Printf("Time taken (ms) to merge on client %s and its replicas for filename %s is : " + strconv.FormatInt(time_taken, 10) + "\n")
 				utility.LogMessage(string(resp.Data))
 			} else {
 				// no need to do any merge
