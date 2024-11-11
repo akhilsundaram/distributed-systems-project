@@ -381,63 +381,76 @@ func main() {
 				fmt.Println("Files created successfully")
 			case "test3.1":
 				fmt.Println("With cache ON (default): ")
-				var time_taken int64 = 0
+				start_time := time.Now()
 				for i := 0; i < 25000; i++ {
 					file_name := strconv.Itoa(rand.Intn(10000))
 					var req_data file_transfer.ClientData
 					req_data.Operation = "get"
 					req_data.Filename = file_name
 					req_data.LocalFilePath = "/home/test/get/" + file_name
-					start_time := time.Now()
 					file_transfer.HyDFSClient(req_data)
-					time_taken += time.Since(start_time).Milliseconds()
+					if i%2500 == 0 {
+						fmt.Printf("at file num : %d\n", i)
+					}
+
 				}
-				fmt.Printf("Time taken for 25k files, CacheSize: %d% => total time: %dms, average latency: %dms \n", (cache.MaxCacheSize/40)*100, time_taken, time_taken/25000)
+				time_taken := time.Since(start_time).Milliseconds()
+				fmt.Printf("Time taken for 25k files, CacheSize: %fMB => total time: %dms, average latency: %dms \n", cache.MaxCacheSize*10.0, time_taken, time_taken/25000)
 				if cache.MaxCacheSize == 4 {
 					fmt.Println("With cache OFF (default): ")
 					file_transfer.Cache_status = false
-					var time_taken int64 = 0
+					start_time := time.Now()
 					for i := 0; i < 25000; i++ {
 						file_name := strconv.Itoa(rand.Intn(10000))
 						var req_data file_transfer.ClientData
 						req_data.Operation = "get"
 						req_data.Filename = file_name
 						req_data.LocalFilePath = "/home/test/get/" + file_name
-						start_time := time.Now()
 						file_transfer.HyDFSClient(req_data)
-						time_taken += time.Since(start_time).Milliseconds()
+						if i%2500 == 0 {
+							fmt.Printf("at file num : %d\n", i)
+						}
 					}
+					time_taken := time.Since(start_time).Milliseconds()
+					fmt.Printf("Time taken for 25k files, CacheSize: %fMB => total time: %dms, average latency: %dms \n", cache.MaxCacheSize*10.0, time_taken, time_taken/25000)
+
 				}
 
 			case "test3.2":
 				zipf_file_list := generateZipfList(25000, 10000)
 				fmt.Println("With cache ON (default): ")
 				var time_taken int64 = 0
+				start_time := time.Now()
 				for i := 0; i < 25000; i++ {
 					file_name := strconv.Itoa(zipf_file_list[i])
 					var req_data file_transfer.ClientData
 					req_data.Operation = "get"
 					req_data.Filename = file_name
 					req_data.LocalFilePath = "/home/test/get/" + file_name
-					start_time := time.Now()
 					file_transfer.HyDFSClient(req_data)
-					time_taken += time.Since(start_time).Milliseconds()
+					if i%2500 == 0 {
+						fmt.Printf("at file num : %d\n", i)
+					}
 				}
-				fmt.Printf("Time taken for 25k files, CacheSize: %dMB => total time: %dms, average latency: %dms \n", cache.MaxCacheSize*10, time_taken, time_taken/25000)
+				time_taken = time.Since(start_time).Milliseconds()
+				fmt.Printf("Time taken for 25k files, CacheSize: %fMB => total time: %dms, average latency: %dms \n", cache.MaxCacheSize*10.0, time_taken, time_taken/25000)
 				if cache.MaxCacheSize == 4 {
 					fmt.Println("With cache OFF (default): ")
 					file_transfer.Cache_status = false
-					var time_taken int64 = 0
+					start_time := time.Now()
 					for i := 0; i < 25000; i++ {
 						file_name := strconv.Itoa(zipf_file_list[i])
 						var req_data file_transfer.ClientData
 						req_data.Operation = "get"
 						req_data.Filename = file_name
 						req_data.LocalFilePath = "/home/test/get/" + file_name
-						start_time := time.Now()
 						file_transfer.HyDFSClient(req_data)
-						time_taken += time.Since(start_time).Milliseconds()
+						if i%2500 == 0 {
+							fmt.Printf("at file num : %d\n", i)
+						}
 					}
+					time_taken := time.Since(start_time).Milliseconds()
+					fmt.Printf("Time taken for 25k files, CacheSize: %fMB => total time: %dms, average latency: %dms \n", cache.MaxCacheSize*10.0, time_taken, time_taken/25000)
 				}
 
 			default:
