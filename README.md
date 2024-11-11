@@ -116,6 +116,45 @@ Created a group membership system which detects failures and maintains a real-ti
 >**PS** : Before running this, ensure that Listeners are up in all the machines ! 
 
 
+**Machine Problem 3** - **Distributed File System (built upon Machine Problem 2 - distributed group membership and failure detection** 
+
+
+**Code Instructions**
+
+
+- **Start the Introducer**: Whichever machine is chosen to be the introducer, perform following on that node (by default, VM Node 1)
+
+
+>`>$ cd MP3/`
+>
+>`>$ go run .`
+
+
+**Start the other Nodes to join the system**: Run the same command on other nodes, and use the cli prompts to see the membership list at any node, at any time !
+
+
+>`>$ cd MP3/`
+>
+>`>$ go run .`
+
+** Follow the prompts when entering each command in the CLI (create, get, append, merge, ls, store) and input the values in the format that it expects. **
+
+**Project Structure**
+
+
+>**File Transfer Package** :
+> This contains the file transfer logic between nodes in the distributed file system.
+
+
+>**Ring Package** : 
+> This contains the code for the Chord ring structure, and replication of data upon node rejoin / leave.
+
+
+>**Cache Package** : 
+> This contains code for the caching mechanism for the files which have been previously fetched to the local file system of the node.
+
+
+
 
 
 
