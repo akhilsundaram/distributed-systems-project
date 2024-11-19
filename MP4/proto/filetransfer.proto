@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+package ring;
+
+option go_package = "../ring/";
+
+service FileService {
+  rpc GetFiles(FileRequest) returns (stream FileResponse);
+}
+
+message FileRequest {
+  string command = 1;           // Command: "getfiles" or "getfilenames" or "getappendfiles"
+  repeated string filenames = 2; // List of filenames requested by the client
+  repeated uint32 ranges = 3;
+  string filename = 4;
+}
+
+message FileResponse {
+  string filename = 1;          // Name of the file
+  bytes content = 2;            // Content of the file in binary format (used for "getfiles" command)
+  string hash = 3;              // MD5 hash of the file content (used for "getfiles" command)
+  repeated string filenames = 4; // List of filenames (used for "getfilenames" command)
+  google.protobuf.Timestamp timestamp = 5;
+  int64 append = 6;
+  string ip = 7;
+  string filepath = 8;
+  repeated int64 appends = 9;
+}
