@@ -95,6 +95,15 @@ func AddOrUpdateCacheEntry(filename, hash string, ringId uint32, timeStamp time.
 	CachedFileStore.entries = append(CachedFileStore.entries, newEntry)
 	CachedFileStore.currentSize += filesize
 	utility.LogMessage("Added new cache entry: " + filename)
+
+	// Add to cache directory
+	cachePath := utility.HYDFS_CACHE + "/" + filename
+	utility.LogMessage("Copying " + filePath + " to " + cachePath)
+
+	error_copy := utility.CopyFile(filePath, cachePath)
+	if error_copy != nil {
+		utility.LogMessage("Error copying file to cache directory: " + error_copy.Error())
+	}
 }
 
 // New method to increment the counter for a specific cache entry

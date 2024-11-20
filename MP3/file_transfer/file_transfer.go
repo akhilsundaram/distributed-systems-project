@@ -204,9 +204,12 @@ func handleIncomingFileConnection(conn net.Conn) {
 					resp.Hash = md5String
 					resp.HasAppend = true
 					resp.Data = fileData
+					resp.TimeStamp = metadata.Timestamp
 				} else {
 					// else if file has no appends, just send the original fileData
 					resp.Data = fileData
+					resp.TimeStamp = metadata.Timestamp
+					resp.Hash = metadata.Hash
 				}
 				utility.LogMessage("File " + hydfsPath + " read successfully")
 			}
@@ -515,6 +518,7 @@ func HyDFSClient(request ClientData, options ...[]string) {
 			responses := GetFileFromReplicas(senderIPs, request)
 			latestResponse := ParseGetRespFromReplicas(responses, senderIPs[0], localPath)
 			// Add response to cache
+			utility.LogMessage("Filename : " + filename + " to be stored in cache , timestamp saved as : " + latestResponse.TimeStamp.String())
 			cache.AddOrUpdateCacheEntry(filename, latestResponse.Hash, latestResponse.RingId, latestResponse.TimeStamp, localPath)
 
 		}
@@ -821,6 +825,8 @@ func ParseGetRespFromReplicas(responses []ResponseJson, primaryNodeIP string, lo
 	var latestTimestamp time.Time
 	var latestResponse ResponseJson
 
+	utility.LogMessage("IN CACHE Latest timestamp before response parsing : " + latestTimestamp.String())
+
 	for _, response := range responses {
 		// Skip responses with errors
 		if response.Err != "" {
@@ -837,11 +843,13 @@ func ParseGetRespFromReplicas(responses []ResponseJson, primaryNodeIP string, lo
 
 		// Keep track of the latest timestamp
 		if response.TimeStamp.After(latestTimestamp) {
+			utility.LogMessage("IN CACHE Latest timestamp : " + latestTimestamp.String() + " , response timestamp : " + response.TimeStamp.String())
 			latestTimestamp = response.TimeStamp
 			latestResponse = response
 		}
 	}
 
+	utility.LogMessage("IN CACHE Latest timestamp after response parsing : " + latestTimestamp.String())
 	// can rework quorum for appends. need to check hash and timestamp both
 	// Check for quorum (at least 2 matching responses)
 	for i := 0; i < len(validResponses); i++ {
