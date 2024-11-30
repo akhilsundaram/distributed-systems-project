@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package stormworker;
+
+option go_package = "../stormworker/";
+
+// The StormWorker service definition.
+service StormWorker {
+  rpc PerformOperation (StormworkerRequest) returns (StormworkerResponse);
+}
+
+// The request message containing operation details.
+message StormworkerRequest {
+  string operation = 1;         // Custom operation
+  string input_file_name = 2;   // The name of the file to be processed.
+  int32 range_start = 3;        // The start of the range in the file (inclusive).
+  int32 range_end = 4;          // The end of the range in the file (inclusive).
+}
+
+// The response message containing the operation result.
+message StormworkerResponse {
+  string status = 1;            // The status of the operation (e.g., "success", "failure").
+  string message = 2;           // A detailed message about the operation result.
+}
