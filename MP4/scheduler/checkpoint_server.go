@@ -2,15 +2,16 @@ package scheduler
 
 import (
 	"fmt"
+	"rainstorm/stormgrpc"
 	"rainstorm/utility"
 	"strconv"
 )
 
 type CheckpointServer struct {
-	UnimplementedCheckpointServiceServer
+	stormgrpc.UnimplementedCheckpointServiceServer
 }
 
-func (s *CheckpointServer) Checkpoint(req *CheckpointRequest, stream CheckpointService_CheckpointServer) error {
+func (s *CheckpointServer) Checkpoint(req *stormgrpc.CheckpointRequest, stream stormgrpc.CheckpointService_CheckpointServer) error {
 	utility.LogMessage("RPC Checkpoint server entered - " + req.Vmname)
 	// Accept request
 	utility.LogMessage("RPC Checkpoint server entered - " + req.Vmname)
@@ -43,7 +44,7 @@ func (s *CheckpointServer) Checkpoint(req *CheckpointRequest, stream CheckpointS
 	utility.LogMessage("updated checkpoint stats for VM: " + req.Vmname + ", Stage: " + req.Stage + ", Lines Processed: " + strconv.FormatInt(req.LineRangeProcessed, 10) + ", Filename: " + req.Filename)
 
 	// send ack as the line number saved for that node[stage]
-	ack := &AckCheckpoint{
+	ack := &stormgrpc.AckCheckpoint{
 		LineAcked: req.LineRangeProcessed,
 	}
 

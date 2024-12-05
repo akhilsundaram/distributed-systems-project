@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"rainstorm/membership"
+	"rainstorm/stormgrpc"
 	"rainstorm/utility"
 	"strconv"
 	"sync"
@@ -80,7 +81,7 @@ func InitializeScheduler() {
 	}
 	checkpointServer := grpc.NewServer()
 	// RegisterFileServiceServer(checkpointServer, &FileServer{})
-	RegisterCheckpointServiceServer(checkpointServer, &CheckpointServer{})
+	stormgrpc.RegisterCheckpointServiceServer(checkpointServer, &CheckpointServer{})
 
 	go func() {
 		utility.LogMessage("RPC checkpoint server goroutine entered")
