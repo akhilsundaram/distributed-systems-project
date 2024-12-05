@@ -20,6 +20,8 @@ type RingMemberMessage struct {
 
 var RingMemberchan chan RingMemberMessage
 
+var SchedulerMemberchan chan RingMemberMessage
+
 // States
 type SuspicionState int8
 type MemberState int8
@@ -180,6 +182,8 @@ func AddMember(node_id string, hostname string) error {
 		}
 		RingMemberchan <- newMessage
 		utility.LogMessage("Sent message to Ring Channel - Add")
+		SchedulerMemberchan <- newMessage
+		utility.LogMessage("Sent message to Schedule Channel - Add")
 	}()
 
 	return nil
@@ -204,6 +208,8 @@ func DeleteMember(node_id string, hostname string) error {
 		}
 		RingMemberchan <- newMessage
 		utility.LogMessage("Sent message to Ring Channel - Delete")
+		SchedulerMemberchan <- newMessage
+		utility.LogMessage("Sent message to Schedule Channel - delete")
 		if hostname == My_hostname {
 			fmt.Printf("Node marked as failed, FAIL-STOP Mechanism applied, stopping process\n")
 			os.Exit(1)

@@ -1,6 +1,7 @@
 package utility
 
 import (
+	"bufio"
 	"crypto/md5"
 	"fmt"
 	"io"
@@ -305,4 +306,39 @@ func ClearAppendFiles(directoryPath, prefix string) error {
 
 		return nil
 	})
+}
+
+// -------------------------------------
+/* SCHEDULER Variables, Methods */
+
+func FileLineCount(filePath string) (int, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return 0, err
+	}
+	defer file.Close()
+
+	count := 0
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		count++
+	}
+	LogMessage(fmt.Sprintf("File %s has %d lines", filePath, count))
+	return count, scanner.Err()
+}
+
+// in case we have to use word count as Aggregate by Key function
+// this will return the ASCII value of the first letter of the word
+// and we will use a range of such ascii values to assign keys to Nodes
+// or we can just use utility.KeyMurmurHash(word)
+func GetFirstLetterASCII(word string) int {
+	if len(word) > 0 {
+		return int(word[0])
+	}
+	return -1
+}
+
+func KeyMurmurHash(word string, numTasks int) uint32 {
+	// return 0 , 1 , 2 , 3
+	return murmur3.Sum32([]byte(word)) % uint32(numTasks)
 }

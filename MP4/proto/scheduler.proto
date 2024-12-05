@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+package scheduler;
+
+option go_package = "../scheduler/";
+
+service YARNRainScheduler {
+  rpc YARNRainScheduler(ScheduleRequest) returns (stream ScheduleAckResponse);
+}
+
+message ScheduleRequest {
+  string stage = 1;            // stage: 1 , 2 , 3 (1 - transform, 2 - filter, 3 - aggregate) 
+  int64 line_range_start = 2;  // stage 1 , 2
+  int64 line_range_end = 3;    // stage 1 , 2
+  string filename = 4;         // might not use, keeping for now
+  int64 nodeid = 5;              // node id of the VM
+  repeated string key_ranges = 6; // stage 3
+}
+
+message ScheduleAckResponse {
+  string filename = 1;          // Name of the tmp file , can keep or remove
+  string vmname = 2;              // Name of the VM where task is running
+  google.protobuf.Timestamp timestamp = 3;  // to keep track when the stage is started for that particular VM
+}
