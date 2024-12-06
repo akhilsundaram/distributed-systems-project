@@ -15,7 +15,11 @@ import (
 //go:embed operators/op_exe/*
 var operators embed.FS
 
-func RunOp_exe(inputFilename, operation string, offset int, end int) {
+func RunOp_exe(inputFilename, operation string, offset int, end int, phase int) {
+	//Set status
+	setTaskRunning(phase, true)
+	defer setTaskRunning(phase, false)
+
 	// Get OP_EXE
 	binaryPath := filepath.Join("operators/op_exe", operation)
 	binaryFile, err := operators.Open(binaryPath)
@@ -60,7 +64,7 @@ func RunOp_exe(inputFilename, operation string, offset int, end int) {
 	lineNumber := 0
 	for scanner.Scan() {
 		lineNumber++
-		if lineNumber <= offset {
+		if lineNumber < offset {
 			continue
 		}
 		if end != -1 && lineNumber > end {
@@ -83,6 +87,7 @@ func RunOp_exe(inputFilename, operation string, offset int, end int) {
 
 		// For now, leave storing the output commented out
 		// Example: Store output in a file
+		// WRITE TO INTERMEDIATE FILE/APPEND
 		// outputFile.WriteString(fmt.Sprintf("Line %d output: %s\n", lineNumber, output.String()))
 
 		utility.LogMessage(fmt.Sprintf("Line %d output: %s\n", lineNumber, output.String()))
