@@ -10,6 +10,7 @@ import (
 	"rainstorm/membership"
 	"rainstorm/ping"
 	"rainstorm/ring"
+	"rainstorm/scheduler"
 	"rainstorm/utility"
 	"strconv"
 	"strings"
@@ -87,6 +88,8 @@ func main() {
 	go ring.StartRing()
 
 	go file_transfer.HyDFSServer()
+
+	go scheduler.InitializeScheduler()
 
 	// hash1, _ := utility.GetMD5("rainstorm1.txt")
 	// fmt.Println(" Hash of first file : " + hash1)

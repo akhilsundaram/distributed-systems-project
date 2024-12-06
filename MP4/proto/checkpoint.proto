@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package scheduler;
+
+option go_package = "../scheduler/";
+
+service CheckpointService {
+  rpc Checkpoint(CheckpointRequest) returns (stream AckCheckpoint);
+}
+
+message CheckpointRequest {
+  string stage = 1;            // stage: 1 , 2 , 3 (1 - transform, 2 - filter, 3 - aggregate) 
+  int64 line_range_processed = 2;    // stage 1 , 2
+  string filename = 3;         // intermediate file name for the stage
+  string vmname = 4;           // Name of the VM where task is running
+}
+// Name of the VM where task is running : string vmname = 4;
+
+
+message AckCheckpoint {
+  int64 line_acked = 2;    // line number saved in checkpoint ds at scheduler
+}
