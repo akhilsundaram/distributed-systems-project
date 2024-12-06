@@ -19,7 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	StormWorker_PerformOperation_FullMethodName = "/grpc.StormWorker/PerformOperation"
+	StormWorker_PerformOperation_FullMethodName = "/stormgrpc.StormWorker/PerformOperation"
 )
 
 // StormWorkerClient is the client API for StormWorker service.
@@ -112,7 +112,7 @@ func _StormWorker_PerformOperation_Handler(srv interface{}, ctx context.Context,
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var StormWorker_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "grpc.StormWorker",
+	ServiceName: "stormgrpc.StormWorker",
 	HandlerType: (*StormWorkerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

@@ -7,6 +7,7 @@ import (
 	"net"
 	"path/filepath"
 	"rainstorm/file_transfer"
+	"rainstorm/stormgrpc"
 	"rainstorm/utility"
 	"sync"
 	"time"
@@ -34,6 +35,10 @@ type liveness struct {
 	mu    sync.Mutex
 }
 
+type taskKey struct {
+	stage, task int
+}
+
 var (
 	port                  string       = "4001"
 	tasks                 map[int]Task //key is phase
@@ -55,7 +60,7 @@ func InitStormworker() {
 		log.Fatalf("Failed to listen on port: %v", err)
 	}
 	server := grpc.NewServer()
-	RegisterStormWorkerServer(server, &StormorkerServer{})
+	stormgrpc.RegisterStormWorkerServer(server, &StormworkerServer{})
 	go func() {
 		utility.LogMessage("RPC server goroutine entered for stormworker")
 		if err := server.Serve(listener); err != nil {

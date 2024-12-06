@@ -17,9 +17,9 @@ func main() {
 		var inputData struct {
 			Content string `json:"Content"`
 			LineNo  int    `json:"LineNo"`
-			Col     string `json:"Col"`
+			Col     string `json:"Col"` //hardcode
 			Pattern string `json:"Pattern"`
-			OutCol  string `json:"OutCol"`
+			OutCol  string `json:"OutCol"` //hardcode
 		}
 
 		err := json.Unmarshal([]byte(input), &inputData)
