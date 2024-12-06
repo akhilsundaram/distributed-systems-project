@@ -13,6 +13,7 @@ message CheckpointRequest {
   int64 line_range_processed = 2;    // stage 1 , 2
   string filename = 3;         // intermediate file name for the stage
   string vmname = 4;           // Name of the VM where task is running
+  string task_id = 5;          // task sending the checkpoint
 }
 // Name of the VM where task is running : string vmname = 4;
 
