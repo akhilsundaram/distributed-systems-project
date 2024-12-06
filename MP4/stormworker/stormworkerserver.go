@@ -2,17 +2,17 @@ package stormworker
 
 import (
 	context "context"
-	"rainstorm/grpc"
+	"rainstorm/stormgrpc"
 	"rainstorm/utility"
 )
 
 // Server is the implementation of the StormWorker service.
 type StormorkerServer struct {
-	grpc.UnimplementedStormWorkerServer
+	stormgrpc.UnimplementedStormWorkerServer
 }
 
 // PerformOperation implements the PerformOperation RPC method.
-func (s *StormorkerServer) PerformOperation(ctx context.Context, req *grpc.StormworkerRequest) (*grpc.StormworkerResponse, error) {
+func (s *StormorkerServer) PerformOperation(ctx context.Context, req *stormgrpc.StormworkerRequest) (*stormgrpc.StormworkerResponse, error) {
 	// log.Printf("Received request: operation=%s, file=%s, range_start=%d, range_end=%d",
 	// 	req.Operation, req.InputFileName, req.RangeStart, req.RangeEnd)
 
@@ -28,7 +28,7 @@ func (s *StormorkerServer) PerformOperation(ctx context.Context, req *grpc.Storm
 		message = "Invalid range: range_start cannot be greater than range_end"
 	}
 
-	return &grpc.StormworkerResponse{
+	return &stormgrpc.StormworkerResponse{
 		Status:  status,
 		Message: message,
 	}, nil

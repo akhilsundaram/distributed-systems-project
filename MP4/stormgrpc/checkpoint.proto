@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package grpc;
+package stormgrpc;
 
-option go_package = "../grpc/";
+option go_package = "../stormgrpc/";
 
 service CheckpointService {
   rpc Checkpoint(CheckpointRequest) returns (stream AckCheckpoint);
