@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package stormworker;
+package grpc;
 
-option go_package = "../stormworker/";
+option go_package = "../grpc/";
 
 // The StormWorker service definition.
 service StormWorker {
@@ -17,6 +17,7 @@ message StormworkerRequest {
   int32 range_end = 4;          // The end of the range in the file (inclusive).
   string output_file_name = 5;  // The name of file to write outputs to. Append ?
   int32 num_tasks = 6;          // The number of tasks per stage
+  bool final = 7;               // Last stage of the process
 }
 
 // The response message containing the operation result.
