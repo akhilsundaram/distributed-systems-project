@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"context"
 	"log"
 	"math"
 	"math/rand"
@@ -189,4 +190,28 @@ func SendSchedulerRequest(node string, nodeInstr NodeInUseInfo) {
 	}
 	defer conn.Close()
 	utility.LogMessage("created conn with server: " + node)
+
+	// sedn request to worker node
+
+	client := stormgrpc.NewStormWorkerClient(conn)
+
+	// Prepare the request
+	req := &stormgrpc.StormworkerRequest{
+		Operation:      "CustomOperation",
+		InputFileName:  "input.txt",
+		RangeStart:     0,
+		RangeEnd:       100,
+		OutputFileName: "output.txt",
+		NumTasks:       10,
+	}
+
+	// Call the PerformOperation RPC
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	resp, err := client.PerformOperation(ctx, req)
+	if err != nil {
+		log.Fatalf("Failed to perform operation: %v", err)
+	}
+	utility.LogMessage("Response from server: status=" + resp.Status + ", message=" + resp.Message)
 }

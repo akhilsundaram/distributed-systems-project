@@ -5,7 +5,7 @@ package stormgrpc;
 option go_package = "../stormgrpc/";
 
 service CheckpointService {
-  rpc Checkpoint(CheckpointRequest) returns (stream AckCheckpoint);
+  rpc Checkpoint(CheckpointRequest) returns (AckCheckpoint);
 }
 
 message CheckpointRequest {

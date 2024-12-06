@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"context"
 	"fmt"
 	"rainstorm/stormgrpc"
 	"rainstorm/utility"
@@ -11,13 +12,11 @@ type CheckpointServer struct {
 	stormgrpc.UnimplementedCheckpointServiceServer
 }
 
-func (s *CheckpointServer) Checkpoint(req *stormgrpc.CheckpointRequest, stream stormgrpc.CheckpointService_CheckpointServer) error {
-	utility.LogMessage("RPC Checkpoint server entered - " + req.Vmname)
-	// Accept request
+func (s *CheckpointServer) Checkpoint(ctx context.Context, req *stormgrpc.CheckpointRequest) (*stormgrpc.AckCheckpoint, error) {
 	utility.LogMessage("RPC Checkpoint server entered - " + req.Vmname)
 
-	// Accept request
-	utility.LogMessage(fmt.Sprintf("Received checkpoint request for VM: %s, Stage: %s", req.Vmname, req.Stage))
+	// Accept request for checkpoint
+	utility.LogMessage(fmt.Sprintf("Received checkpoint request for VM: %s, Stage: %s, Lines Processed: %d", req.Vmname, req.Stage, req.LineRangeProcessed))
 
 	// create temp var for checkpoint stats
 	tempStats := CheckpointStats{
@@ -35,7 +34,7 @@ func (s *CheckpointServer) Checkpoint(req *stormgrpc.CheckpointRequest, stream s
 		errMsg := fmt.Errorf("error: filename mismatch for vm %s, stage %s. expected: %s, recv: %s",
 			req.Vmname, req.Stage, existingStats.TempFilename, req.Filename)
 		utility.LogMessage(errMsg.Error())
-		return errMsg
+		return nil, errMsg
 	}
 
 	// update the checkpoint stats of that node, using the stage value as key
@@ -44,16 +43,11 @@ func (s *CheckpointServer) Checkpoint(req *stormgrpc.CheckpointRequest, stream s
 	utility.LogMessage("updated checkpoint stats for VM: " + req.Vmname + ", Stage: " + req.Stage + ", Lines Processed: " + strconv.FormatInt(req.LineRangeProcessed, 10) + ", Filename: " + req.Filename)
 
 	// send ack as the line number saved for that node[stage]
-	ack := &stormgrpc.AckCheckpoint{
+	response := &stormgrpc.AckCheckpoint{
 		LineAcked: req.LineRangeProcessed,
-	}
-
-	if err := stream.Send(ack); err != nil {
-		utility.LogMessage("Error sending checkpoint ack: " + err.Error())
-		return err
 	}
 
 	utility.LogMessage("sent checkpoint ack for VM: " + req.Vmname + ", Stage: " + req.Stage + ", Lines Processed: " + strconv.FormatInt(req.LineRangeProcessed, 10))
 
-	return nil
+	return response, nil
 }
