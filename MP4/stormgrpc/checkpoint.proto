@@ -5,15 +5,16 @@ package stormgrpc;
 option go_package = "../stormgrpc/";
 
 service CheckpointService {
-  rpc Checkpoint(CheckpointRequest) returns (stream AckCheckpoint);
+  rpc Checkpoint(CheckpointRequest) returns (AckCheckpoint);
 }
 
 message CheckpointRequest {
-  string stage = 1;            // stage: 1 , 2 , 3 (1 - transform, 2 - filter, 3 - aggregate) 
+  int32 stage = 1;            // stage: 1 , 2 , 3 (1 - transform, 2 - filter, 3 - aggregate) 
   int64 line_range_processed = 2;    // stage 1 , 2
   string filename = 3;         // intermediate file name for the stage
   string vmname = 4;           // Name of the VM where task is running
-  string task_id = 5;          // task sending the checkpoint
+  int32 task_id = 5;          // task sending the checkpoint
+  string operation = 6;        // operation: "src", "op1exe", "op2exe"
 }
 // Name of the VM where task is running : string vmname = 4;
 
