@@ -29,6 +29,9 @@ type Task struct {
 	Message              string
 	Stage                int
 	TASK_ID              int
+	pagelineoffset       int
+	aggregate_output     bool
+	num_tasks            int
 }
 
 type liveness struct {
@@ -45,6 +48,7 @@ var (
 	tasks                 map[taskKey]Task //key is phase
 	taskHealth            map[string]liveness
 	STORM_LOCAL_FILE_PATH string = "/home/rainstorm"
+	LEADER_HOSTNAME       string = "fa24-cs425-5901.cs.illinois.edu"
 )
 
 // Waits for leader to -
@@ -79,7 +83,7 @@ func InitStormworker() {
 // }
 
 // function to add task. Return error/ if a task exists of same phase/stage.
-func addTask(stage int, task_id int, operation string, startRange, endRange int, outputHydfsFileName, inputHydfsFilename string) (Task, error) {
+func addTask(stage int, task_id int, operation string, startRange, endRange int, outputHydfsFileName, inputHydfsFilename string, aggregate_output bool, num_tasks int) (Task, error) {
 	// Error if phase/stage exists
 	tkey := taskKey{stage: stage, task: task_id}
 	if _, exists := tasks[tkey]; exists {
@@ -103,6 +107,8 @@ func addTask(stage int, task_id int, operation string, startRange, endRange int,
 		Failed:               false,
 		Stage:                stage,
 		TASK_ID:              task_id,
+		aggregate_output:     aggregate_output,
+		num_tasks:            num_tasks,
 	}
 	// Add the task to the in-mem dict
 	tasks[tkey] = newTask
@@ -210,7 +216,7 @@ func stormworker() {
 	for {
 		for tkey, task := range tasks {
 			// send a message to leader with status
-			sendCheckpointStatus(tkey.stage, tkey.task, task.CurrentProcessedLine, task.OutputHydfsFile)
+			sendCheckpointStatus(tkey.stage, tkey.task, task.CurrentProcessedLine, task.OutputHydfsFile, task.Operation)
 
 			//IF failed, send status, then delete task.
 
@@ -252,7 +258,7 @@ func runTask(task Task) {
 		utility.LogMessage("Filename : " + task.InputHydfsFile + "retrieved for RainStorm => timestamp : " + latestResponse.TimeStamp.String())
 
 		// Start op_exe in go routine for existing lines of code
-		RunOp_exe(task.LocalFilepath, task.Operation, task.CurrentProcessedLine, task.EndRange, task.Stage, task.TASK_ID)
+		RunOp_exe(task.LocalFilepath, task.OutputHydfsFile, task.Operation, task.CurrentProcessedLine, task.EndRange, task.Stage, task.TASK_ID, task.aggregate_output, task.num_tasks)
 
 		// Wait for 1.5 seconds (? test with different times, we wait for more inputs to come in ?)
 		time.Sleep(time.Millisecond * 1500)

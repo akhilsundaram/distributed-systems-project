@@ -3,10 +3,11 @@ package stormworker
 import (
 	context "context"
 	"fmt"
+	"log"
 	"rainstorm/membership"
 	"rainstorm/stormgrpc"
 	"rainstorm/utility"
-	"strconv"
+	"time"
 
 	grpc "google.golang.org/grpc"
 )
@@ -23,7 +24,7 @@ func (s *StormworkerServer) PerformOperation(ctx context.Context, req *stormgrpc
 
 	utility.LogMessage("Request received from leader - op: " + req.Operation + ",input: " + req.InputFileName)
 
-	task, err := addTask(int(req.Stage), int(req.TaskId), req.Operation, int(req.RangeStart), int(req.RangeEnd), req.OutputFileName, req.InputFileName)
+	task, err := addTask(int(req.Stage), int(req.TaskId), req.Operation, int(req.RangeStart), int(req.RangeEnd), req.OutputFileName, req.InputFileName, req.AggregateOutput, int(req.NumTasks))
 	if err != nil {
 		utility.LogMessage(fmt.Sprintf("error trying to add new task - %v ", err))
 		status := "failure"
@@ -53,8 +54,9 @@ func (s *StormworkerServer) PerformOperation(ctx context.Context, req *stormgrpc
 
 /* LEADER CLIENT STUFF */
 // from grpc client function template from the internet
-func sendCheckpointStatus(stage, task_id, lineProcessed int, intermediate_file string) {
-	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
+func sendCheckpointStatus(stage, task_id, lineProcessed int, intermediate_file, operation string) {
+	leader_ip := utility.GetIPAddr(LEADER_HOSTNAME).String() //leader unchanged
+	conn, err := grpc.Dial(leader_ip+":6542", grpc.WithInsecure())
 	if err != nil {
 		fmt.Println("GRPCS CONNECTION DID NOT GO THROUGH")
 		utility.LogMessage("CONNECTION DID NOT GO THROUGH")
@@ -66,33 +68,21 @@ func sendCheckpointStatus(stage, task_id, lineProcessed int, intermediate_file s
 
 	// Create a CheckpointRequest
 	request := &stormgrpc.CheckpointRequest{
-		Stage:              strconv.Itoa(stage),
+		Stage:              int32(stage),
 		LineRangeProcessed: int64(lineProcessed),
 		Filename:           intermediate_file,
 		Vmname:             membership.My_hostname,
-		TaskId:             strconv.Itoa(task_id), // Example task ID
+		TaskId:             int32(task_id), // Example task ID
+		Operation:          operation,
 	}
 
 	// Call the Checkpoint RPC
-	stream, err := client.Checkpoint(context.Background(), request)
-	if err != nil {
-		fmt.Println("CHECKPOINT GRPC FAIL")
-		utility.LogMessage("CHECKPOINT GRPC FAIL")
-		return
-	}
+	// Call the Checkpoint RPC
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	// Process the server stream
-	for {
-		ack, err := stream.Recv()
-		if err != nil {
-			if err.Error() == "EOF" {
-				break
-			}
-			fmt.Printf("Error receiving stream: %v\n", err)
-			utility.LogMessage(fmt.Sprintf("Error receiving stream: %v\n", err))
-			return
-		}
-		utility.LogMessage(fmt.Sprintf("Ack received: %v", ack.LineAcked))
+	_, err = client.Checkpoint(ctx, request)
+	if err != nil {
+		log.Fatalf("Checkpoint call failed: %v", err)
 	}
-	utility.LogMessage("Client finished.")
 }
