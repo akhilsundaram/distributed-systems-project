@@ -90,6 +90,7 @@ func main() {
 
 	go file_transfer.HyDFSServer()
 
+	membership.SchedulerMemberchan = make(chan membership.RingMemberMessage)
 	go scheduler.InitializeScheduler()
 
 	// RainStorm <op1 _exe> <op2 _exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks>

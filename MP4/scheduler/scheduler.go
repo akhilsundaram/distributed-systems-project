@@ -101,7 +101,7 @@ func InitializeScheduler() {
 		}
 	}()
 
-	MonitorMembershipList()
+	go MonitorMembershipList()
 }
 
 func MonitorMembershipList() {
