@@ -2,99 +2,135 @@ package scheduler
 
 import (
 	"fmt"
-	"math/rand"
 	"rainstorm/utility"
+	"sort"
 	"strings"
 )
 
+// ------------------------------------- Failure detection updates, handover of tasks
 func UpdateSchedulerMemeberList(node string, action string) error {
 	switch action {
 	case "Add":
-		if GetAvailableNode(node) {
+
+		_, exists := GetAvailableNode(node)
+		if exists {
 			return fmt.Errorf("error - Node %v already in List of Available Nodes ! cannot add", node)
 		}
 
-		//add to hashmap
 		utility.LogMessage("Signal to add New node -" + node)
-		SetAvailableNode(node, true)
+		SetAvailableNode(node, 0) // Initialize with 0 tasks
 		utility.LogMessage("Node added to AvailableNodes")
-
-		// init NodeInUse entry
-		// NodeInUse.mutex.Lock()
-		// NodeInUse.nodes[node] = NodeInUseInfo{
-		// 	CurrentStage:                0,
-		// 	Stage1LineNoStart:           0,
-		// 	Stage1LineNoEnd:             0,
-		// 	AggregateStageKeyRangeStart: 0,
-		// 	AggregateStageKeyRangeEnd:   0,
-		// }
-		// NodeInUse.mutex.Unlock()
-		// utility.LogMessage("Node initialized in NodeInUse")
-
-		// init NodeCheckpointStats entry
-		// NodeCheckpointStats.mutex.Lock()
-		// NodeCheckpointStats.stats[node] = make(map[string]CheckpointStats)
-		// NodeCheckpointStats.mutex.Unlock()
-		// utility.LogMessage("Node initialized in NodeCheckpointStats")
 
 		return nil
 
 	case "Delete": // remove from ring
-		if !GetAvailableNode(node) {
+		taskCount, exists := GetAvailableNode(node)
+		if !exists {
 			return fmt.Errorf("error - Node %v not in List of Available Nodes ! cannot delete", node)
 		}
 
-		// del from AvailableNodes
-		SetAvailableNode(node, false)
-		utility.LogMessage("Node removed from AvailableNodes")
+		if taskCount == 0 {
+			utility.LogMessage("Node can directly be removed from AvailableNodes, has no tasks assigned to it")
+			// del from AvailableNodes
+			AvailableNodes.mutex.Lock()
+			delete(AvailableNodes.nodes, node)
+			AvailableNodes.mutex.Unlock()
+			utility.LogMessage("Node removed from AvailableNodes")
+			return nil
+		} else {
+			utility.LogMessage("Node has tasks assigned to it. Handling deletion...")
+			NodeInUse.mutex.Lock()
+			// Before number removing nodes from NodeInUse, save the values it has
+			// can be multiple tasks on this node, so number in AvailableNodes == num of Tasks in NodesInUse,
+			// and also equal to CheckpointStats data structure
 
-		// handle Node which is being used
-		NodeInUse.mutex.Lock()
-		if _, inUse := NodeInUse.nodes[node]; inUse {
-			utility.LogMessage("Node is currently in use. Handling deletion...")
+			delete(NodeInUse.nodes, node)
+			NodeInUse.mutex.Unlock()
+			utility.LogMessage("Node removed from NodeInUse")
 			// TODO: implement logic to handle deletion of an in-use node
 
 			// 1. Redistributing the node's current work to other available nodes
 			// 1.5 Check whether checkpoint has the latest data by fetching the file and seeing line count matches
 			// 2. Ensuring processing lines only once (Exactly-once delivery semantics) and continuity of operations
+
+			// TODO add check delete
+			// del from NodeCheckpointStats
+			NodeCheckpointStats.mutex.Lock()
+			delete(NodeCheckpointStats.stats, node)
+			NodeCheckpointStats.mutex.Unlock()
+			utility.LogMessage("Node removed from NodeCheckpointStats")
+
+			return nil
 		}
-
-		// TODO add check delete
-		delete(NodeInUse.nodes, node)
-		NodeInUse.mutex.Unlock()
-		utility.LogMessage("Node removed from NodeInUse")
-
-		// TODO add check delete
-		// del from NodeCheckpointStats
-		NodeCheckpointStats.mutex.Lock()
-		delete(NodeCheckpointStats.stats, node)
-		NodeCheckpointStats.mutex.Unlock()
-		utility.LogMessage("Node removed from NodeCheckpointStats")
-
-		return nil
 	}
 	return fmt.Errorf("invalid action: %s", action)
 
 }
 
-func SetAvailableNode(nodeName string, available bool) {
+// ------------------------------------- AvailableNodes helper methods
+func SetAvailableNode(nodeName string, taskCount int) {
 	AvailableNodes.mutex.Lock()
 	defer AvailableNodes.mutex.Unlock()
-	AvailableNodes.nodes[nodeName] = available
+	AvailableNodes.nodes[nodeName] = taskCount
 }
 
-func GetAvailableNode(nodeName string) bool {
+func GetAvailableNode(nodeName string) (int, bool) {
 	AvailableNodes.mutex.RLock()
 	defer AvailableNodes.mutex.RUnlock()
-	return AvailableNodes.nodes[nodeName]
+	taskCount, exists := AvailableNodes.nodes[nodeName]
+	return taskCount, exists
 }
 
+func IncrementNodeTaskCount(nodeName string) {
+	AvailableNodes.mutex.Lock()
+	defer AvailableNodes.mutex.Unlock()
+	AvailableNodes.nodes[nodeName]++
+}
+
+func DecrementNodeTaskCount(nodeName string) {
+	AvailableNodes.mutex.Lock()
+	defer AvailableNodes.mutex.Unlock()
+	if AvailableNodes.nodes[nodeName] > 0 {
+		AvailableNodes.nodes[nodeName]--
+	}
+}
+
+// ------------------------------------- NodesInUse helper methods
 func SetNodeInUse(nodeName string, info NodeInUseInfo) {
 	NodeInUse.mutex.Lock()
 	defer NodeInUse.mutex.Unlock()
-	NodeInUse.nodes[nodeName] = info
+	NodeInUse.nodes[nodeName] = append(NodeInUse.nodes[nodeName], info)
 }
 
+func RemoveNodeTask(nodeName string, operation string, nodeId int) {
+	NodeInUse.mutex.Lock()
+	defer NodeInUse.mutex.Unlock()
+	if tasks, exists := NodeInUse.nodes[nodeName]; exists {
+		updatedTasks := make([]NodeInUseInfo, 0)
+		for _, task := range tasks {
+			if task.Operation != operation || task.NodeId != nodeId {
+				updatedTasks = append(updatedTasks, task)
+			}
+		}
+		NodeInUse.nodes[nodeName] = updatedTasks
+	}
+}
+
+func GetNodeTasks(nodeName string, operation string, nodeId int) []NodeInUseInfo {
+	NodeInUse.mutex.RLock()
+	defer NodeInUse.mutex.RUnlock()
+	matchingTasks := make([]NodeInUseInfo, 0)
+	if tasks, exists := NodeInUse.nodes[nodeName]; exists {
+		for _, task := range tasks {
+			if task.Operation == operation && task.NodeId == nodeId {
+				matchingTasks = append(matchingTasks, task)
+			}
+		}
+	}
+	return matchingTasks
+}
+
+// ------------------------------------- Checkpointing helper methods
 func UpdateNodeCheckpointStats(nodeName, checkpointName string, stats CheckpointStats) {
 	NodeCheckpointStats.mutex.Lock()
 	defer NodeCheckpointStats.mutex.Unlock()
@@ -104,34 +140,17 @@ func UpdateNodeCheckpointStats(nodeName, checkpointName string, stats Checkpoint
 	NodeCheckpointStats.stats[nodeName][checkpointName] = stats
 }
 
+// ------------------------------------- Printing lists of each - helpers
 func PrintAvailableNodes() {
 	AvailableNodes.mutex.RLock()
 	defer AvailableNodes.mutex.RUnlock()
 
-	var availableList, unavailableList []string
-	for node, available := range AvailableNodes.nodes {
-		if available {
-			availableList = append(availableList, node)
-		} else {
-			unavailableList = append(unavailableList, node)
-		}
+	var nodeList []string
+	for node, taskCount := range AvailableNodes.nodes {
+		nodeList = append(nodeList, fmt.Sprintf("%s (%d tasks)", node, taskCount))
 	}
 
-	utility.LogMessage("Available Nodes: " + strings.Join(availableList, ", "))
-	utility.LogMessage("Unavailable Nodes: " + strings.Join(unavailableList, ", "))
-}
-
-func PrintNodeInUse() {
-	NodeInUse.mutex.RLock()
-	defer NodeInUse.mutex.RUnlock()
-
-	for node, info := range NodeInUse.nodes {
-		utility.LogMessage(fmt.Sprintf("Node in use: %s", node))
-		utility.LogMessage(fmt.Sprintf("  Current Stage: %d", info.CurrentStage))
-		utility.LogMessage(fmt.Sprintf("  Stage 1 Line Range: %d - %d", info.Stage1LineNoStart, info.Stage1LineNoEnd))
-		utility.LogMessage(fmt.Sprintf("  Aggregate Node ID : %d", info.AggregateNodeId))
-		utility.LogMessage(fmt.Sprintf("  Aggregate Stage Key Range: %d - %d", info.AggregateStageKeyRangeStart, info.AggregateStageKeyRangeEnd))
-	}
+	utility.LogMessage("Nodes and their task counts: " + strings.Join(nodeList, ", "))
 }
 
 func PrintNodeCheckpointStats() {
@@ -149,30 +168,33 @@ func PrintNodeCheckpointStats() {
 	}
 }
 
-func SelectRandomNodes(numTasks int) ([]string, error) {
+// Method to select nodes with the least number of tasks
+func SelectNodesWithLeastTasks(numNodes int) ([]string, error) {
 	AvailableNodes.mutex.RLock()
-	availableNodesList := make([]string, 0, len(AvailableNodes.nodes))
-	for node, available := range AvailableNodes.nodes {
-		if available {
-			availableNodesList = append(availableNodesList, node)
-		}
-	}
-	AvailableNodes.mutex.RUnlock()
+	defer AvailableNodes.mutex.RUnlock()
 
-	// Check if we have enough available nodes
-	if len(availableNodesList) < numTasks {
-
-		// not sure if we need to handle this here,
-		// for now thinking to just handle it in UpdateSchedulerMemeberList
-		return nil, fmt.Errorf("not enough available nodes: %d available, %d required", len(availableNodesList), numTasks)
+	if len(AvailableNodes.nodes) < numNodes {
+		return nil, fmt.Errorf("not enough nodes available")
 	}
 
-	// Choose random nodes
-	selectedNodes := make([]string, numTasks)
-	for i := 0; i < numTasks; i++ {
-		index := rand.Intn(len(availableNodesList))
-		selectedNodes[i] = availableNodesList[index]
-		availableNodesList = append(availableNodesList[:index], availableNodesList[index+1:]...)
+	type nodeLoad struct {
+		name  string
+		tasks int
+	}
+
+	nodeLoads := make([]nodeLoad, 0, len(AvailableNodes.nodes))
+	for name, tasks := range AvailableNodes.nodes {
+		nodeLoads = append(nodeLoads, nodeLoad{name, tasks})
+	}
+
+	// Sort nodes by task count
+	sort.Slice(nodeLoads, func(i, j int) bool {
+		return nodeLoads[i].tasks < nodeLoads[j].tasks
+	})
+
+	selectedNodes := make([]string, numNodes)
+	for i := 0; i < numNodes; i++ {
+		selectedNodes[i] = nodeLoads[i].name
 	}
 
 	return selectedNodes, nil

@@ -91,6 +91,9 @@ func main() {
 
 	go scheduler.InitializeScheduler()
 
+	// RainStorm <op1 _exe> <op2 _exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks>
+	// StartScheduler("/home/hydfs/files/1.txt", 3, "/home/hydfs/files/1.txt")
+
 	// hash1, _ := utility.GetMD5("rainstorm1.txt")
 	// fmt.Println(" Hash of first file : " + hash1)
 	// hash2, _ := utility.GetMD5("copy_of_rainstorm1.txt")
