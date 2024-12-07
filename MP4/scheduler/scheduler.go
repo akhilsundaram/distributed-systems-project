@@ -20,7 +20,7 @@ const (
 	scheduler_port  = "6543"
 	checkpoint_port = "6542"
 	timeout         = 10 * time.Millisecond
-	SCHEDULER_HOST  = "fa24-cs425-g59-01.cs.illinois.edu"
+	SCHEDULER_HOST  = " fa24-cs425-5901.cs.illinois.edu"
 )
 
 type AvailableNodesStruct struct {
@@ -112,6 +112,10 @@ func MonitorMembershipList() {
 		scheduler_change := <-membership.SchedulerMemberchan
 
 		var action string
+		if scheduler_change.NodeName == SCHEDULER_HOST {
+			utility.LogMessage("Scheduler: Ignoring scheduler node")
+			continue
+		}
 		if scheduler_change.Event == membership.Add {
 			utility.LogMessage("Scheduler: Node to be added to available list: " + scheduler_change.NodeName)
 			action = "Add"

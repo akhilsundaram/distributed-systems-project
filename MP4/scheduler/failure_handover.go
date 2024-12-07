@@ -48,13 +48,8 @@ func UpdateSchedulerMemeberList(node string, action string) error {
 			return fmt.Errorf("error - Node %v already in List of Available Nodes ! cannot add", node)
 		}
 
-		if node == SCHEDULER_HOST {
-			utility.LogMessage("Node is the Scheduler itself. Cannot add to AvailableNodes")
-		} else {
-			utility.LogMessage("Signal to add New node -" + node)
-			SetAvailableNode(node, 0) // Initialize with 0 tasks
-			utility.LogMessage("Node added to AvailableNodes")
-		}
+		SetAvailableNode(node, 0) // Initialize with 0 tasks
+		utility.LogMessage("Node added to AvailableNodes")
 		return nil
 
 	case "Delete": // remove from ring
