@@ -23,21 +23,25 @@ const (
 )
 
 type AvailableNodesStruct struct {
-	nodes map[string]bool
+	nodes map[string]int
 	mutex sync.RWMutex
 }
 
 type NodeInUseInfo struct {
-	CurrentStage                int
-	Stage1LineNoStart           int
-	Stage1LineNoEnd             int
-	AggregateNodeId             int
-	AggregateStageKeyRangeStart int
-	AggregateStageKeyRangeEnd   int
+	Operation       string
+	InputFileName   string
+	TotalNumTasks   int
+	OutputFileName  string
+	AggregateOutput string
+	Stage           int
+	LineRangeStart  int
+	LineRangeEnd    int
+	NodeId          int
+	LinesProcessed  int
 }
 
 type NodeInUseStruct struct {
-	nodes map[string]NodeInUseInfo
+	nodes map[string][]NodeInUseInfo
 	mutex sync.RWMutex
 }
 
@@ -45,6 +49,9 @@ type CheckpointStats struct {
 	Stage          string
 	LinesProcessed int
 	TempFilename   string
+	VmName         string
+	TaskId         string
+	Operation      string
 	// other fields to add in Checkpointing struct to save in memory
 }
 
@@ -64,11 +71,13 @@ func InitializeScheduler() {
 
 	// initialize list of members
 	AvailableNodes = AvailableNodesStruct{
-		nodes: make(map[string]bool),
+		nodes: make(map[string]int),
 	}
+
 	NodeInUse = NodeInUseStruct{
-		nodes: make(map[string]NodeInUseInfo),
+		nodes: make(map[string][]NodeInUseInfo),
 	}
+
 	NodeCheckpointStats = NodeCheckpointStatsStruct{
 		stats: make(map[string]map[string]CheckpointStats),
 	}
@@ -110,7 +119,13 @@ func MonitorMembershipList() {
 	}
 }
 
-func StartScheduler(srcFilePath string, numTasks int, destFilePath string) error {
+// RainStorm <op1 _exe> <op2 _exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks>
+func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Exe string, op2Exe string) error {
+
+	op0Exe := "source"
+	ops := []string{op0Exe, op1Exe, op2Exe}
+	num_ops := len(ops)
+	utility.LogMessage("Starting scheduler with " + strconv.Itoa(num_ops) + " tasks")
 
 	//total lines in source file
 	totalLines, err := utility.FileLineCount(srcFilePath)
@@ -122,18 +137,7 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string) error
 
 	//  choose numTasks nodes at random from AvailableNodes
 	rand.Seed(time.Now().UnixNano())
-
-	// get available nodes
-	selectedNodes, err := SelectRandomNodes(numTasks)
-	if err != nil {
-		errMsg := "error selecting random nodes: " + err.Error()
-		utility.LogMessage(errMsg)
-	}
-
-	utility.LogMessage("Selected Nodes:")
-	for i, node := range selectedNodes {
-		utility.LogMessage("  Node  " + strconv.Itoa(i+1) + " : " + node)
-	}
+	selectedNodes := make([]string, numTasks)
 
 	// calc lines per task
 	linesPerTask := int(math.Ceil(float64(totalLines) / float64(numTasks)))
@@ -146,7 +150,7 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string) error
 	// update AvailableNodes, initialize NodesInUse and NodeCheckpointStats
 	for i, node := range selectedNodes {
 		// Update AvailableNodes
-		SetAvailableNode(node, false)
+		SetAvailableNode(node, 1)
 
 		line_start := i * linesPerTask
 		line_end := (i + 1) * linesPerTask
@@ -155,24 +159,25 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string) error
 		}
 
 		// populate the NodeInUse, get ready to start sending requests to Scheduler Listener on VMs
+		/*
+			nodeInit := NodeInUseInfo{
+				CurrentStage:                1,
+				Stage1LineNoStart:           line_start,
+				Stage1LineNoEnd:             line_end,
+				AggregateNodeId:             i,
+				AggregateStageKeyRangeStart: 0, // Can be set to range of values , with start as this
+				AggregateStageKeyRangeEnd:   0, // Can be set to range of values , with end as this
+			}
+			SetNodeInUse(node, nodeInit)
 
-		nodeInit := NodeInUseInfo{
-			CurrentStage:                1,
-			Stage1LineNoStart:           line_start,
-			Stage1LineNoEnd:             line_end,
-			AggregateNodeId:             i,
-			AggregateStageKeyRangeStart: 0, // Can be set to range of values , with start as this
-			AggregateStageKeyRangeEnd:   0, // Can be set to range of values , with end as this
-		}
-		SetNodeInUse(node, nodeInit)
-
-		// initialize NodeCheckpointStats
-		checkpointInit := CheckpointStats{
-			Stage:          "Stage1",
-			LinesProcessed: 0,
-			TempFilename:   "",
-		}
-		UpdateNodeCheckpointStats(node, "Stage1", checkpointInit)
+			// initialize NodeCheckpointStats
+			checkpointInit := CheckpointStats{
+				Stage:          "Stage1",
+				LinesProcessed: 0,
+				TempFilename:   "",
+			}
+			UpdateNodeCheckpointStats(node, "Stage1", checkpointInit)
+		*/
 	}
 
 	// TODO: Implement the logic to process tasks and write to destFilePath
@@ -197,12 +202,16 @@ func SendSchedulerRequest(node string, nodeInstr NodeInUseInfo) {
 
 	// Prepare the request
 	req := &stormgrpc.StormworkerRequest{
-		Operation:      "CustomOperation",
-		InputFileName:  "input.txt",
-		RangeStart:     0,
-		RangeEnd:       100,
-		OutputFileName: "output.txt",
-		NumTasks:       10,
+		Operation:       "CustomOperation",
+		InputFileName:   "input.txt",
+		NumTasks:        3,
+		OutputFileName:  "output.txt",
+		AggregateOutput: true,
+		Stage:           1,
+		RangeStart:      0,
+		RangeEnd:        100,
+		TaskId:          0,
+		LinesProcessed:  -1,
 	}
 
 	// Call the PerformOperation RPC
