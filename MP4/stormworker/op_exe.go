@@ -4,21 +4,26 @@ import (
 	"bufio"
 	"bytes"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"rainstorm/file_transfer"
 	"rainstorm/utility"
+	"strconv"
 	"strings"
 )
+
+var local_temp_file = "/home/rainstorm/local/temp"
 
 //go:embed operators/op_exe/*
 var operators embed.FS
 
-func RunOp_exe(inputFilename, operation string, offset int, end int, phase int) {
+func RunOp_exe(inputFilename, outputFilename, operation string, offset int, end int, stage, task_id int, aggregate_output bool, num_tasks int) {
 	//Set status
-	setTaskRunning(phase, true)
-	defer setTaskRunning(phase, false)
+	setTaskRunning(stage, task_id, true)
+	defer setTaskRunning(stage, task_id, false)
 
 	// Get OP_EXE
 	binaryPath := filepath.Join("operators/op_exe", operation)
@@ -86,10 +91,36 @@ func RunOp_exe(inputFilename, operation string, offset int, end int, phase int) 
 		}
 
 		// For now, leave storing the output commented out
-		// Example: Store output in a file
-		// WRITE TO INTERMEDIATE FILE/APPEND
-		// outputFile.WriteString(fmt.Sprintf("Line %d output: %s\n", lineNumber, output.String()))
+		if aggregate_output {
+			cmd_output := output.String()
+			// Parse Content as JSON
+			var contentData struct {
+				Meta struct {
+					Columns       string `json:"columns"`
+					LineProcessed int    `json:"lineProcessed"`
+				} `json:"meta"`
+				Data map[string]string `json:"data"`
+			}
 
+			err = json.Unmarshal([]byte(cmd_output), &contentData)
+			if err != nil {
+				continue
+			}
+			key_value := ""
+			for _, value := range contentData.Data {
+				key_value = value
+				break
+			}
+			aggregate_val := utility.KeyMurmurHash(key_value, num_tasks)
+			vals := strings.Split(outputFilename, "_")
+			vals[len(vals)-1] = strconv.FormatUint(uint64(aggregate_val), 10)
+			outputFilename = strings.Join(vals, "_")
+
+		}
+
+		writeToFile(local_temp_file, output.String())
+		req := file_transfer.ClientData{Operation: "append", LocalFilePath: local_temp_file, Filename: outputFilename}
+		file_transfer.SendAppends(req, outputFilename)
 		utility.LogMessage(fmt.Sprintf("Line %d output: %s\n", lineNumber, output.String()))
 	}
 
@@ -97,3 +128,24 @@ func RunOp_exe(inputFilename, operation string, offset int, end int, phase int) 
 		utility.LogMessage(fmt.Sprintf("Error reading input file: %v\n", err))
 	}
 }
+
+func writeToFile(filePath, content string) error {
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("error creating file: %w", err)
+	}
+	defer file.Close()
+	_, err = file.WriteString(content)
+	if err != nil {
+		return fmt.Errorf("error writing to file: %w", err)
+	}
+
+	return nil
+}
+
+/*
+To change
+- keep track of offset size, so we can jump everytime we read it. Keepp updating this as we read
+- Read meta data from file.
+- Keep track of last processed from each node, from meta and we don't duplicate it.
+*/

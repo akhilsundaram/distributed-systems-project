@@ -11,6 +11,7 @@ import (
 	"rainstorm/ping"
 	"rainstorm/ring"
 	"rainstorm/scheduler"
+	"rainstorm/stormworker"
 	"rainstorm/utility"
 	"strconv"
 	"strings"
@@ -303,6 +304,11 @@ func main() {
 				fmt.Println("Displaying current membership list along with Node ID on ring")
 				ring.PrintRing()
 				// list_mem_ids function here
+
+			case "test":
+				fmt.Print("enter input hydfs file :")
+				scanner.Scan()
+				stormworker.AddTask(0, 1, "source", 1, -1, "test_output", scanner.Text(), false, 1)
 			default:
 				fmt.Printf("Unknown command: %s\n", cmd)
 			}
