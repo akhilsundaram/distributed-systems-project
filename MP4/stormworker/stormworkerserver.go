@@ -24,7 +24,7 @@ func (s *StormworkerServer) PerformOperation(ctx context.Context, req *stormgrpc
 
 	utility.LogMessage("Request received from leader - op: " + req.Operation + ",input: " + req.InputFileName)
 
-	task, err := addTask(int(req.Stage), int(req.TaskId), req.Operation, int(req.RangeStart), int(req.RangeEnd), req.OutputFileName, req.InputFileName, req.AggregateOutput, int(req.NumTasks))
+	task, err := AddTask(int(req.Stage), int(req.TaskId), req.Operation, int(req.RangeStart), int(req.RangeEnd), req.OutputFileName, req.InputFileName, req.AggregateOutput, int(req.NumTasks))
 	if err != nil {
 		utility.LogMessage(fmt.Sprintf("error trying to add new task - %v ", err))
 		status := "failure"
@@ -36,7 +36,7 @@ func (s *StormworkerServer) PerformOperation(ctx context.Context, req *stormgrpc
 
 	}
 
-	go runTask(task) // to be changed.! phase/stage cannot be the key
+	go RunTask(task) // to be changed.! phase/stage cannot be the key
 	status := "success"
 	message := "Operation started successfully"
 

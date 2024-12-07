@@ -83,7 +83,7 @@ func InitStormworker() {
 // }
 
 // function to add task. Return error/ if a task exists of same phase/stage.
-func addTask(stage int, task_id int, operation string, startRange, endRange int, outputHydfsFileName, inputHydfsFilename string, aggregate_output bool, num_tasks int) (Task, error) {
+func AddTask(stage int, task_id int, operation string, startRange, endRange int, outputHydfsFileName, inputHydfsFilename string, aggregate_output bool, num_tasks int) (Task, error) {
 	// Error if phase/stage exists
 	tkey := taskKey{stage: stage, task: task_id}
 	if _, exists := tasks[tkey]; exists {
@@ -226,7 +226,7 @@ func stormworker() {
 	}
 }
 
-func runTask(task Task) {
+func RunTask(task Task) {
 
 	for {
 		if task.Completed { // only can be set by command from leader
