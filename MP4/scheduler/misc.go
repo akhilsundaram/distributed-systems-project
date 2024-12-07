@@ -108,7 +108,7 @@ func RemoveNodeTask(nodeName string, operation string, nodeId int) {
 	if tasks, exists := NodeInUse.nodes[nodeName]; exists {
 		updatedTasks := make([]NodeInUseInfo, 0)
 		for _, task := range tasks {
-			if task.Operation != operation || task.NodeId != nodeId {
+			if task.Operation != operation || task.NodeId != int32(nodeId) {
 				updatedTasks = append(updatedTasks, task)
 			}
 		}
@@ -122,7 +122,7 @@ func GetNodeTasks(nodeName string, operation string, nodeId int) []NodeInUseInfo
 	matchingTasks := make([]NodeInUseInfo, 0)
 	if tasks, exists := NodeInUse.nodes[nodeName]; exists {
 		for _, task := range tasks {
-			if task.Operation == operation && task.NodeId == nodeId {
+			if task.Operation == operation && task.NodeId == int32(nodeId) {
 				matchingTasks = append(matchingTasks, task)
 			}
 		}
@@ -131,13 +131,13 @@ func GetNodeTasks(nodeName string, operation string, nodeId int) []NodeInUseInfo
 }
 
 // ------------------------------------- Checkpointing helper methods
-func UpdateNodeCheckpointStats(nodeName, checkpointName string, stats CheckpointStats) {
+func UpdateNodeCheckpointStats(nodeName string, stageTaskid string, stats CheckpointStats) {
 	NodeCheckpointStats.mutex.Lock()
 	defer NodeCheckpointStats.mutex.Unlock()
 	if _, exists := NodeCheckpointStats.stats[nodeName]; !exists {
 		NodeCheckpointStats.stats[nodeName] = make(map[string]CheckpointStats)
 	}
-	NodeCheckpointStats.stats[nodeName][checkpointName] = stats
+	NodeCheckpointStats.stats[nodeName][stageTaskid] = stats
 }
 
 // ------------------------------------- Printing lists of each - helpers
