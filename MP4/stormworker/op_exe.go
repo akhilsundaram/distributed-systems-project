@@ -15,10 +15,10 @@ import (
 //go:embed operators/op_exe/*
 var operators embed.FS
 
-func RunOp_exe(inputFilename, operation string, offset int, end int, phase int) {
+func RunOp_exe(inputFilename, operation string, offset int, end int, stage, task_id int) {
 	//Set status
-	setTaskRunning(phase, true)
-	defer setTaskRunning(phase, false)
+	setTaskRunning(stage, task_id, true)
+	defer setTaskRunning(stage, task_id, false)
 
 	// Get OP_EXE
 	binaryPath := filepath.Join("operators/op_exe", operation)
@@ -97,3 +97,11 @@ func RunOp_exe(inputFilename, operation string, offset int, end int, phase int) 
 		utility.LogMessage(fmt.Sprintf("Error reading input file: %v\n", err))
 	}
 }
+
+/*
+To change
+- keep track of offset size, so we can jump everytime we read it. Keepp updating this as we read
+- Read meta data from file.
+- Keep track of last processed from each node, from meta and we don't duplicate it.
+
+*/

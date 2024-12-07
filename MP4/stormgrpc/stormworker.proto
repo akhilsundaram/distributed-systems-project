@@ -21,6 +21,7 @@ message StormworkerRequest {
   int32 stage = 8;              // Phase of the task
   int32 task_id = 9;            // Task ID
   int32 lines_processed = 10;   // The end of the range in the file (inclusive).
+  string custom_param = 11;            //custom
 }
 
 // The response message containing the operation result.
