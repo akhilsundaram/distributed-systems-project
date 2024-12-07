@@ -11,6 +11,7 @@ import (
 	"rainstorm/ping"
 	"rainstorm/ring"
 	"rainstorm/scheduler"
+	"rainstorm/stormworker"
 	"rainstorm/utility"
 	"strconv"
 	"strings"
@@ -328,6 +329,11 @@ func main() {
 			case "cluster_availibility":
 				fmt.Println("Showing status of all nodes in the rainstrom cluster")
 				scheduler.PrintAvailableNodes()
+
+			case "test":
+				fmt.Print("enter input hydfs file :")
+				scanner.Scan()
+				stormworker.AddTask(0, 1, "source", 1, -1, "test_output", scanner.Text(), false, 1)
 			default:
 				fmt.Printf("Unknown command: %s\n", cmd)
 			}

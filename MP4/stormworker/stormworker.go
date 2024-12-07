@@ -27,7 +27,11 @@ type Task struct {
 	Running              bool
 	Failed               bool
 	Message              string
-	Phase                int
+	Stage                int
+	TASK_ID              int
+	pagelineoffset       int
+	aggregate_output     bool
+	num_tasks            int
 }
 
 type liveness struct {
@@ -40,10 +44,11 @@ type taskKey struct {
 }
 
 var (
-	port                  string       = "4001"
-	tasks                 map[int]Task //key is phase
+	port                  string           = "4001"
+	tasks                 map[taskKey]Task //key is phase
 	taskHealth            map[string]liveness
 	STORM_LOCAL_FILE_PATH string = "/home/rainstorm"
+	LEADER_HOSTNAME       string = "fa24-cs425-5901.cs.illinois.edu"
 )
 
 // Waits for leader to -
@@ -51,7 +56,7 @@ var (
 // => Checkpoints + Commit to output file in Hydfs
 
 func InitStormworker() {
-	tasks = make(map[int]Task)
+	tasks = make(map[taskKey]Task)
 	taskHealth = make(map[string]liveness)
 
 	// Start file rpc server for stormworker
@@ -67,6 +72,8 @@ func InitStormworker() {
 			utility.LogMessage("Init Stormworker - server failure")
 		}
 	}()
+
+	go stormworker()
 }
 
 // To get a file in local
@@ -76,14 +83,15 @@ func InitStormworker() {
 // }
 
 // function to add task. Return error/ if a task exists of same phase/stage.
-func addTask(phase int, operation string, startRange, endRange int, outputHydfsFileName, inputHydfsFilename string) (map[int]Task, error) {
+func AddTask(stage int, task_id int, operation string, startRange, endRange int, outputHydfsFileName, inputHydfsFilename string, aggregate_output bool, num_tasks int) (Task, error) {
 	// Error if phase/stage exists
-	if _, exists := tasks[phase]; exists {
-		return nil, errors.New("task for this phase already exists")
+	tkey := taskKey{stage: stage, task: task_id}
+	if _, exists := tasks[tkey]; exists {
+		return Task{}, errors.New("task for this phase already exists")
 	}
 
 	// DIR created
-	local_file_location := filepath.Join(STORM_LOCAL_FILE_PATH, fmt.Sprintf("%s_local_%d", inputHydfsFilename, phase))
+	local_file_location := filepath.Join(STORM_LOCAL_FILE_PATH, fmt.Sprintf("%s_local_%d_%d", inputHydfsFilename, stage, task_id))
 
 	//new task
 	newTask := Task{
@@ -97,94 +105,102 @@ func addTask(phase int, operation string, startRange, endRange int, outputHydfsF
 		Completed:            false,
 		Running:              false,
 		Failed:               false,
-		Phase:                phase,
+		Stage:                stage,
+		TASK_ID:              task_id,
+		aggregate_output:     aggregate_output,
+		num_tasks:            num_tasks,
 	}
 	// Add the task to the in-mem dict
-	tasks[phase] = newTask
-	return tasks, nil
+	tasks[tkey] = newTask
+	return newTask, nil
 }
 
 // function to delete task after completion
-func deleteTask(phase int) error {
+func deleteTask(stage, task_id int) error {
 	if tasks == nil {
 		return errors.New("no tasks available to delete")
 	}
 	// Check if the phase/key exists in the map
-	if _, exists := tasks[phase]; !exists {
+	tkey := taskKey{stage: stage, task: task_id}
+	if _, exists := tasks[tkey]; !exists {
 		return errors.New("task with the given phase does not exist")
 	}
-	delete(tasks, phase)
+	delete(tasks, tkey)
 	return nil
 }
 
 // function to update the current processed line
-func updateCurrentProcessedLine(phase int, currentLine int) error {
+func updateCurrentProcessedLine(stage, task_id, currentLine int) error {
 	// error check
 	if tasks == nil {
 		return errors.New("no tasks available to update")
 	}
-	task, exists := tasks[phase]
+	tkey := taskKey{stage: stage, task: task_id}
+	task, exists := tasks[tkey]
 	if !exists {
 		return errors.New("task with the given phase does not exist")
 	}
 
 	//update
 	task.CurrentProcessedLine = currentLine
-	tasks[phase] = task
+	tasks[tkey] = task
 	return nil
 }
 
-func setTaskRunning(phase int, status bool) {
+func setTaskRunning(stage, task_id int, status bool) {
 	if tasks == nil {
-		utility.LogMessage(fmt.Sprintf("NO TASKS EXIST, but Task of %d phase's Run status was requested to be changed!!", phase))
+		utility.LogMessage(fmt.Sprintf("NO TASKS EXIST, but Task of %d stage's Run status was requested to be changed!!", stage))
 		return
 	}
-	task, exists := tasks[phase]
+	tkey := taskKey{stage: stage, task: task_id}
+	task, exists := tasks[tkey]
 	if !exists {
-		utility.LogMessage(fmt.Sprintf("Task with the given phase- %d - does not exist", phase))
+		utility.LogMessage(fmt.Sprintf("Task with the given stage- %d and task id - %d - does not exist", stage, task_id))
 	}
 	//update
 	task.Running = status
-	tasks[phase] = task
+	tasks[tkey] = task
 }
 
-func setTaskCompletion(phase int, status bool, message string) {
+func setTaskCompletion(stage, task_id int, status bool, message string) {
 	if tasks == nil {
-		utility.LogMessage(fmt.Sprintf("NO TASKS EXIST, but Task of %d phase's Run status was requested to be changed!!", phase))
+		utility.LogMessage(fmt.Sprintf("NO TASKS EXIST, but Task of %d tasks's Run status was requested to be changed!!", stage))
 		return
 	}
-	task, exists := tasks[phase]
+	tkey := taskKey{stage: stage, task: task_id}
+	task, exists := tasks[tkey]
 	if !exists {
-		utility.LogMessage(fmt.Sprintf("Task with the given phase- %d - does not exist", phase))
+		utility.LogMessage(fmt.Sprintf("Task with the given stage- %d and task id - %d - does not exist", stage, task_id))
 	}
 	//update
 	task.Running = status
 	task.Message = message
-	tasks[phase] = task
+	tasks[tkey] = task
 }
 
-func setTaskFailure(phase int, status bool, message string) {
+func setTaskFailure(stage, task_id int, status bool, message string) {
 	if tasks == nil {
-		utility.LogMessage(fmt.Sprintf("NO TASKS EXIST, but Task of %d phase's Run status was requested to be changed!!", phase))
+		utility.LogMessage(fmt.Sprintf("NO TASKS EXIST, but Task of %d phase's Run status was requested to be changed!!", stage))
 		return
 	}
-	task, exists := tasks[phase]
+	tkey := taskKey{stage: stage, task: task_id}
+	task, exists := tasks[tkey]
 	if !exists {
-		utility.LogMessage(fmt.Sprintf("Task with the given phase- %d - does not exist", phase))
+		utility.LogMessage(fmt.Sprintf("Task with the given stage- %d and task id - %d - does not exist", stage, task_id))
 	}
 	//update
 	task.Failed = status
 	task.Message = message
-	tasks[phase] = task
+	tasks[tkey] = task
 }
 
 // function to get current processed line
-func GetCurrentProcessedLine(phase int) (int, error) {
+func GetCurrentProcessedLine(stage, task_id int) (int, error) {
 	// error check
 	if tasks == nil {
 		return -1, errors.New("no tasks available to update")
 	}
-	task, exists := tasks[phase]
+	task, exists := tasks[taskKey{stage: stage, task: task_id}]
 	if !exists {
 		return -1, errors.New("task with the given phase does not exist")
 	}
@@ -198,8 +214,9 @@ MAIN STORMWORKER FUNCTIONS
 
 func stormworker() {
 	for {
-		for phase, task := range tasks {
+		for tkey, task := range tasks {
 			// send a message to leader with status
+			sendCheckpointStatus(tkey.stage, tkey.task, task.CurrentProcessedLine, task.OutputHydfsFile, task.Operation)
 
 			//IF failed, send status, then delete task.
 
@@ -209,20 +226,20 @@ func stormworker() {
 	}
 }
 
-func runTask(task Task) {
+func RunTask(task Task) {
 
 	for {
 		if task.Completed { // only can be set by command from leader
 			// Send signal of ending task to leader!!!!!!!!!!!
 
 			//Delete task of the phase
-			deleteTask(task.Phase)
+			deleteTask(task.Stage, task.TASK_ID)
 			return
 		} // ELSE, keep running
 
 		if task.Failed {
 			// Send signal to leader on stall issue => task.Message
-			deleteTask((task.Phase))
+			deleteTask(task.Stage, task.TASK_ID)
 			return // change behaviour to retry later, for now fail
 		}
 
@@ -241,7 +258,7 @@ func runTask(task Task) {
 		utility.LogMessage("Filename : " + task.InputHydfsFile + "retrieved for RainStorm => timestamp : " + latestResponse.TimeStamp.String())
 
 		// Start op_exe in go routine for existing lines of code
-		RunOp_exe(task.LocalFilepath, task.Operation, task.CurrentProcessedLine, task.EndRange, task.Phase)
+		RunOp_exe(task.LocalFilepath, task.OutputHydfsFile, task.Operation, task.CurrentProcessedLine, task.EndRange, task.Stage, task.TASK_ID, task.aggregate_output, task.num_tasks)
 
 		// Wait for 1.5 seconds (? test with different times, we wait for more inputs to come in ?)
 		time.Sleep(time.Millisecond * 1500)
