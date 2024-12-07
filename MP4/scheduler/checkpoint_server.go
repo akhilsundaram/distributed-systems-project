@@ -44,14 +44,14 @@ func (s *CheckpointServer) Checkpoint(ctx context.Context, req *stormgrpc.Checkp
 	// update the checkpoint stats of that node, using the stage value as key
 	UpdateNodeCheckpointStats(req.Vmname, stage_taskid, tempStats)
 
-	utility.LogMessage("updated checkpoint stats for VM: " + req.Vmname + ", Stage_TaskId: " + stage_taskid + ", Lines Processed: " + strconv.FormatInt(req.LineRangeProcessed, 10) + ", Filename: " + req.Filename)
+	utility.LogMessage("updated checkpoint stats for VM: " + req.Vmname + ", Stage_TaskId: " + stage_taskid + ", Lines Processed: " + strconv.FormatInt(int64(req.LineRangeProcessed), 10) + ", Filename: " + req.Filename)
 
 	// send ack as the line number saved for that node[stage]
 	response := &stormgrpc.AckCheckpoint{
 		LineAcked: req.LineRangeProcessed,
 	}
 
-	utility.LogMessage("sent checkpoint ack for VM: " + req.Vmname + ", Stage_TaskId: " + stage_taskid + ", Lines Processed: " + strconv.FormatInt(req.LineRangeProcessed, 10))
+	utility.LogMessage("sent checkpoint ack for VM: " + req.Vmname + ", Stage_TaskId: " + stage_taskid + ", Lines Processed: " + strconv.FormatInt(int64(req.LineRangeProcessed), 10))
 
 	return response, nil
 }

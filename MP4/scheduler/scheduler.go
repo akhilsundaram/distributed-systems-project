@@ -47,7 +47,7 @@ type NodeInUseStruct struct {
 
 type CheckpointStats struct {
 	Stage          int32
-	LinesProcessed int64
+	LinesProcessed int32
 	TempFilename   string
 	VmName         string
 	TaskId         int32
@@ -170,7 +170,7 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 			} else if stageIndex == 1 {
 				// op1 operation
 				inputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex) + "_input"
-				outputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex) + "_input"
+				outputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex) + "_output"
 				checkHashForInputProcessing = true
 			} else {
 				// op2 operation
