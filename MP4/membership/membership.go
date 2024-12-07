@@ -181,10 +181,9 @@ func AddMember(node_id string, hostname string) error {
 			Event:    Add,
 		}
 		RingMemberchan <- newMessage
-		utility.LogMessage(" In MEMBERSHIP ADD MEMBER")
 		utility.LogMessage("Sent message to Ring Channel - Add")
-		utility.LogMessage("Sent message to Schedule Channel - Add")
 		SchedulerMemberchan <- newMessage
+		utility.LogMessage("Sent message to Schedule Channel - Add")
 	}()
 
 	return nil
