@@ -80,14 +80,14 @@ func UpdateNodeCheckpointStats(nodeName string, stageTaskid string, stats Checkp
 
 /* ------------------- Printing lists of each - helpers ------------------*/
 func PrintAvailableNodes() {
-	utility.LogMessage("=== Available Nodes ===")
+	fmt.Println("=== Available Nodes ===")
 	AvailableNodes.mutex.RLock()
 	defer AvailableNodes.mutex.RUnlock()
 
 	for node, count := range AvailableNodes.nodes {
-		utility.LogMessage(fmt.Sprintf("Node: %s, Task Count: %d", node, count))
+		fmt.Printf("Node: %s, Task Count: %d\n", node, count)
 	}
-	utility.LogMessage("=== End of Available Nodes ===")
+	fmt.Println("=== End of Available Nodes ===")
 }
 
 func PrintNodesInUse() {
