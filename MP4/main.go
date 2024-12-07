@@ -117,8 +117,6 @@ func main() {
 		fmt.Println("  disable_sus - disable suspicion mode")
 		fmt.Println("  status_sus  - Show status of suspicion mode")
 		fmt.Println("  sus_list    - List suspicious nodes")
-		fmt.Println("************************************************")
-		fmt.Println("************************************************")
 		fmt.Println("Available commands for HyDFS management:")
 		fmt.Println("  get               - fetches file from HyDFS to Local FS ") // fetches the entire file from HyDFS to localfilename on local dir
 		fmt.Println("  get_from_replica  - fetches a file from a HyDFS node to Local FS")
@@ -130,6 +128,11 @@ func main() {
 		fmt.Println("  store             - list all files (with ids) being stored on VM") // also the VM ID
 		fmt.Println("  list_mem_ids      - Display current membership list along with Node ID on ring")
 		fmt.Println("  exit              - Exit the program")
+		fmt.Println("************************************************")
+		fmt.Println("************************************************")
+		fmt.Println("Available commands for RainStorm Stream Processing :")
+		fmt.Println("  cluster_availibility - show status of all nodes in the rainstrom cluster")
+		fmt.Println("  rainstorm            - Start RainStorm Stream Processing")
 		fmt.Println("************************************************")
 		scanner := bufio.NewScanner(os.Stdin)
 		for {
@@ -299,11 +302,33 @@ func main() {
 				for filename, v := range hydfsFS {
 					fmt.Printf("Filename: %s, Ring ID: %d, md5 hash: %s, timestamp: %s\n", filename, v.RingId, v.Hash, v.Timestamp)
 				}
-
 			case "list_mem_ids":
 				fmt.Println("Displaying current membership list along with Node ID on ring")
 				ring.PrintRing()
 				// list_mem_ids function here
+			case "rainstorm":
+				fmt.Println("RainStorm Stream Processing. Usage: <op1_exe> <op2_exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks>")
+				fmt.Print("Enter command: ")
+				scanner.Scan()
+				args := strings.Fields(scanner.Text())
+				if len(args) != 5 {
+					fmt.Println("Invalid input. Usage: <op1_exe> <op2_exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks>")
+				} else {
+					// create here with args[0] and args[1]
+					op1Exe := args[0]
+					op2Exe := args[1]
+					srcFilePath := args[2]
+					destFilePath := args[3]
+					numTasks, err := strconv.Atoi(args[4])
+					if err != nil {
+						fmt.Println("Invalid input. Usage: <op1_exe> <op2_exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks>")
+					} else {
+						scheduler.StartScheduler(srcFilePath, numTasks, destFilePath, op1Exe, op2Exe)
+					}
+				}
+			case "cluster_availibility":
+				fmt.Println("Showing status of all nodes in the rainstrom cluster")
+				scheduler.PrintAvailableNodes()
 
 			case "test":
 				fmt.Print("enter input hydfs file :")

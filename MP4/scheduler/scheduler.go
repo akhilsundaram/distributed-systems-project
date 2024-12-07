@@ -2,9 +2,9 @@ package scheduler
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math"
-	"math/rand"
 	"net"
 	"rainstorm/membership"
 	"rainstorm/stormgrpc"
@@ -20,6 +20,7 @@ const (
 	scheduler_port  = "6543"
 	checkpoint_port = "6542"
 	timeout         = 10 * time.Millisecond
+	SCHEDULER_HOST  = "fa20-cs425-g59-01.cs.illinois.edu"
 )
 
 type AvailableNodesStruct struct {
@@ -30,14 +31,14 @@ type AvailableNodesStruct struct {
 type NodeInUseInfo struct {
 	Operation       string
 	InputFileName   string
-	TotalNumTasks   int
+	TotalNumTasks   int32
 	OutputFileName  string
-	AggregateOutput string
-	Stage           int
-	LineRangeStart  int
-	LineRangeEnd    int
-	NodeId          int
-	LinesProcessed  int
+	AggregateOutput bool
+	Stage           int32
+	LineRangeStart  int32
+	LineRangeEnd    int32
+	NodeId          int32
+	LinesProcessed  int32
 }
 
 type NodeInUseStruct struct {
@@ -46,11 +47,11 @@ type NodeInUseStruct struct {
 }
 
 type CheckpointStats struct {
-	Stage          string
-	LinesProcessed int
+	Stage          int32
+	LinesProcessed int32
 	TempFilename   string
 	VmName         string
-	TaskId         string
+	TaskId         int32
 	Operation      string
 	// other fields to add in Checkpointing struct to save in memory
 }
@@ -124,8 +125,6 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 
 	op0Exe := "source"
 	ops := []string{op0Exe, op1Exe, op2Exe}
-	num_ops := len(ops)
-	utility.LogMessage("Starting scheduler with " + strconv.Itoa(num_ops) + " tasks")
 
 	//total lines in source file
 	totalLines, err := utility.FileLineCount(srcFilePath)
@@ -136,9 +135,6 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 	}
 
 	//  choose numTasks nodes at random from AvailableNodes
-	rand.Seed(time.Now().UnixNano())
-	selectedNodes := make([]string, numTasks)
-
 	// calc lines per task
 	linesPerTask := int(math.Ceil(float64(totalLines) / float64(numTasks)))
 
@@ -148,72 +144,108 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 
 	// make this as a function
 	// update AvailableNodes, initialize NodesInUse and NodeCheckpointStats
-	for i, node := range selectedNodes {
-		// Update AvailableNodes
-		SetAvailableNode(node, 1)
+	for stageIndex, operation := range ops {
+		utility.LogMessage(fmt.Sprintf("Starting stage %d with operation: %s", stageIndex, operation))
 
-		line_start := i * linesPerTask
-		line_end := (i + 1) * linesPerTask
-		if line_end > totalLines {
-			line_end = totalLines
+		// Select nodes for this operation
+		selectedNodes, err := SelectNodesWithLeastTasks(numTasks)
+		if err != nil {
+			return fmt.Errorf("error selecting nodes for operation %s: %v", operation, err)
 		}
+		utility.LogMessage(fmt.Sprintf("Selected nodes for operation %s: %v", operation, selectedNodes))
 
-		// populate the NodeInUse, get ready to start sending requests to Scheduler Listener on VMs
-		/*
-			nodeInit := NodeInUseInfo{
-				CurrentStage:                1,
-				Stage1LineNoStart:           line_start,
-				Stage1LineNoEnd:             line_end,
-				AggregateNodeId:             i,
-				AggregateStageKeyRangeStart: 0, // Can be set to range of values , with start as this
-				AggregateStageKeyRangeEnd:   0, // Can be set to range of values , with end as this
+		for taskIndex, node := range selectedNodes {
+			// Calculate line range for this task
+			lineStart := taskIndex * linesPerTask
+			lineEnd := (taskIndex + 1) * linesPerTask
+			if lineEnd > totalLines {
+				lineEnd = totalLines
 			}
-			SetNodeInUse(node, nodeInit)
 
-			// initialize NodeCheckpointStats
+			checkHashForInputProcessing := false
+			inputFilePath := srcFilePath
+			outputFilePath := destFilePath
+			if stageIndex == 0 {
+				// source operation
+				outputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex) + "_output"
+			} else if stageIndex == 1 {
+				// op1 operation
+				inputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex) + "_input"
+				outputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex) + "_output"
+				checkHashForInputProcessing = true
+			} else {
+				// op2 operation
+				inputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex) + "_input"
+			}
+
+			// Prepare NodeInUseInfo
+			nodeInfo := NodeInUseInfo{
+				Operation:       operation,
+				InputFileName:   inputFilePath,
+				TotalNumTasks:   int32(numTasks),
+				OutputFileName:  outputFilePath,
+				Stage:           int32(stageIndex),
+				LineRangeStart:  int32(lineStart),
+				LineRangeEnd:    int32(lineEnd),
+				NodeId:          int32(taskIndex),
+				AggregateOutput: checkHashForInputProcessing,
+				LinesProcessed:  -1,
+			}
+
 			checkpointInit := CheckpointStats{
-				Stage:          "Stage1",
+				Stage:          int32(stageIndex),
 				LinesProcessed: 0,
 				TempFilename:   "",
+				VmName:         node,
+				TaskId:         int32(taskIndex),
+				Operation:      operation,
 			}
-			UpdateNodeCheckpointStats(node, "Stage1", checkpointInit)
-		*/
-	}
+			stageTaskId := strconv.FormatInt(int64(stageIndex), 10) + "_" + strconv.FormatInt(int64(taskIndex), 10)
 
+			// Update node usage information
+			IncrementNodeTaskCount(node)
+			SetNodeInUse(node, nodeInfo)
+			// start a checkpoint data structure for this task
+			UpdateNodeCheckpointStats(node, stageTaskId, checkpointInit)
+			// Send scheduler request to the node
+			go SendSchedulerRequest(node, nodeInfo)
+		}
+
+	}
 	// TODO: Implement the logic to process tasks and write to destFilePath
 
 	return nil
 }
 
-func SendSchedulerRequest(node string, nodeInstr NodeInUseInfo) {
+func SendSchedulerRequest(node string, nodeInstr NodeInUseInfo) error {
 	// send request to each node in NodeInUse
 	// to start processing the task
 	serverIP := utility.GetIPAddr(node)
 	conn, err := grpc.Dial(serverIP.String()+":"+scheduler_port, grpc.WithInsecure())
 	if err != nil {
 		utility.LogMessage("Unable to connect to server - ring rpc fserver - " + err.Error())
+		return err
 	}
 	defer conn.Close()
 	utility.LogMessage("created conn with server: " + node)
 
 	// sedn request to worker node
-
 	client := stormgrpc.NewStormWorkerClient(conn)
 
 	// Prepare the request
 	req := &stormgrpc.StormworkerRequest{
-		Operation:       "CustomOperation",
-		InputFileName:   "input.txt",
-		NumTasks:        3,
-		OutputFileName:  "output.txt",
-		AggregateOutput: true,
-		Stage:           1,
-		RangeStart:      0,
-		RangeEnd:        100,
-		TaskId:          0,
-		LinesProcessed:  -1,
+		Operation:       nodeInstr.Operation,
+		InputFileName:   nodeInstr.InputFileName,
+		NumTasks:        nodeInstr.TotalNumTasks,
+		OutputFileName:  nodeInstr.OutputFileName,
+		AggregateOutput: nodeInstr.AggregateOutput,
+		Stage:           nodeInstr.Stage,
+		RangeStart:      nodeInstr.LineRangeStart,
+		RangeEnd:        nodeInstr.LineRangeEnd,
+		TaskId:          nodeInstr.NodeId,
+		LinesProcessed:  nodeInstr.LinesProcessed,
 	}
-
+	utility.LogMessage("Sending request to server: " + node + " with (operation, taskid): " + nodeInstr.Operation + "," + strconv.FormatInt(int64(nodeInstr.NodeId), 10))
 	// Call the PerformOperation RPC
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -221,6 +253,8 @@ func SendSchedulerRequest(node string, nodeInstr NodeInUseInfo) {
 	resp, err := client.PerformOperation(ctx, req)
 	if err != nil {
 		log.Fatalf("Failed to perform operation: %v", err)
+		return err
 	}
 	utility.LogMessage("Response from server: status=" + resp.Status + ", message=" + resp.Message)
+	return nil
 }
