@@ -69,7 +69,7 @@ func sendCheckpointStatus(stage, task_id, lineProcessed int, intermediate_file, 
 	// Create a CheckpointRequest
 	request := &stormgrpc.CheckpointRequest{
 		Stage:              int32(stage),
-		LineRangeProcessed: int64(lineProcessed),
+		LineRangeProcessed: int32(lineProcessed),
 		Filename:           intermediate_file,
 		Vmname:             membership.My_hostname,
 		TaskId:             int32(task_id), // Example task ID

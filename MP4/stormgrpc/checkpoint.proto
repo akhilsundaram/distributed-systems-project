@@ -10,7 +10,7 @@ service CheckpointService {
 
 message CheckpointRequest {
   int32 stage = 1;            // stage: 1 , 2 , 3 (1 - transform, 2 - filter, 3 - aggregate) 
-  int64 line_range_processed = 2;    // stage 1 , 2
+  int32 line_range_processed = 2;    // stage 1 , 2
   string filename = 3;         // intermediate file name for the stage
   string vmname = 4;           // Name of the VM where task is running
   int32 task_id = 5;          // task sending the checkpoint
@@ -20,5 +20,5 @@ message CheckpointRequest {
 
 
 message AckCheckpoint {
-  int64 line_acked = 2;    // line number saved in checkpoint ds at scheduler
+  int32 line_acked = 2;    // line number saved in checkpoint ds at scheduler
 }
