@@ -20,7 +20,7 @@ const (
 	scheduler_port  = "6543"
 	checkpoint_port = "6542"
 	timeout         = 10 * time.Millisecond
-	SCHEDULER_HOST  = " fa24-cs425-5901.cs.illinois.edu"
+	SCHEDULER_HOST  = "fa24-cs425-5901.cs.illinois.edu"
 )
 
 type AvailableNodesStruct struct {
