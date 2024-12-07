@@ -97,7 +97,12 @@ func UpdateSchedulerMemeberList(node string, action string) error {
 
 			// Reassign the tasks to other available nodes
 			// update the nodes in use details with the checkpoint stats
-			// tasksToRestart := UpdateSavedTasksCheckpointStats(savedTasksToReassign, savedCheckpoints)
+			tasksToRestart := UpdateSavedTasksCheckpointStats(savedTasksToReassign, savedCheckpoints)
+
+			err := RestartFailedTasks(tasksToRestart)
+			if err != nil {
+				return fmt.Errorf("error restarting failed tasks: %v", err)
+			}
 			// 1. Redistributing the node's current work to other available nodes
 			// 1.5 Check whether checkpoint has the latest data by fetching the file and seeing line count matches
 			// 2. Ensuring processing lines only once (Exactly-once delivery semantics) and continuity of operations
@@ -124,4 +129,57 @@ func UpdateSavedTasksCheckpointStats(savedTasksToReassign []NodeInUseInfo, saved
 	}
 
 	return updatedTasks
+}
+
+func RestartFailedTasks(tasksToRestart []NodeInUseInfo) error {
+
+	selectedNodes, err := SelectNodesWithLeastTasks(len(tasksToRestart))
+	if err != nil {
+		return fmt.Errorf("error selecting nodes for operation: %v", err)
+	}
+
+	utility.LogMessage(fmt.Sprintf("Attempting to restart %d failed tasks", len(tasksToRestart)))
+
+	for i, task := range tasksToRestart {
+		if i < len(selectedNodes) {
+			node := selectedNodes[i]
+			utility.LogMessage(fmt.Sprintf("Attempting to restart Stage,taskId : %d, %d  on node: %s", task.Stage, task.NodeId, node))
+
+			// if check if needed by leader to verify the restart point
+			// then ADD CHECK HERE, UPDATE before calling SendSchedulerRequest
+			err := SendSchedulerRequest(node, task)
+
+			if err != nil {
+
+				// Update AvailableNodes
+				IncrementNodeTaskCount(node)
+
+				// Update NodesInUse
+				SetNodeInUse(node, task)
+
+				// Update NodeCheckpointStats
+				checkpointName := fmt.Sprintf("%d_%d", task.Stage, task.NodeId)
+				checkpointStats := CheckpointStats{
+					Stage:          task.Stage,
+					LinesProcessed: task.LinesProcessed,
+					TempFilename:   "", // Set appropriate temp filename if available
+					VmName:         node,
+					TaskId:         task.NodeId,
+					Operation:      task.Operation,
+				}
+				UpdateNodeCheckpointStats(node, checkpointName, checkpointStats)
+
+				utility.LogMessage(fmt.Sprintf("Task successfully restarted on %s", node))
+			} else {
+				utility.LogMessage(fmt.Sprintf("Failed to restart task on %s", node))
+				return fmt.Errorf("error restarting task on %s: %v", node, err)
+			}
+		} else {
+			utility.LogMessage(fmt.Sprintf("Not enough available nodes to restart task %d", i+1))
+			return fmt.Errorf("error: not enough available nodes to restart task")
+		}
+	}
+
+	utility.LogMessage("Finished attempting to restart failed tasks")
+	return nil
 }

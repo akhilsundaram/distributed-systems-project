@@ -216,13 +216,14 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 	return nil
 }
 
-func SendSchedulerRequest(node string, nodeInstr NodeInUseInfo) {
+func SendSchedulerRequest(node string, nodeInstr NodeInUseInfo) error {
 	// send request to each node in NodeInUse
 	// to start processing the task
 	serverIP := utility.GetIPAddr(node)
 	conn, err := grpc.Dial(serverIP.String()+":"+scheduler_port, grpc.WithInsecure())
 	if err != nil {
 		utility.LogMessage("Unable to connect to server - ring rpc fserver - " + err.Error())
+		return err
 	}
 	defer conn.Close()
 	utility.LogMessage("created conn with server: " + node)
@@ -251,6 +252,8 @@ func SendSchedulerRequest(node string, nodeInstr NodeInUseInfo) {
 	resp, err := client.PerformOperation(ctx, req)
 	if err != nil {
 		log.Fatalf("Failed to perform operation: %v", err)
+		return err
 	}
 	utility.LogMessage("Response from server: status=" + resp.Status + ", message=" + resp.Message)
+	return nil
 }
