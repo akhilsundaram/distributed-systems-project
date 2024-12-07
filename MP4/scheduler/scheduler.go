@@ -109,13 +109,13 @@ func MonitorMembershipList() {
 	// this will run as long as scheduler is running
 	utility.LogMessage("Scheduler starting membership list monitoring")
 	for {
-
 		scheduler_change := <-membership.SchedulerMemberchan
+
 		var action string
 		if scheduler_change.Event == membership.Add {
 			utility.LogMessage("Scheduler: Node to be added to available list: " + scheduler_change.NodeName)
 			action = "Add"
-		} else {
+		} else if scheduler_change.Event == membership.Delete {
 			utility.LogMessage("Scheduler: Node added to be removed from list: " + scheduler_change.NodeName)
 			action = "Delete"
 		}
