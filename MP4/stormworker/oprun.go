@@ -275,6 +275,7 @@ func RunOperation(task Task) {
 			task.buffer[key] = []string{}
 		}
 	}
+	updateCurrentProcessedLine(task.Stage, task.TASK_ID, lineNumber+1)
 
 }
 
