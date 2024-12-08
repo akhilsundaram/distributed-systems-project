@@ -45,6 +45,7 @@ func main() {
 				continue
 			}
 			fmt.Println(string(jsonOutput))
+			return
 		}
 	}
 }
