@@ -597,7 +597,7 @@ func HyDFSClient(request ClientData, options ...[]string) {
 					return
 				}
 				utility.LogMessage(fmt.Sprintf("File created successfully: %s on %s", string(response.Data), response.IP))
-				fmt.Printf("Created file %s (ID - %d) in HyDFS Node (ID - %s) \n", filename, fileID, sender_id)
+				utility.LogMessage(fmt.Sprintf("Created file %s (ID - %d) in HyDFS Node (ID - %s) \n", filename, fileID, sender_id))
 			}(senderIPs[i], senderIDs[i])
 		}
 
@@ -635,7 +635,6 @@ func HyDFSClient(request ClientData, options ...[]string) {
 		// Wait for the goroutine to finish
 		wg.Wait()
 		utility.LogMessage("File merge operation completed")
-		fmt.Printf("File merge operation completed\n")
 
 	case "multiappend":
 		fileID, _, _ := GetSuccesorIPsForFilename(filename)
@@ -1067,7 +1066,7 @@ func SendAppends(request ClientData, filename string) {
 		utility.LogMessage("entered append for multiappend - for -> " + filename + " localfilepath -> " + localPath)
 	}
 	if !utility.FileExists(localPath) {
-		fmt.Println("File does not exist : " + localPath)
+		utility.LogMessage("File does not exist : " + localPath)
 		return
 	}
 	utility.LogMessage("here - 1")
