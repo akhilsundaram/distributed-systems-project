@@ -15,7 +15,7 @@ func main() {
 
 		// Define the input structure
 		var inputData struct {
-			Params map[string]string `json:"params"`
+			Params string            `json:"params"`
 			Data   map[string]string `json:"data"`
 		}
 

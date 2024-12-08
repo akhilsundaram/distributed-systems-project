@@ -15,7 +15,7 @@ func main() {
 
 		// Define the input structure
 		var inputData struct {
-			Params map[string]string `json:"params"`
+			Params string            `json:"params"`
 			Data   map[string]string `json:"data"`
 		}
 
@@ -23,12 +23,7 @@ func main() {
 		if err != nil {
 			continue
 		}
-		pattern := ""
-		for key, value := range inputData.Params {
-			if key == "pattern" {
-				pattern = value
-			}
-		}
+		pattern := strings.Split(inputData.Params, ",")[0]
 
 		lineData := ""
 		linekey := ""

@@ -117,7 +117,7 @@ func RunOperation(task Task) {
 			procKey := taskKey{task: lineData.Meta.Task, stage: lineData.Meta.Stage}
 			processed := getCurrentProcessedLine(task.Stage, task.TASK_ID)
 			if value, exists := processed[procKey]; exists {
-				if value <= lineNumber {
+				if value >= lineNumber {
 					utility.LogMessage("DUPLICATE ENTRFY FOUND - skipping line => " + line)
 					continue
 				}
