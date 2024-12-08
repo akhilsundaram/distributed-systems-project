@@ -26,6 +26,7 @@ func (s *CheckpointServer) Checkpoint(ctx context.Context, req *stormgrpc.Checkp
 		Operation:      req.Operation,
 		TaskId:         req.TaskId,
 		VmName:         req.Vmname,
+		State:          req.State,
 	}
 
 	stage_taskid := strconv.FormatInt(int64(req.Stage), 10) + "_" + strconv.FormatInt(int64(req.TaskId), 10)
