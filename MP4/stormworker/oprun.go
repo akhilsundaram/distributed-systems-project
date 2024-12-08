@@ -82,15 +82,15 @@ func RunOperation(task Task) {
 		//Process Text into meta and data.
 		if task.Operation == "source" { // Then there will not be any meta for first stage.
 			var inputData struct {
-				Params map[string]string `json:"params"`
-				Data   string            `json:"data"`
+				Filename   string `json:"filename"`
+				Linenumber int    `json:"linenumber"`
+				Content    string `json:"content"`
 			}
 
 			// Initialize the fields
-			inputData.Params = make(map[string]string)
-			inputData.Params["linenumber"] = strconv.Itoa(lineNumber)
-			inputData.Params["filename"] = task.InputHydfsFile
-			inputData.Data = line
+			inputData.Linenumber = lineNumber
+			inputData.Filename = task.InputHydfsFile
+			inputData.Content = line
 
 			// Convert the struct to JSON
 			inputJson, err := json.Marshal(inputData) //Get line to be fed to operators.
