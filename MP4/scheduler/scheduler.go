@@ -202,7 +202,8 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 				inputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex-1) + "_" + strconv.Itoa(taskIndex)
 				outputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex)
 				CreateFileinHydfs(outputFilePath)
-
+				lineStart = 0
+				lineEnd = -1
 				// Check if next op is count -- TODO: check if this is correct
 				if op2Exe == "count" {
 					checkHashForInputProcessing = true
@@ -210,6 +211,8 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 			} else {
 				// op2 operation
 				inputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex-1) + "_" + strconv.Itoa(taskIndex)
+				lineStart = 0
+				lineEnd = -1
 				CreateFileinHydfs(inputFilePath)
 			}
 

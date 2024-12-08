@@ -83,9 +83,16 @@ func PrintAvailableNodes() {
 	fmt.Println("=== Available Nodes ===")
 	AvailableNodes.mutex.RLock()
 	defer AvailableNodes.mutex.RUnlock()
+	NodeInUse.mutex.RLock()
+	defer NodeInUse.mutex.RUnlock()
 
 	for node, count := range AvailableNodes.nodes {
 		fmt.Printf("Node: %s, Task Count: %d\n", node, count)
+		if tasks, exists := NodeInUse.nodes[node]; exists {
+			for i, task := range tasks {
+				fmt.Printf(" %d - Operation: %s, Stage: %d, NodeId: %d\n", i+1, task.Operation, task.Stage, task.NodeId)
+			}
+		}
 	}
 }
 
