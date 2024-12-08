@@ -237,6 +237,7 @@ func RunOperation(task Task) {
 			}
 
 		}
+		updateCurrentProcessedLine(task.Stage, task.TASK_ID, lineNumber)
 		utility.LogMessage(fmt.Sprintf("Line %d output: %s\n", lineNumber, output.String()))
 	}
 
@@ -258,7 +259,6 @@ func RunOperation(task Task) {
 			task.buffer[key] = []string{}
 		}
 	}
-	updateCurrentProcessedLine(task.Stage, task.TASK_ID, lineNumber)
 
 }
 
