@@ -3,7 +3,6 @@ package scheduler
 import (
 	"fmt"
 	"rainstorm/utility"
-	"strings"
 )
 
 /* ------------------- AvailableNodes helper methods -------------------- */
@@ -139,29 +138,4 @@ func PrintNodeCheckpointStats() {
 		}
 	}
 	utility.LogMessage("=== End of Node Checkpoint Stats ===")
-}
-
-func ParseCommandWithQuotes(command string) []string {
-	var args []string
-	var currentArg strings.Builder
-	inQuotes := false
-
-	for _, char := range command {
-		if char == '"' {
-			inQuotes = !inQuotes
-		} else if char == ' ' && !inQuotes {
-			if currentArg.Len() > 0 {
-				args = append(args, currentArg.String())
-				currentArg.Reset()
-			}
-		} else {
-			currentArg.WriteRune(char)
-		}
-	}
-
-	if currentArg.Len() > 0 {
-		args = append(args, currentArg.String())
-	}
-
-	return args
 }

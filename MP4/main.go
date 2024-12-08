@@ -310,16 +310,14 @@ func main() {
 				ring.PrintRing()
 				// list_mem_ids function here
 			case "rainstorm":
-				fmt.Println("RainStorm Stream Processing. Usage: <op1_exe> <op2_exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks> \"<filter1_optional>\" \"<filter2_optional>\"")
+				fmt.Println("RainStorm Stream Processing. Usage: <op1_exe> <op2_exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks> <filter1_optional> <filter2_optional>")
 				fmt.Print("Enter command: ")
 				scanner.Scan()
-				args := scheduler.ParseCommandWithQuotes(scanner.Text())
-				for i, arg := range args {
-					fmt.Print("Arg ", i+1, ": ", arg, "\n")
-				}
-				if len(args) < 5 || len(args) > 7 {
-					fmt.Println("Invalid input. Usage: <op1_exe> <op2_exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks> \"<filter1_optional>\" \"<filter2_optional>\"")
+				args := strings.Fields(scanner.Text())
+				if len(args) < 5 || len(args) > 6 {
+					fmt.Println("Invalid input. Usage: <op1_exe> <op2_exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks> <filter1_optional> <filter2_optional>")
 				} else {
+					// create here with args[0] and args[1]
 					// op1Exe := args[0]
 					// op2Exe := args[1]
 					// srcFilePath := args[2]
@@ -332,10 +330,10 @@ func main() {
 						if len(args) > 5 {
 							filters = args[5:]
 							for i, filter := range filters {
-								fmt.Print("Filter ", i+1, ": ", filter, "\n")
+								fmt.Print("Filter ", i+1, ": ", filter+"\n")
 							}
 						}
-						// scheduler.StartScheduler(srcFilePath, numTasks, destFilePath, op1Exe, op2Exe, filters...)
+						//scheduler.StartScheduler(srcFilePath, numTasks, destFilePath, op1Exe, op2Exe, filters...)
 					}
 				}
 			case "cluster_availibility":
