@@ -93,6 +93,8 @@ func main() {
 	membership.SchedulerMemberchan = make(chan membership.RingMemberMessage)
 	go scheduler.InitializeScheduler()
 
+	go stormworker.InitStormworker()
+
 	// RainStorm <op1 _exe> <op2 _exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks>
 	// StartScheduler("/home/hydfs/files/1.txt", 3, "/home/hydfs/files/1.txt")
 
@@ -338,7 +340,7 @@ func main() {
 			case "test":
 				fmt.Print("enter input hydfs file :")
 				scanner.Scan()
-				task, err := stormworker.AddTask(0, 1, "source", 1, -1, "test_output", scanner.Text(), false, 1)
+				task, err := stormworker.AddTask(0, 1, "source", 1, -1, "test_output", scanner.Text(), false, 1, "", "")
 				if err != nil {
 					utility.LogMessage("ERROR ON TASK CREATION")
 				}
