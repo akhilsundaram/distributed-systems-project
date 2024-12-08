@@ -40,6 +40,7 @@ type NodeInUseInfo struct {
 	NodeId          int32
 	LinesProcessed  int32
 	CustomFilter    string
+	State           string
 }
 
 type NodeInUseStruct struct {
@@ -54,6 +55,7 @@ type CheckpointStats struct {
 	VmName         string
 	TaskId         int32
 	Operation      string
+	State          string
 	// other fields to add in Checkpointing struct to save in memory
 }
 
@@ -214,6 +216,7 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 				AggregateOutput: checkHashForInputProcessing,
 				LinesProcessed:  -1,
 				CustomFilter:    customFilter,
+				State:           "",
 			}
 
 			checkpointInit := CheckpointStats{
@@ -223,6 +226,7 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 				VmName:         node,
 				TaskId:         int32(taskIndex),
 				Operation:      operation,
+				State:          "",
 			}
 			stageTaskId := strconv.FormatInt(int64(stageIndex), 10) + "_" + strconv.FormatInt(int64(taskIndex), 10)
 
@@ -269,6 +273,7 @@ func SendSchedulerRequest(node string, nodeInstr NodeInUseInfo) error {
 		TaskId:          nodeInstr.NodeId,
 		LinesProcessed:  nodeInstr.LinesProcessed,
 		CustomParam:     nodeInstr.CustomFilter,
+		State:           nodeInstr.State,
 	}
 	utility.LogMessage("Sending request to server: " + node + " with (operation, taskid): " + nodeInstr.Operation + "," + strconv.FormatInt(int64(nodeInstr.NodeId), 10))
 	// Call the PerformOperation RPC

@@ -121,6 +121,7 @@ func UpdateSavedTasksCheckpointStats(savedTasksToReassign []NodeInUseInfo, saved
 		if checkpoint, exists := savedCheckpoints[checkpointName]; exists {
 			task.LinesProcessed = checkpoint.LinesProcessed
 			task.LineRangeStart = checkpoint.LinesProcessed
+			task.State = checkpoint.State
 		}
 
 		updatedTasks[i] = task
@@ -164,6 +165,7 @@ func RestartFailedTasks(tasksToRestart []NodeInUseInfo) error {
 					VmName:         node,
 					TaskId:         task.NodeId,
 					Operation:      task.Operation,
+					State:          task.State,
 				}
 				UpdateNodeCheckpointStats(node, checkpointName, checkpointStats)
 
