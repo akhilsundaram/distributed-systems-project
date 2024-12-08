@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -14,7 +15,6 @@ func main() {
 
 		// Define the input structure
 		var inputData struct {
-			State  map[string]int    `json:"state"`
 			Params map[string]string `json:"params"`
 			Data   map[string]string `json:"data"`
 		}
@@ -24,18 +24,21 @@ func main() {
 			continue
 		}
 
-		category := ""
-		for key, _ := range inputData.Data {
-			category = key
-			break
+		lineData := ""
+		for _, value := range inputData.Data {
+			lineData = value
 		}
 
-		inputData.State[category] += 1
+		needed := strings.Join(strings.Split(lineData, ",")[3:4], ",")
 
-		jsonOutput, err := json.Marshal(inputData.State)
+		output := map[string]interface{}{
+			needed: "",
+		}
+		jsonOutput, err := json.Marshal(output)
 		if err != nil {
 			continue
 		}
 		fmt.Println(string(jsonOutput))
+
 	}
 }

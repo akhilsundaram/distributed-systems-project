@@ -308,7 +308,11 @@ func main() {
 			case "test":
 				fmt.Print("enter input hydfs file :")
 				scanner.Scan()
-				stormworker.AddTask(0, 1, "source", 1, -1, "test_output", scanner.Text(), false, 1)
+				task, err := stormworker.AddTask(0, 1, "source", 1, -1, "test_output", scanner.Text(), false, 1)
+				if err != nil {
+					utility.LogMessage("ERROR ON TASK CREATION")
+				}
+				stormworker.RunTask(task)
 			default:
 				fmt.Printf("Unknown command: %s\n", cmd)
 			}
