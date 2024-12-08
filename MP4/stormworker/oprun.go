@@ -228,7 +228,7 @@ func RunOperation(task Task) {
 				if err != nil {
 					utility.LogMessage("batch write errored - err:>>>> " + err.Error())
 				}
-				sendCheckpointStatus(task.Stage, task.TASK_ID, lineNumber, outfile, task.Operation)
+				sendCheckpointStatus(task.Stage, task.TASK_ID, lineNumber, outfile, task.Operation, getState(task.Stage, task.TASK_ID))
 			}
 			bufferSize = 0
 

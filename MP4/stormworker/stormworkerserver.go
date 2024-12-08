@@ -54,7 +54,7 @@ func (s *StormworkerServer) PerformOperation(ctx context.Context, req *stormgrpc
 
 /* LEADER CLIENT STUFF */
 // from grpc client function template from the internet
-func sendCheckpointStatus(stage, task_id, lineProcessed int, intermediate_file, operation string) {
+func sendCheckpointStatus(stage, task_id, lineProcessed int, intermediate_file, operation, state string) {
 	leader_ip := utility.GetIPAddr(LEADER_HOSTNAME).String() //leader unchanged
 	conn, err := grpc.Dial(leader_ip+":6542", grpc.WithInsecure())
 	if err != nil {
@@ -74,6 +74,7 @@ func sendCheckpointStatus(stage, task_id, lineProcessed int, intermediate_file, 
 		Vmname:             membership.My_hostname,
 		TaskId:             int32(task_id), // Example task ID
 		Operation:          operation,
+		State:              state,
 	}
 
 	// Call the Checkpoint RPC
