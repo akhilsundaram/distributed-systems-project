@@ -308,12 +308,12 @@ func main() {
 				ring.PrintRing()
 				// list_mem_ids function here
 			case "rainstorm":
-				fmt.Println("RainStorm Stream Processing. Usage: <op1_exe> <op2_exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks>")
+				fmt.Println("RainStorm Stream Processing. Usage: <op1_exe> <op2_exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks> <filter1_optional> <filter2_optional>")
 				fmt.Print("Enter command: ")
 				scanner.Scan()
 				args := strings.Fields(scanner.Text())
-				if len(args) != 5 {
-					fmt.Println("Invalid input. Usage: <op1_exe> <op2_exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks>")
+				if len(args) < 5 || len(args) > 6 {
+					fmt.Println("Invalid input. Usage: <op1_exe> <op2_exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks> <filter1_optional> <filter2_optional>")
 				} else {
 					// create here with args[0] and args[1]
 					op1Exe := args[0]
@@ -322,9 +322,13 @@ func main() {
 					destFilePath := args[3]
 					numTasks, err := strconv.Atoi(args[4])
 					if err != nil {
-						fmt.Println("Invalid input. Usage: <op1_exe> <op2_exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks>")
+						fmt.Println("Invalid input. Number of tasks must be an integer.")
 					} else {
-						scheduler.StartScheduler(srcFilePath, numTasks, destFilePath, op1Exe, op2Exe)
+						var filters []string
+						if len(args) > 5 {
+							filters = args[5:]
+						}
+						scheduler.StartScheduler(srcFilePath, numTasks, destFilePath, op1Exe, op2Exe, filters...)
 					}
 				}
 			case "cluster_availibility":

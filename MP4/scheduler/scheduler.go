@@ -39,6 +39,7 @@ type NodeInUseInfo struct {
 	LineRangeEnd    int32
 	NodeId          int32
 	LinesProcessed  int32
+	CustomFilter    string
 }
 
 type NodeInUseStruct struct {
@@ -128,7 +129,7 @@ func MonitorMembershipList() {
 }
 
 // RainStorm <op1 _exe> <op2 _exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks>
-func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Exe string, op2Exe string) error {
+func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Exe string, op2Exe string, filters ...string) error {
 
 	op0Exe := "source"
 	ops := []string{op0Exe, op1Exe, op2Exe}
@@ -149,6 +150,15 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 	utility.LogMessage("Total lines: " + strconv.Itoa(totalLines))
 	utility.LogMessage("Lines per task: " + strconv.Itoa(linesPerTask))
 
+	filter_op1 := ""
+	filter_op2 := ""
+	customFilter := ""
+	if len(filters) > 0 {
+		filter_op1 = filters[0]
+		if len(filters) > 1 {
+			filter_op2 = filters[1]
+		}
+	}
 	// make this as a function
 	// update AvailableNodes, initialize NodesInUse and NodeCheckpointStats
 	for stageIndex, operation := range ops {
@@ -160,6 +170,11 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 			return fmt.Errorf("error selecting nodes for operation %s: %v", operation, err)
 		}
 		utility.LogMessage(fmt.Sprintf("Selected nodes for operation %s: %v", operation, selectedNodes))
+		if stageIndex == 1 {
+			customFilter = filter_op1
+		} else if stageIndex == 2 {
+			customFilter = filter_op2
+		}
 
 		for taskIndex, node := range selectedNodes {
 			// Calculate line range for this task
@@ -197,6 +212,7 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 				NodeId:          int32(taskIndex),
 				AggregateOutput: checkHashForInputProcessing,
 				LinesProcessed:  -1,
+				CustomFilter:    customFilter,
 			}
 
 			checkpointInit := CheckpointStats{
@@ -251,6 +267,7 @@ func SendSchedulerRequest(node string, nodeInstr NodeInUseInfo) error {
 		RangeEnd:        nodeInstr.LineRangeEnd,
 		TaskId:          nodeInstr.NodeId,
 		LinesProcessed:  nodeInstr.LinesProcessed,
+		CustomParam:     nodeInstr.CustomFilter,
 	}
 	utility.LogMessage("Sending request to server: " + node + " with (operation, taskid): " + nodeInstr.Operation + "," + strconv.FormatInt(int64(nodeInstr.NodeId), 10))
 	// Call the PerformOperation RPC
