@@ -240,7 +240,7 @@ func handleIncomingFileConnection(conn net.Conn) {
 	case "create":
 		hydfsPath := utility.HYDFS_DIR + "/" + parsedData.Filename
 
-		fmt.Printf("Creating file %s in HyDFS \n", hydfsPath)
+		// fmt.Printf("Creating file %s in HyDFS \n", hydfsPath)
 		if utility.FileExists(hydfsPath) {
 			utility.LogMessage("File with name exists")
 		}

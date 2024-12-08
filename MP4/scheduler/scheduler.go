@@ -195,17 +195,21 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 			outputFilePath := destFilePath
 			if stageIndex == 0 {
 				// source operation
-				outputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex) + "_output"
+				outputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex)
 				CreateFileinHydfs(outputFilePath)
 			} else if stageIndex == 1 {
 				// op1 operation
-				inputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex-1) + "_" + strconv.Itoa(taskIndex) + "_output"
-				outputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex) + "_output"
+				inputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex-1) + "_" + strconv.Itoa(taskIndex)
+				outputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex)
 				CreateFileinHydfs(outputFilePath)
-				checkHashForInputProcessing = true
+
+				// Check if next op is count -- TODO: check if this is correct
+				if op2Exe == "count" {
+					checkHashForInputProcessing = true
+				}
 			} else {
 				// op2 operation
-				inputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex-1) + "_" + strconv.Itoa(taskIndex) + "_output"
+				inputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex-1) + "_" + strconv.Itoa(taskIndex)
 				CreateFileinHydfs(inputFilePath)
 			}
 
