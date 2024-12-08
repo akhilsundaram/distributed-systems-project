@@ -100,6 +100,7 @@ func RunOperation(task Task) {
 			}
 			inputLine = string(inputJson)
 		} else if task.Operation == "count" {
+			utility.LogMessage("Entered a count task")
 			var lineData struct {
 				Meta struct {
 					LineProcessed int `json:"lineProcessed"`
@@ -125,7 +126,7 @@ func RunOperation(task Task) {
 			}
 
 			var inputData struct {
-				State  string            `json:"state"`
+				State  map[string]int    `json:"state"`
 				Params string            `json:"params"`
 				Data   map[string]string `json:"data"`
 			}
@@ -136,7 +137,13 @@ func RunOperation(task Task) {
 			}
 
 			inputData.Data = dataMap
-			inputData.State = getState(task.Stage, task.TASK_ID)
+			var stateMap map[string]int
+			err := json.Unmarshal([]byte(getState(task.Stage, task.TASK_ID)), &stateMap)
+			if err != nil {
+				utility.LogMessage(fmt.Sprintf("Error unmarshalling Data into map: %v\n", err))
+				return
+			}
+			inputData.State = stateMap
 			inputData.Params = task.customParams
 			inputJson, err := json.Marshal(inputData) //Get line to be fed to operators.
 			if err != nil {
@@ -226,10 +233,26 @@ func RunOperation(task Task) {
 			}
 
 			if task.aggregate_output {
-				aggregate_val := utility.KeyMurmurHash(outputContent.Data, task.num_tasks)
+				utility.LogMessage("Aggregate is true shuffle output")
+
+				// Parse Data as a map to extract the key
+				var dataMap map[string]string
+				err := json.Unmarshal([]byte(outputContent.Data), &dataMap)
+				if err != nil {
+					utility.LogMessage(fmt.Sprintf("Error unmarshalling Data into map: %v\n", err))
+					return
+				}
+				aggregateKey := ""
+				for key := range dataMap {
+					aggregateKey = key
+					break
+				}
+
+				aggregate_val := utility.KeyMurmurHash(aggregateKey, task.num_tasks)
 				vals := strings.Split(outputFilename, "_")
 				vals[len(vals)-1] = strconv.FormatUint(uint64(aggregate_val), 10)
 				outputFilename = strings.Join(vals, "_")
+
 			}
 
 			setState(task.Stage, task.TASK_ID, outputContent.Data)
