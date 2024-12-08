@@ -174,6 +174,7 @@ func RunOperation(task Task) {
 				return
 			}
 			inputLine = string(inputJson)
+			utility.LogMessage(fmt.Sprintf("Parsing line - %d from input, operation %v =>"+inputLine, lineNumber, task.Operation))
 		}
 
 		// Execute the binary with the line as input
