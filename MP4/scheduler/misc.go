@@ -87,7 +87,6 @@ func PrintAvailableNodes() {
 	for node, count := range AvailableNodes.nodes {
 		fmt.Printf("Node: %s, Task Count: %d\n", node, count)
 	}
-	fmt.Println("=== End of Available Nodes ===")
 }
 
 func PrintNodesInUse() {
