@@ -35,7 +35,7 @@ func RunOp_exe(inputFilename, outputFilename, operation string, offset int, end 
 	defer binaryFile.Close()
 
 	//Run in a temp location
-	tempBinaryPath := fmt.Sprintf("/tmp/%s", operation)
+	tempBinaryPath := fmt.Sprintf("/tmp/%s_%d_%d", operation, stage, task_id)
 	tempBinary, err := os.Create(tempBinaryPath)
 	if err != nil {
 		fmt.Printf("Error creating temp binary file: %v\n", err)
