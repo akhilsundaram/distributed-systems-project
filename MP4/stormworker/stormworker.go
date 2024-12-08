@@ -308,7 +308,7 @@ MAIN STORMWORKER FUNCTIONS
 // }
 
 func RunTask(task Task) {
-	utility.LogMessage(fmt.Sprint("Starting Worker Node for stage: %d => ID:%d, operation: %v, inputfile: %v, outputfile: %v", task.state, task.TASK_ID, task.Operation, task.InputHydfsFile, task.OutputHydfsFile))
+	utility.LogMessage(fmt.Sprintf("Starting Worker Node for stage: %d => ID:%d, operation: %v, inputfile: %v, outputfile: %v", task.state, task.TASK_ID, task.Operation, task.InputHydfsFile, task.OutputHydfsFile))
 
 	for {
 		tkey := taskKey{stage: task.Stage, task: task.TASK_ID}
