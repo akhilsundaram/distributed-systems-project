@@ -154,6 +154,7 @@ func updateCurrentProcessedLine(stage, task_id, currentLine int) error {
 
 	//update
 	task.CurrentProcessedLine = currentLine
+	task.StartRange = currentLine
 	tasks[tkey] = task
 	return nil
 }
