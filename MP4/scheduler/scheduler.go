@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	scheduler_port  = "6543"
+	scheduler_port  = "4001"
 	checkpoint_port = "6542"
 	timeout         = 10 * time.Millisecond
 	SCHEDULER_HOST  = "fa24-cs425-5901.cs.illinois.edu"
