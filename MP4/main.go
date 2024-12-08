@@ -314,6 +314,9 @@ func main() {
 				fmt.Print("Enter command: ")
 				scanner.Scan()
 				args := scheduler.ParseCommandWithQuotes(scanner.Text())
+				for i, arg := range args {
+					fmt.Print("Arg ", i+1, ": ", arg, "\n")
+				}
 				if len(args) < 5 || len(args) > 7 {
 					fmt.Println("Invalid input. Usage: <op1_exe> <op2_exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks> \"<filter1_optional>\" \"<filter2_optional>\"")
 				} else {
