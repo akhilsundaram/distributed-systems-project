@@ -318,11 +318,11 @@ func main() {
 					fmt.Println("Invalid input. Usage: <op1_exe> <op2_exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks> <filter1_optional> <filter2_optional>")
 				} else {
 					// create here with args[0] and args[1]
-					// op1Exe := args[0]
-					// op2Exe := args[1]
-					// srcFilePath := args[2]
-					// destFilePath := args[3]
-					// numTasks, err := strconv.Atoi(args[4])
+					op1Exe := strings.TrimSpace(args[0])
+					op2Exe := strings.TrimSpace(args[1])
+					srcFilePath := strings.TrimSpace(args[2])
+					destFilePath := strings.TrimSpace(args[3])
+					numTasks, err := strconv.Atoi(strings.TrimSpace(args[4]))
 					if err != nil {
 						fmt.Println("Invalid input. Number of tasks must be an integer.")
 					} else {
@@ -331,11 +331,8 @@ func main() {
 							for i := 5; i < len(args); i++ {
 								filters = append(filters, strings.TrimSpace(args[i]))
 							}
-							for i, filter := range filters {
-								fmt.Print("Filter ", i+1, ": ", filter+"\n")
-							}
 						}
-						//scheduler.StartScheduler(srcFilePath, numTasks, destFilePath, op1Exe, op2Exe, filters...)
+						scheduler.StartScheduler(srcFilePath, numTasks, destFilePath, op1Exe, op2Exe, filters...)
 					}
 				}
 			case "cluster_availibility":
