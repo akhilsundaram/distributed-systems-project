@@ -154,8 +154,8 @@ func RunOperation(task Task) {
 			}
 
 			procKey := taskKey{task: lineData.Meta.Task, stage: lineData.Meta.Stage}
-			if value, exists := task.processedMap[procKey]; exists {
-				if value <= lineNumber {
+			if value, exists := getCurrentProcessedLine(task.Stage, task.TASK_ID)[procKey]; exists {
+				if value >= lineNumber {
 					utility.LogMessage(fmt.Sprintf("DUPLICATE ENTRFY FOUND - skipping line =>, INMEMLINE PROCESSED for Stage-%d Task-%d, is %d. Currently seen line value - %d ", lineData.Meta.Task, lineData.Meta.Stage, value, lineNumber))
 					continue
 				}

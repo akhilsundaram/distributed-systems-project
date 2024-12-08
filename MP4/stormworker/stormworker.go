@@ -153,6 +153,7 @@ func updateCurrentProcessedLine(stage, task_id, currentLine int) error {
 	}
 
 	//update
+	utility.LogMessage(fmt.Sprintf("START RANGE UPDATED TO %d", currentLine))
 	task.CurrentProcessedLine = currentLine
 	task.StartRange = currentLine
 	tasks[tkey] = task
@@ -309,7 +310,12 @@ MAIN STORMWORKER FUNCTIONS
 func RunTask(task Task) {
 
 	for {
-		utility.LogMessage(fmt.Sprintf("NEW LOOP STARTED. Line processed - %d, StartRange - %d, EndRange - %d", task.CurrentProcessedLine, task.StartRange, task.EndRange))
+		tkey := taskKey{stage: task.Stage, task: task.TASK_ID}
+		task, exists := tasks[tkey]
+		if !exists {
+			utility.LogMessage("Task not found")
+		}
+		// utility.LogMessage(fmt.Sprintf("NEW LOOP STARTED for %d.%d Line processed - %d, StartRange - %d, EndRange - %d", task.Stage, task.TASK_ID, task.CurrentProcessedLine, task.StartRange, task.EndRange))
 		if task.Completed { // only can be set by command from leader
 			// Send signal of ending task to leader!!!!!!!!!!!
 
@@ -322,6 +328,12 @@ func RunTask(task Task) {
 			// Send signal to leader on stall issue => task.Message
 			deleteTask(task.Stage, task.TASK_ID)
 			return // change behaviour to retry later, for now fail
+		}
+
+		if task.StartRange == task.EndRange {
+			utility.LogMessage("task deleted after start range == end range")
+			deleteTask(task.Stage, task.TASK_ID)
+			return
 		}
 
 		// Get req from hydfs
