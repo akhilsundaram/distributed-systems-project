@@ -165,6 +165,9 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 			filter_op2 = filters[1]
 		}
 	}
+	// creating hydfs file for dest
+	CreateFileinHydfs(destFilePath)
+
 	// make this as a function
 	// update AvailableNodes, initialize NodesInUse and NodeCheckpointStats
 	for stageIndex, operation := range ops {
