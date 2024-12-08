@@ -20,7 +20,7 @@ const (
 	scheduler_port  = "6543"
 	checkpoint_port = "6542"
 	timeout         = 10 * time.Millisecond
-	SCHEDULER_HOST  = "fa20-cs425-g59-01.cs.illinois.edu"
+	SCHEDULER_HOST  = "fa24-cs425-5901.cs.illinois.edu"
 )
 
 type AvailableNodesStruct struct {
@@ -39,6 +39,8 @@ type NodeInUseInfo struct {
 	LineRangeEnd    int32
 	NodeId          int32
 	LinesProcessed  int32
+	CustomFilter    string
+	State           string
 }
 
 type NodeInUseStruct struct {
@@ -53,6 +55,7 @@ type CheckpointStats struct {
 	VmName         string
 	TaskId         int32
 	Operation      string
+	State          string
 	// other fields to add in Checkpointing struct to save in memory
 }
 
@@ -101,19 +104,26 @@ func InitializeScheduler() {
 		}
 	}()
 
-	MonitorMembershipList()
+	go MonitorMembershipList()
 }
 
 func MonitorMembershipList() {
 	// this is a blocking call
 	// this will run as long as scheduler is running
-
+	utility.LogMessage("Scheduler starting membership list monitoring")
 	for {
 		scheduler_change := <-membership.SchedulerMemberchan
+
 		var action string
+		if scheduler_change.NodeName == SCHEDULER_HOST {
+			utility.LogMessage("Scheduler: Ignoring scheduler node")
+			continue
+		}
 		if scheduler_change.Event == membership.Add {
+			utility.LogMessage("Scheduler: Node to be added to available list: " + scheduler_change.NodeName)
 			action = "Add"
-		} else {
+		} else if scheduler_change.Event == membership.Delete {
+			utility.LogMessage("Scheduler: Node added to be removed from list: " + scheduler_change.NodeName)
 			action = "Delete"
 		}
 		UpdateSchedulerMemeberList(scheduler_change.NodeName, action)
@@ -121,7 +131,7 @@ func MonitorMembershipList() {
 }
 
 // RainStorm <op1 _exe> <op2 _exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks>
-func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Exe string, op2Exe string) error {
+func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Exe string, op2Exe string, filters ...string) error {
 
 	op0Exe := "source"
 	ops := []string{op0Exe, op1Exe, op2Exe}
@@ -142,6 +152,15 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 	utility.LogMessage("Total lines: " + strconv.Itoa(totalLines))
 	utility.LogMessage("Lines per task: " + strconv.Itoa(linesPerTask))
 
+	filter_op1 := ""
+	filter_op2 := ""
+	customFilter := ""
+	if len(filters) > 0 {
+		filter_op1 = filters[0]
+		if len(filters) > 1 {
+			filter_op2 = filters[1]
+		}
+	}
 	// make this as a function
 	// update AvailableNodes, initialize NodesInUse and NodeCheckpointStats
 	for stageIndex, operation := range ops {
@@ -151,6 +170,12 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 		selectedNodes, err := SelectNodesWithLeastTasks(numTasks)
 		if err != nil {
 			return fmt.Errorf("error selecting nodes for operation %s: %v", operation, err)
+		}
+		utility.LogMessage(fmt.Sprintf("Selected nodes for operation %s: %v", operation, selectedNodes))
+		if stageIndex == 1 {
+			customFilter = filter_op1
+		} else if stageIndex == 2 {
+			customFilter = filter_op2
 		}
 		utility.LogMessage(fmt.Sprintf("Selected nodes for operation %s: %v", operation, selectedNodes))
 
@@ -190,6 +215,8 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 				NodeId:          int32(taskIndex),
 				AggregateOutput: checkHashForInputProcessing,
 				LinesProcessed:  -1,
+				CustomFilter:    customFilter,
+				State:           "",
 			}
 
 			checkpointInit := CheckpointStats{
@@ -199,6 +226,7 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 				VmName:         node,
 				TaskId:         int32(taskIndex),
 				Operation:      operation,
+				State:          "",
 			}
 			stageTaskId := strconv.FormatInt(int64(stageIndex), 10) + "_" + strconv.FormatInt(int64(taskIndex), 10)
 
@@ -244,6 +272,8 @@ func SendSchedulerRequest(node string, nodeInstr NodeInUseInfo) error {
 		RangeEnd:        nodeInstr.LineRangeEnd,
 		TaskId:          nodeInstr.NodeId,
 		LinesProcessed:  nodeInstr.LinesProcessed,
+		CustomParam:     nodeInstr.CustomFilter,
+		State:           nodeInstr.State,
 	}
 	utility.LogMessage("Sending request to server: " + node + " with (operation, taskid): " + nodeInstr.Operation + "," + strconv.FormatInt(int64(nodeInstr.NodeId), 10))
 	// Call the PerformOperation RPC
