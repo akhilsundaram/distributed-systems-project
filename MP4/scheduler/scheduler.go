@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"net"
+	"rainstorm/file_transfer"
 	"rainstorm/membership"
 	"rainstorm/stormgrpc"
 	"rainstorm/utility"
@@ -137,7 +138,10 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 	ops := []string{op0Exe, op1Exe, op2Exe}
 
 	//total lines in source file
-	totalLines, err := utility.FileLineCount(srcFilePath)
+	// Get file from HYDFS
+	localPath := GetFileFromHydfs(srcFilePath)
+
+	totalLines, err := utility.FileLineCount(localPath)
 	if err != nil {
 		errMsg := "error counting lines in source file: " + err.Error()
 		utility.LogMessage(errMsg)
@@ -193,14 +197,18 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 			if stageIndex == 0 {
 				// source operation
 				outputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex) + "_output"
+				CreateFileinHydfs(outputFilePath)
 			} else if stageIndex == 1 {
 				// op1 operation
 				inputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex) + "_input"
+				CreateFileinHydfs(inputFilePath)
 				outputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex) + "_output"
+				CreateFileinHydfs(outputFilePath)
 				checkHashForInputProcessing = true
 			} else {
 				// op2 operation
 				inputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex) + "_input"
+				CreateFileinHydfs(inputFilePath)
 			}
 
 			// Prepare NodeInUseInfo
@@ -287,4 +295,59 @@ func SendSchedulerRequest(node string, nodeInstr NodeInUseInfo) error {
 	}
 	utility.LogMessage("Response from server: status=" + resp.Status + ", message=" + resp.Message)
 	return nil
+}
+
+func CreateFileinHydfs(filename string) {
+	// create file in hydfs
+	utility.LogMessage("Creating file in hydfs: " + filename)
+	// create file in hydfs
+	var wg sync.WaitGroup
+	var request file_transfer.ClientData
+	request.Operation = "create"
+	fileData := []byte("")
+	request.Data = fileData
+	fileID, senderIPs, senderIDs := file_transfer.GetSuccesorIPsForFilename(filename)
+	request.RingID = fileID
+	request.TimeStamp = time.Now()
+
+	for i := 0; i < len(senderIPs); i++ {
+		wg.Add(1)
+		go func(ip_addr string, sender_id string) {
+			defer wg.Done()
+			response, err := file_transfer.SendRequest(ip_addr, request)
+			if err != nil {
+				utility.LogMessage(fmt.Sprintf("Error in create: %v", err))
+				return
+			}
+			if response.Err != "" {
+				utility.LogMessage(fmt.Sprintf("Error from server: %s", response.Err))
+				return
+			}
+			utility.LogMessage(fmt.Sprintf("File created successfully: %s on %s", string(response.Data), response.IP))
+			fmt.Printf("Created file %s (ID - %d) in HyDFS Node (ID - %s) \n", filename, fileID, sender_id)
+		}(senderIPs[i], senderIDs[i])
+	}
+
+	// Wait for the goroutine to finish
+	wg.Wait()
+	utility.LogMessage("File create operation completed")
+}
+
+func GetFileFromHydfs(srcFilePath string) string {
+
+	// Get req from hydfs
+	localfilePath := "/home/hydfs/" + srcFilePath
+	var request file_transfer.ClientData
+	request.Operation = "get"
+	request.LocalFilePath = "/home/hydfs/" + srcFilePath
+	request.Filename = srcFilePath
+
+	// Get the file from hydfs
+	fileID, senderIPs, _ := file_transfer.GetSuccesorIPsForFilename(srcFilePath)
+	request.RingID = fileID
+	responses := file_transfer.GetFileFromReplicas(senderIPs, request)
+	// REPLACES THE LOCAL FILE ?
+	latestResponse := file_transfer.ParseGetRespFromReplicas(responses, senderIPs[0], localfilePath)
+	utility.LogMessage("Filename : " + srcFilePath + "retrieved for RainStorm => timestamp : " + latestResponse.TimeStamp.String())
+	return localfilePath
 }
