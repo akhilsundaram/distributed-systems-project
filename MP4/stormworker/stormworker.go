@@ -309,6 +309,7 @@ MAIN STORMWORKER FUNCTIONS
 func RunTask(task Task) {
 
 	for {
+		utility.LogMessage(fmt.Sprintf("NEW LOOP STARTED. Line processed - %d, StartRange - %d, EndRange - %d", task.CurrentProcessedLine, task.StartRange, task.EndRange))
 		if task.Completed { // only can be set by command from leader
 			// Send signal of ending task to leader!!!!!!!!!!!
 
