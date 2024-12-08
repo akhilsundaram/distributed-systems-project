@@ -230,7 +230,11 @@ func RunOperation(task Task) {
 				}
 				sendCheckpointStatus(task.Stage, task.TASK_ID, lineNumber, outfile, task.Operation, getState(task.Stage, task.TASK_ID))
 			}
+			setLinesout(task.Stage, task.TASK_ID, bufferSize)
 			bufferSize = 0
+			for key := range task.buffer {
+				task.buffer[key] = []string{}
+			}
 
 		}
 		utility.LogMessage(fmt.Sprintf("Line %d output: %s\n", lineNumber, output.String()))
@@ -238,6 +242,21 @@ func RunOperation(task Task) {
 
 	if err := scanner.Err(); err != nil {
 		utility.LogMessage(fmt.Sprintf("Error reading input file: %v\n", err))
+	}
+
+	if bufferSize > 0 {
+		for outfile, values := range task.buffer {
+			err = writeToHydfs(values, outfile, task.Stage, task.TASK_ID)
+			if err != nil {
+				utility.LogMessage("batch write errored - err:>>>> " + err.Error())
+			}
+			sendCheckpointStatus(task.Stage, task.TASK_ID, lineNumber, outfile, task.Operation, getState(task.Stage, task.TASK_ID))
+		}
+		setLinesout(task.Stage, task.TASK_ID, bufferSize)
+		bufferSize = 0
+		for key := range task.buffer {
+			task.buffer[key] = []string{}
+		}
 	}
 
 }
