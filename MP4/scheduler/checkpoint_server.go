@@ -35,7 +35,7 @@ func (s *CheckpointServer) Checkpoint(ctx context.Context, req *stormgrpc.Checkp
 	existingStats, exists := NodeCheckpointStats.stats[req.Vmname][stage_taskid]
 	NodeCheckpointStats.mutex.RUnlock()
 
-	if exists && existingStats.TempFilename != req.Filename {
+	if exists && existingStats.TempFilename != "" && existingStats.TempFilename != req.Filename {
 		errMsg := fmt.Errorf("error: filename mismatch for vm %s, stage %d. expected: %s, recv: %s",
 			req.Vmname, req.Stage, existingStats.TempFilename, req.Filename)
 		utility.LogMessage(errMsg.Error())
