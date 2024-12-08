@@ -138,11 +138,19 @@ func RunOperation(task Task) {
 
 			inputData.Data = dataMap
 			var stateMap map[string]int
-			err := json.Unmarshal([]byte(getState(task.Stage, task.TASK_ID)), &stateMap)
-			if err != nil {
-				utility.LogMessage(fmt.Sprintf("Error unmarshalling Data into map: %v\n", err))
-				return
+			stateString := getState(task.Stage, task.TASK_ID)
+
+			// Handle empty state string
+			if stateString == "" {
+				stateMap = make(map[string]int) // Initialize an empty map
+			} else {
+				err := json.Unmarshal([]byte(getState(task.Stage, task.TASK_ID)), &stateMap)
+				if err != nil {
+					utility.LogMessage(fmt.Sprintf("Error unmarshalling Data into map: %v\n", err))
+					return
+				}
 			}
+
 			inputData.State = stateMap
 			inputData.Params = task.customParams
 			inputJson, err := json.Marshal(inputData) //Get line to be fed to operators.
