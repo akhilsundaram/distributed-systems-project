@@ -29,7 +29,7 @@ func main() {
 			lineData = value
 		}
 
-		needed := strings.Join(strings.Split(lineData, ",")[3:4], ",")
+		needed := strings.Join(strings.Split(lineData, ",")[2:4], ",")
 
 		output := map[string]interface{}{
 			needed: "",
