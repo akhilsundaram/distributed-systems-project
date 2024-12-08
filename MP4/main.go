@@ -310,11 +310,11 @@ func main() {
 				ring.PrintRing()
 				// list_mem_ids function here
 			case "rainstorm":
-				fmt.Println("RainStorm Stream Processing. Usage: <op1_exe> <op2_exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks> <filter1_optional> <filter2_optional>")
+				fmt.Println("RainStorm Stream Processing. Usage: <op1_exe>,<op2_exe>,<hydfs_src_file>,<hydfs_dest_filename>,<num_tasks>,<filter1_optional>,<filter2_optional>")
 				fmt.Print("Enter command: ")
 				scanner.Scan()
-				args := strings.Fields(scanner.Text())
-				if len(args) < 5 || len(args) > 6 {
+				args := strings.Split(scanner.Text(), ",")
+				if len(args) < 5 || len(args) > 7 {
 					fmt.Println("Invalid input. Usage: <op1_exe> <op2_exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks> <filter1_optional> <filter2_optional>")
 				} else {
 					// create here with args[0] and args[1]
@@ -328,7 +328,9 @@ func main() {
 					} else {
 						var filters []string
 						if len(args) > 5 {
-							filters = args[5:]
+							for i := 5; i < len(args); i++ {
+								filters = append(filters, strings.TrimSpace(args[i]))
+							}
 							for i, filter := range filters {
 								fmt.Print("Filter ", i+1, ": ", filter+"\n")
 							}
