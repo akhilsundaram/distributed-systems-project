@@ -26,8 +26,11 @@ func main() {
 		pattern := strings.Split(inputData.Params, ",")[0]
 
 		lineData := ""
-		for _, value := range inputData.Data {
+		linemeta := ""
+		for key, value := range inputData.Data {
 			lineData = value
+			linemeta = key
+
 		}
 
 		values := strings.Split(lineData, ",")
@@ -36,7 +39,7 @@ func main() {
 		if sign_post == pattern {
 
 			output := map[string]interface{}{
-				values[8]: "1",
+				values[8]: linemeta,
 			}
 			jsonOutput, err := json.Marshal(output)
 			if err != nil {
