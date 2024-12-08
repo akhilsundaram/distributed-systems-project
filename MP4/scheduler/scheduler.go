@@ -199,14 +199,13 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 				CreateFileinHydfs(outputFilePath)
 			} else if stageIndex == 1 {
 				// op1 operation
-				inputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex) + "_input"
-				CreateFileinHydfs(inputFilePath)
+				inputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex-1) + "_" + strconv.Itoa(taskIndex-1) + "_output"
 				outputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex) + "_output"
 				CreateFileinHydfs(outputFilePath)
 				checkHashForInputProcessing = true
 			} else {
 				// op2 operation
-				inputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex) + "_" + strconv.Itoa(taskIndex) + "_input"
+				inputFilePath = srcFilePath + "_" + strconv.Itoa(stageIndex-1) + "_" + strconv.Itoa(taskIndex-1) + "_output"
 				CreateFileinHydfs(inputFilePath)
 			}
 
@@ -324,7 +323,7 @@ func CreateFileinHydfs(filename string) {
 				return
 			}
 			utility.LogMessage(fmt.Sprintf("File created successfully: %s on %s", string(response.Data), response.IP))
-			fmt.Printf("Created file %s (ID - %d) in HyDFS Node (ID - %s) \n", filename, fileID, sender_id)
+			// fmt.Printf("Created file %s (ID - %d) in HyDFS Node (ID - %s) \n", filename, fileID, sender_id)
 		}(senderIPs[i], senderIDs[i])
 	}
 
