@@ -125,11 +125,17 @@ func RunOperation(task Task) {
 			}
 
 			var inputData struct {
-				State  string `json:"state"`
-				Params string `json:"params"`
-				Data   string `json:"data"`
+				State  string            `json:"state"`
+				Params string            `json:"params"`
+				Data   map[string]string `json:"data"`
 			}
-			inputData.Data = lineData.Data
+			var dataMap map[string]string
+			if err := json.Unmarshal([]byte(lineData.Data), &dataMap); err != nil {
+				utility.LogMessage(fmt.Sprintf("Error unmarshalling lineData.Data: %v\n", err))
+				return
+			}
+
+			inputData.Data = dataMap
 			inputData.State = getState(task.Stage, task.TASK_ID)
 			inputData.Params = task.customParams
 			inputJson, err := json.Marshal(inputData) //Get line to be fed to operators.
@@ -163,10 +169,17 @@ func RunOperation(task Task) {
 			}
 
 			var inputData struct {
-				Params string `json:"params"`
-				Data   string `json:"data"`
+				Params string            `json:"params"`
+				Data   map[string]string `json:"data"`
 			}
-			inputData.Data = lineData.Data
+
+			var dataMap map[string]string
+			if err := json.Unmarshal([]byte(lineData.Data), &dataMap); err != nil {
+				utility.LogMessage(fmt.Sprintf("Error unmarshalling lineData.Data: %v\n", err))
+				return
+			}
+
+			inputData.Data = dataMap
 			inputData.Params = task.customParams
 			inputJson, err := json.Marshal(inputData) //Get line to be fed to operators.
 			if err != nil {
