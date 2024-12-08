@@ -36,6 +36,7 @@ type Task struct {
 	customParams         string
 	buffer               map[string][]string
 	state                string
+	linesOut             int
 }
 
 type liveness struct {
@@ -51,7 +52,7 @@ var (
 	port                  string           = "4001"
 	tasks                 map[taskKey]Task //key is phase
 	taskHealth            map[string]liveness
-	STORM_LOCAL_FILE_PATH string = "/home/rainstorm"
+	STORM_LOCAL_FILE_PATH string = "/home/hydfs"
 	LEADER_HOSTNAME       string = "fa24-cs425-5901.cs.illinois.edu"
 	BUFFER_SIZE           int    = 10
 )
@@ -118,6 +119,7 @@ func AddTask(stage int, task_id int, operation string, startRange, endRange int,
 		customParams:         customParam,
 		buffer:               make(map[string][]string),
 		state:                state,
+		linesOut:             0,
 	}
 	// Add the task to the in-mem dict
 	tasks[tkey] = newTask
@@ -169,6 +171,34 @@ func setTaskRunning(stage, task_id int, status bool) {
 	//update
 	task.Running = status
 	tasks[tkey] = task
+}
+
+func setLinesout(stage, task_id int, value int) {
+	if tasks == nil {
+		utility.LogMessage(fmt.Sprintf("NO TASKS EXIST, but Task of %d stage's Run status was requested to be changed!!", stage))
+		return
+	}
+	tkey := taskKey{stage: stage, task: task_id}
+	task, exists := tasks[tkey]
+	if !exists {
+		utility.LogMessage(fmt.Sprintf("Task with the given stage- %d and task id - %d - does not exist", stage, task_id))
+	}
+	//update
+	task.linesOut += value
+	tasks[tkey] = task
+}
+
+func getLinesout(stage, task_id int) int {
+	if tasks == nil {
+		utility.LogMessage(fmt.Sprintf("NO TASKS EXIST, but Task of %d stage's Run status was requested to be changed!!", stage))
+		return -1
+	}
+	tkey := taskKey{stage: stage, task: task_id}
+	task, exists := tasks[tkey]
+	if !exists {
+		utility.LogMessage(fmt.Sprintf("Task with the given stage- %d and task id - %d - does not exist", stage, task_id))
+	}
+	return task.linesOut
 }
 
 func setState(stage, task_id int, state string) {
