@@ -205,54 +205,56 @@ func RunOperation(task Task) {
 		//update processed with pkey
 		SetProccessedLine(task.Stage, task.TASK_ID, pkey, lineNumber)
 
-		//process output content
-		var outputContent struct {
-			Meta struct {
-				LineProcessed int `json:"lineProcessed"`
-				Stage         int `json:"stage"`
-				Task          int `json:"task"`
-			} `json:"meta"`
-			Data string `json:"data"`
-		}
-		outputContent.Data = output.String()
-		outputContent.Meta.LineProcessed = lineNumber
-		outputContent.Meta.Stage = task.Stage
-		outputContent.Meta.Task = task.TASK_ID
-		outputContentJson, err := json.Marshal(outputContent)
-		if err != nil {
-			utility.LogMessage(fmt.Sprintf("Error marshalling JSON: %v\n", err))
-			return
-		}
+		if output.String() != "" {
+			//process output content
+			var outputContent struct {
+				Meta struct {
+					LineProcessed int `json:"lineProcessed"`
+					Stage         int `json:"stage"`
+					Task          int `json:"task"`
+				} `json:"meta"`
+				Data string `json:"data"`
+			}
+			outputContent.Data = output.String()
+			outputContent.Meta.LineProcessed = lineNumber
+			outputContent.Meta.Stage = task.Stage
+			outputContent.Meta.Task = task.TASK_ID
+			outputContentJson, err := json.Marshal(outputContent)
+			if err != nil {
+				utility.LogMessage(fmt.Sprintf("Error marshalling JSON: %v\n", err))
+				return
+			}
 
-		if task.aggregate_output {
-			aggregate_val := utility.KeyMurmurHash(outputContent.Data, task.num_tasks)
-			vals := strings.Split(outputFilename, "_")
-			vals[len(vals)-1] = strconv.FormatUint(uint64(aggregate_val), 10)
-			outputFilename = strings.Join(vals, "_")
-		}
+			if task.aggregate_output {
+				aggregate_val := utility.KeyMurmurHash(outputContent.Data, task.num_tasks)
+				vals := strings.Split(outputFilename, "_")
+				vals[len(vals)-1] = strconv.FormatUint(uint64(aggregate_val), 10)
+				outputFilename = strings.Join(vals, "_")
+			}
 
-		setState(task.Stage, task.TASK_ID, outputContent.Data)
+			setState(task.Stage, task.TASK_ID, outputContent.Data)
 
-		// Only every N batches
-		task.buffer[outputFilename] = append(task.buffer[outputFilename], string(outputContentJson))
-		bufferSize += 1
-		if bufferSize == BUFFER_SIZE {
-			for outfile, values := range task.buffer {
-				err = writeToHydfs(values, outfile, task.Stage, task.TASK_ID)
-				if err != nil {
-					utility.LogMessage("batch write errored - err:>>>> " + err.Error())
+			// Only every N batches
+			task.buffer[outputFilename] = append(task.buffer[outputFilename], string(outputContentJson))
+			bufferSize += 1
+			if bufferSize == BUFFER_SIZE {
+				for outfile, values := range task.buffer {
+					err = writeToHydfs(values, outfile, task.Stage, task.TASK_ID)
+					if err != nil {
+						utility.LogMessage("batch write errored - err:>>>> " + err.Error())
+					}
+					sendCheckpointStatus(task.Stage, task.TASK_ID, lineNumber, outfile, task.Operation, getState(task.Stage, task.TASK_ID))
 				}
-				sendCheckpointStatus(task.Stage, task.TASK_ID, lineNumber, outfile, task.Operation, getState(task.Stage, task.TASK_ID))
-			}
-			setLinesout(task.Stage, task.TASK_ID, bufferSize)
-			bufferSize = 0
-			for key := range task.buffer {
-				task.buffer[key] = []string{}
-			}
+				setLinesout(task.Stage, task.TASK_ID, bufferSize)
+				bufferSize = 0
+				for key := range task.buffer {
+					task.buffer[key] = []string{}
+				}
 
+			}
+			utility.LogMessage(fmt.Sprintf("Line %d output: %s\n", lineNumber, output.String()))
 		}
 		updateCurrentProcessedLine(task.Stage, task.TASK_ID, lineNumber)
-		utility.LogMessage(fmt.Sprintf("Line %d output: %s\n", lineNumber, output.String()))
 	}
 
 	if err := scanner.Err(); err != nil {
