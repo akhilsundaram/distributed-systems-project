@@ -15,6 +15,7 @@ message CheckpointRequest {
   string vmname = 4;           // Name of the VM where task is running
   int32 task_id = 5;          // task sending the checkpoint
   string operation = 6;        // operation: "src", "op1exe", "op2exe"
+  string state = 7;            //state of op
 }
 // Name of the VM where task is running : string vmname = 4;
 

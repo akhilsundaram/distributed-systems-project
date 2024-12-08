@@ -175,6 +175,7 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 		} else if stageIndex == 2 {
 			customFilter = filter_op2
 		}
+		utility.LogMessage(fmt.Sprintf("Selected nodes for operation %s: %v", operation, selectedNodes))
 
 		for taskIndex, node := range selectedNodes {
 			// Calculate line range for this task
