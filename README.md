@@ -177,7 +177,12 @@ Created a group membership system which detects failures and maintains a real-ti
 > `$ Enter command: rainstorm`
 
 > `$ RainStorm Stream Processing. Usage: <op1_exe>,<op2_exe>,<hydfs_src_file>,<hydfs_dest_filename>,<num_tasks>,<filter1_optional>,<filter2_optional>`
-> `$ Enter command: filterapp2,count,test_data,output,3,Streetlight`
+
+
+> `$ Enter command: filterapp2,count,test_data,output,3,Streetlight` --> for complex scenario
+
+
+> `$ Enter command: filterapp1,transformapp1,test_data,output,3,Warning` --> for simple scenario
 
 **While the stream processing framework is running, use the following command to get information on which node is running which task :**
 
