@@ -190,14 +190,17 @@ func PrintNodeCheckpointStats() {
 // Cleanup Tasks
 func CleanUpTaskCompletion(nodeName string, stage int32, taskId int32, operation string) {
 	utility.LogMessage(fmt.Sprintf("Cleaning up Stage %d task %d on node %s", stage, taskId, nodeName))
+	fmt.Printf("Time elapsed for Stage %d task %d on : %v\n", stage, taskId, time.Since(TimerStart))
 	RemoveNodeTask(nodeName, operation, int(taskId))
 	DecrementNodeTaskCount(nodeName)
 	// remove the checkpoint stats
 	RemoveTask(stage, taskId, nodeName)
-	if GetTasksForStage(0) == nil && GetTasksForStage(1) == nil && GetTasksForStage(2) == nil {
+	if len(GetTasksForStage(int32(2))) == 0 {
 		utility.LogMessage("All tasks completed , finishing time calculation")
 		elapsed := time.Since(TimerStart)
 		fmt.Printf("Time taken for all streaming tasks to complete: %v\n", elapsed)
+	} else {
+		utility.LogMessage("Tasks in stage 2 still running")
 	}
 	stageTaskId := fmt.Sprintf("%d_%d", stage, taskId)
 	NodeCheckpointStats.mutex.Lock()
