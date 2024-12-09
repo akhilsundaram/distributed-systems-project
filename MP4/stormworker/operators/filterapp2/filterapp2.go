@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -33,7 +34,12 @@ func main() {
 
 		}
 
-		values := strings.Split(lineData, ",")
+		// values := strings.Split(lineData, ",")
+		csv_reader := csv.NewReader(strings.NewReader(lineData))
+		values, err := csv_reader.Read()
+		if err != nil {
+			continue
+		}
 		sign_post := values[6]
 
 		if sign_post == pattern {
