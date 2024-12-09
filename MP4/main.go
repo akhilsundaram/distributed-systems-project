@@ -339,6 +339,43 @@ func main() {
 				fmt.Println("Showing status of all nodes in the rainstrom cluster")
 				scheduler.PrintAvailableNodes()
 
+			case "rainstorm2":
+				fmt.Println("RainStorm Stream Processing. Usage: <op1_exe>,<op2_exe>,<hydfs_src_file>,<hydfs_dest_filename>,<num_tasks>,<filter1_optional>,<filter2_optional>")
+				fmt.Print("Enter command: ")
+				scanner.Scan()
+				args := strings.Split(scanner.Text(), ",")
+				if len(args) < 5 || len(args) > 7 {
+					fmt.Println("Invalid input. Usage: <op1_exe> <op2_exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks> <filter1_optional> <filter2_optional>")
+				} else {
+					// create here with args[0] and args[1]
+					op1Exe := strings.TrimSpace(args[0])
+					op2Exe := strings.TrimSpace(args[1])
+					srcFilePath := strings.TrimSpace(args[2])
+					destFilePath := strings.TrimSpace(args[3])
+					numTasks, err := strconv.Atoi(strings.TrimSpace(args[4]))
+					if err != nil {
+						fmt.Println("Invalid input. Number of tasks must be an integer.")
+					} else {
+						var filters []string
+						if len(args) > 5 {
+							for i := 5; i < len(args); i++ {
+								filters = append(filters, strings.TrimSpace(args[i]))
+							}
+						}
+						scheduler.StartScheduler(srcFilePath, numTasks, destFilePath, op1Exe, op2Exe, filters...)
+					}
+					time.Sleep(time.Millisecond * 1500)
+					// nodeMap := scheduler.GetNodesWithOperations()
+					// for operation, node_list := range nodeMap {
+					// 	if operation != "source" {
+					// 		if len(node_list) > 0 {
+					// 			//Kill node
+					// 			node_list[0]
+					// 		}
+					// 	}
+					// }
+				}
+
 			case "test":
 				fmt.Print("enter input hydfs file :")
 				scanner.Scan()

@@ -54,13 +54,13 @@ func (s *StormworkerServer) PerformOperation(ctx context.Context, req *stormgrpc
 
 /* LEADER CLIENT STUFF */
 // from grpc client function template from the internet
-func sendCheckpointStatus(stage, task_id, lineProcessed int, intermediate_file, operation, state string) {
+func sendCheckpointStatus(stage, task_id, lineProcessed int, intermediate_file, operation, state string, delete bool) bool {
 	leader_ip := utility.GetIPAddr(LEADER_HOSTNAME).String() //leader unchanged
 	conn, err := grpc.Dial(leader_ip+":6542", grpc.WithInsecure())
 	if err != nil {
 		fmt.Println("GRPCS CONNECTION DID NOT GO THROUGH")
 		utility.LogMessage("CONNECTION DID NOT GO THROUGH")
-		return
+		return false
 	}
 	defer conn.Close()
 
@@ -75,6 +75,7 @@ func sendCheckpointStatus(stage, task_id, lineProcessed int, intermediate_file, 
 		TaskId:             int32(task_id), // Example task ID
 		Operation:          operation,
 		State:              state,
+		Completed:          delete,
 	}
 
 	// Call the Checkpoint RPC
@@ -82,8 +83,13 @@ func sendCheckpointStatus(stage, task_id, lineProcessed int, intermediate_file, 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err = client.Checkpoint(ctx, request)
+	response, err := client.Checkpoint(ctx, request)
 	if err != nil {
 		log.Fatalf("Checkpoint call failed: %v", err)
 	}
+
+	if response.PrevStageCompleted {
+		return true
+	}
+	return false
 }
