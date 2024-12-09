@@ -122,6 +122,7 @@ func RunOperation(task Task) {
 			if value, exists := processed[procKey]; exists {
 				if value >= lineNumber {
 					utility.LogMessage("DUPLICATE ENTRFY FOUND - skipping line => " + line)
+					fmt.Printf("DUPLICATE ENTRFY FOUND => " + line)
 					continue
 				}
 				pkey = procKey
