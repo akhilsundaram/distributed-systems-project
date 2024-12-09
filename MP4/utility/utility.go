@@ -2,6 +2,7 @@ package utility
 
 import (
 	"bufio"
+	"context"
 	"crypto/md5"
 	"fmt"
 	"io"
@@ -9,11 +10,13 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"rainstorm/stormgrpc"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/spaolacci/murmur3"
+	"google.golang.org/grpc"
 )
 
 // -----------------------------------VARS----------------------------------------------------//
@@ -341,4 +344,28 @@ func GetFirstLetterASCII(word string) int {
 func KeyMurmurHash(word string, numTasks int) uint32 {
 	// return 0 , 1 , 2 , 3
 	return murmur3.Sum32([]byte(word)) % uint32(numTasks)
+}
+
+/*Storm stop server */
+func StopServerStormVer(node string) {
+	serverIP := GetIPAddr(node)
+	conn, err := grpc.Dial(serverIP.String()+":"+"4001", grpc.WithInsecure())
+	if err != nil {
+		LogMessage("Unable to connect to server - ring rpc fserver - " + err.Error())
+	}
+	defer conn.Close()
+	client := stormgrpc.NewStormWorkerClient(conn)
+
+	// Prepare the request
+	req := &stormgrpc.StopStormRequest{
+		Node: node,
+	}
+	LogMessage(fmt.Sprintf("Sending Stop signal to node: %v", node))
+	// Call the PerformOperation RPC
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err = client.StopServer(ctx, req)
+	if err != nil {
+		log.Fatalf("Failed to perform operation: %v", err)
+	}
 }

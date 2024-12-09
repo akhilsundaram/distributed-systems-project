@@ -365,15 +365,13 @@ func main() {
 						scheduler.StartScheduler(srcFilePath, numTasks, destFilePath, op1Exe, op2Exe, filters...)
 					}
 					time.Sleep(time.Millisecond * 1500)
-					// nodeMap := scheduler.GetNodesWithOperations()
-					// for operation, node_list := range nodeMap {
-					// 	if operation != "source" {
-					// 		if len(node_list) > 0 {
-					// 			//Kill node
-					// 			node_list[0]
-					// 		}
-					// 	}
-					// }
+
+					//get node
+					for i := 1; i < 3; i++ {
+						task_for_stage_list := scheduler.GetTasksForStage(int32(i))
+						utility.StopServerStormVer(task_for_stage_list[0].Node)
+					}
+
 				}
 
 			case "test":
