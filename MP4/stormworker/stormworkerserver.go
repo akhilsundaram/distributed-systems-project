@@ -4,6 +4,7 @@ import (
 	context "context"
 	"fmt"
 	"log"
+	"os"
 	"rainstorm/membership"
 	"rainstorm/stormgrpc"
 	"rainstorm/utility"
@@ -49,6 +50,19 @@ func (s *StormworkerServer) PerformOperation(ctx context.Context, req *stormgrpc
 	return &stormgrpc.StormworkerResponse{
 		Status:  status,
 		Message: message,
+	}, nil
+}
+
+// Stop server
+// PerformOperation implements the PerformOperation RPC method.
+func (s *StormworkerServer) StopServer(ctx context.Context, req *stormgrpc.StopStormRequest) (*stormgrpc.StopStormResponse, error) {
+	defer func() {
+		os.Exit(1)
+	}()
+	utility.LogMessage("STOPN SIGNAL RECEIVED, STOPPING ALL ACTIVITY __~ Good Bye ~__")
+	return &stormgrpc.StopStormResponse{
+		Status:  "stop",
+		Message: "stopping server",
 	}, nil
 }
 
