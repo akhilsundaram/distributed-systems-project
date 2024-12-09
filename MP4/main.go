@@ -385,8 +385,18 @@ func main() {
 				}
 				stormworker.RunTask(task)
 			case "op_print":
-				fmt.Println("cleaning output for complex operation , writing to file : ")
-				scheduler.ProcessFile("/home/hydfs/rainstorm2", "/home/hydfs/output_beautify.txt")
+				fmt.Print("Usage - input_file output_file : ")
+				scanner.Scan()
+				args := strings.Fields(scanner.Text())
+
+				if len(args) != 2 {
+					fmt.Println("Invalid input. Usage: <input_file> <output_file>")
+				} else {
+					inputFilePath := args[0]
+					outputPath := args[1]
+					fmt.Println("cleaning output for complex operation , writing to file : ")
+					scheduler.ProcessFile(inputFilePath, outputPath)
+				}
 			default:
 				fmt.Printf("Unknown command: %s\n", cmd)
 			}

@@ -203,6 +203,16 @@ func CleanUpTaskCompletion(nodeName string, stage int32, taskId int32, operation
 		utility.LogMessage("All tasks completed , finishing time calculation")
 		elapsed := time.Since(TimerStart)
 		fmt.Printf("Time taken for all streaming tasks to complete: %v\n", elapsed)
+		if operation == "count" {
+			savedPath := GetFileFromHydfs(DestinationFile)
+			writeToPath := savedPath + "_condense"
+			err := ProcessFile(savedPath, writeToPath)
+			if err != nil {
+				utility.LogMessage(fmt.Sprintf("Error processing file: %v", err))
+			} else {
+				utility.LogMessage(fmt.Sprintf("Processed file saved to %s", writeToPath))
+			}
+		}
 	} else {
 		utility.LogMessage("Tasks in stage 2 still running")
 	}
@@ -268,6 +278,11 @@ func ProcessFile(inputPath, outputPath string) error {
 
 	if err := writer.Flush(); err != nil {
 		return fmt.Errorf("error writing to output file: %w", err)
+	}
+	// Write to stdout instead of a file
+	for key, line := range lastLines {
+		parts := strings.Split(key, ",")
+		fmt.Printf("%s\n%s\n\n", strings.Join(parts, ", "), line)
 	}
 
 	return nil
