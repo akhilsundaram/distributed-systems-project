@@ -111,15 +111,15 @@ func RemoveTask(stageID int32, taskID int32, node string) {
 func UpdateTaskNode(stageID int32, taskID int32, newNodeID string) bool {
 	StageTasks.mutex.Lock()
 	defer StageTasks.mutex.Unlock()
-
+	utility.LogMessage("INSIDE UPDATE TASK NODE, trying to reasign node value")
 	tasks, exists := StageTasks.stages[stageID]
 	if !exists {
 		utility.LogMessage(fmt.Sprintf("Stage %d does not exist", stageID))
 		return false
 	}
-
+	utility.LogMessage(fmt.Sprintf(" Tasks for  stage %d are %v", stageID, tasks))
 	for i, task := range tasks {
-		if taskID != 0 && task.TaskID == taskID {
+		if task.TaskID == taskID {
 			StageTasks.stages[stageID][i].Node = newNodeID
 			utility.LogMessage(fmt.Sprintf("Stage %d Task %d updated to node %s", stageID, taskID, newNodeID))
 			return true
