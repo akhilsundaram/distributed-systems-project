@@ -384,6 +384,9 @@ func main() {
 					utility.LogMessage("ERROR ON TASK CREATION")
 				}
 				stormworker.RunTask(task)
+			case "op_print":
+				fmt.Println("cleaning output for complex operation , writing to file : ")
+				scheduler.ProcessFile("/home/hydfs/rainstorm2", "/home/hydfs/output_beautify.txt")
 			default:
 				fmt.Printf("Unknown command: %s\n", cmd)
 			}

@@ -1,8 +1,12 @@
 package scheduler
 
 import (
+	"bufio"
+	"encoding/json"
 	"fmt"
+	"os"
 	"rainstorm/utility"
+	"strings"
 	"time"
 )
 
@@ -206,4 +210,65 @@ func CleanUpTaskCompletion(nodeName string, stage int32, taskId int32, operation
 	NodeCheckpointStats.mutex.Lock()
 	defer NodeCheckpointStats.mutex.Unlock()
 	delete(NodeCheckpointStats.stats[nodeName], stageTaskId)
+}
+
+// process output data for aggregate tasks
+
+type MetaData struct {
+	LineProcessed int `json:"lineProcessed"`
+	Stage         int `json:"stage"`
+	Task          int `json:"task"`
+}
+
+type JsonLine struct {
+	Meta MetaData `json:"meta"`
+	Data string   `json:"data"`
+}
+
+func ProcessFile(inputPath, outputPath string) error {
+	inputFile, err := os.Open(inputPath)
+	if err != nil {
+		return fmt.Errorf("error opening input file: %w", err)
+	}
+	defer inputFile.Close()
+
+	lastLines := make(map[string]string)
+	scanner := bufio.NewScanner(inputFile)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		var jsonLine JsonLine
+		err := json.Unmarshal([]byte(line), &jsonLine)
+		if err != nil {
+			continue // Skip invalid JSON lines
+		}
+
+		if jsonLine.Meta.Stage == 2 && (jsonLine.Meta.Task == 0 || jsonLine.Meta.Task == 1 || jsonLine.Meta.Task == 2) {
+			key := fmt.Sprintf("stage:%d,task:%d", jsonLine.Meta.Stage, jsonLine.Meta.Task)
+			lastLines[key] = line
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("error reading input file: %w", err)
+	}
+
+	outputFile, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("error creating output file: %w", err)
+	}
+	defer outputFile.Close()
+
+	writer := bufio.NewWriter(outputFile)
+	for key, line := range lastLines {
+		parts := strings.Split(key, ",")
+		writer.WriteString(fmt.Sprintf("%s\n%s\n", strings.Join(parts, ", "), line))
+		writer.WriteString("\n")
+	}
+
+	if err := writer.Flush(); err != nil {
+		return fmt.Errorf("error writing to output file: %w", err)
+	}
+
+	return nil
 }
