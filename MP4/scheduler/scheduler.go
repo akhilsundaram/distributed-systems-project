@@ -294,7 +294,7 @@ func SendSchedulerRequest(node string, nodeInstr NodeInUseInfo) error {
 	serverIP := utility.GetIPAddr(node)
 	conn, err := grpc.Dial(serverIP.String()+":"+scheduler_port, grpc.WithInsecure())
 	if err != nil {
-		utility.LogMessage("Unable to connect to server - ring rpc fserver - " + err.Error())
+		utility.LogMessage("Unable to connect to server - scheduler server - " + err.Error())
 		return err
 	}
 	defer conn.Close()
