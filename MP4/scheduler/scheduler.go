@@ -81,6 +81,7 @@ var (
 	NodeInUse           NodeInUseStruct
 	NodeCheckpointStats NodeCheckpointStatsStruct
 	StageTasks          StageTasksStruct
+	TimerStart          time.Time
 )
 
 func InitializeScheduler() {
@@ -149,6 +150,9 @@ func MonitorMembershipList() {
 
 // RainStorm <op1 _exe> <op2 _exe> <hydfs_src_file> <hydfs_dest_filename> <num_tasks>
 func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Exe string, op2Exe string, filters ...string) error {
+
+	TimerStart = time.Now()
+	fmt.Printf("Start time: %v\n", TimerStart)
 
 	op0Exe := "source"
 	ops := []string{op0Exe, op1Exe, op2Exe}

@@ -3,6 +3,7 @@ package scheduler
 import (
 	"fmt"
 	"rainstorm/utility"
+	"time"
 )
 
 /* ------------------- AvailableNodes helper methods -------------------- */
@@ -190,9 +191,14 @@ func PrintNodeCheckpointStats() {
 func CleanUpTaskCompletion(nodeName string, stage int32, taskId int32, operation string) {
 	utility.LogMessage(fmt.Sprintf("Cleaning up Stage %d task %d on node %s", stage, taskId, nodeName))
 	RemoveNodeTask(nodeName, operation, int(taskId))
-	RemoveTask(stage, taskId, nodeName)
 	DecrementNodeTaskCount(nodeName)
 	// remove the checkpoint stats
+	RemoveTask(stage, taskId, nodeName)
+	if GetTasksForStage(0) == nil && GetTasksForStage(1) == nil && GetTasksForStage(2) == nil {
+		utility.LogMessage("All tasks completed , finishing time calculation")
+		elapsed := time.Since(TimerStart)
+		fmt.Printf("Time taken for all streaming tasks to complete: %v\n", elapsed)
+	}
 	stageTaskId := fmt.Sprintf("%d_%d", stage, taskId)
 	NodeCheckpointStats.mutex.Lock()
 	defer NodeCheckpointStats.mutex.Unlock()
