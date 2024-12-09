@@ -286,6 +286,9 @@ func RunOperation(task Task) {
 
 			}
 			utility.LogMessage(fmt.Sprintf("Line %d output: %s\n", lineNumber, output.String()))
+			if task.Stage == 2 {
+				sendEcho(output.String())
+			}
 		}
 		updateCurrentProcessedLine(task.Stage, task.TASK_ID, lineNumber)
 	}

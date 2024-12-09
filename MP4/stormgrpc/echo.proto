@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package stormgrpc;
+
+option go_package = "../stormgrpc/";
+
+// The Echo service definition.
+service EchoService {
+  // Sends a string and gets an acknowledgment.
+  rpc Echo (EchoRequest) returns (EchoResponse);
+}
+
+// The request message containing the string to echo.
+message EchoRequest {
+  string message = 1; // Input string to send to the server.
+}
+
+// The response message acknowledging receipt.
+message EchoResponse {
+  string status = 1; // A status message (e.g., "Message received").
+}

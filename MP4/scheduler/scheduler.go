@@ -20,9 +20,12 @@ import (
 const (
 	scheduler_port  = "4001"
 	checkpoint_port = "6542"
+	echo_port       = "6543"
 	timeout         = 10 * time.Millisecond
 	SCHEDULER_HOST  = "fa24-cs425-5901.cs.illinois.edu"
 )
+
+var Echo_toggle = false
 
 type AvailableNodesStruct struct {
 	nodes map[string]int
@@ -121,6 +124,21 @@ func InitializeScheduler() {
 		if err := checkpointServer.Serve(listener); err != nil {
 			utility.LogMessage("Init Scheduler -  start checkpoint server failure")
 		}
+	}()
+
+	// Echo server
+	listenerEcho, err := net.Listen("tcp", ":"+echo_port)
+	if err != nil {
+		utility.LogMessage("Init Echo server -  start echo")
+		log.Fatalf("Failed to echo listen on port: %v", err)
+	}
+	echoServer := grpc.NewServer()
+	stormgrpc.RegisterEchoServiceServer(echoServer, &EchoServer{})
+	go func() {
+		if err := echoServer.Serve(listenerEcho); err != nil {
+			utility.LogMessage("echo server failure")
+		}
+
 	}()
 
 	go MonitorMembershipList()

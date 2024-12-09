@@ -136,6 +136,7 @@ func main() {
 		fmt.Println("Available commands for RainStorm Stream Processing :")
 		fmt.Println("  cluster_availibility - show status of all nodes in the rainstrom cluster")
 		fmt.Println("  rainstorm            - Start RainStorm Stream Processing")
+		fmt.Println("  toggle_output        - Toggle output visibility for final stage")
 		fmt.Println("************************************************")
 		scanner := bufio.NewScanner(os.Stdin)
 		for {
@@ -395,6 +396,9 @@ func main() {
 					fmt.Println("cleaning output for complex operation , writing to file : ")
 					scheduler.ProcessFile(inputFilePath, outputPath)
 				}
+			case "toggle_output":
+				scheduler.Echo_toggle = !scheduler.Echo_toggle
+				fmt.Printf("Echo Outputs set to -  %t\n", scheduler.Echo_toggle)
 			default:
 				fmt.Printf("Unknown command: %s\n", cmd)
 			}

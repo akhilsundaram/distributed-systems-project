@@ -101,3 +101,31 @@ func sendCheckpointStatus(stage, task_id, lineProcessed int, intermediate_file, 
 	}
 	return false
 }
+
+func sendEcho(value string) {
+	leader_ip := utility.GetIPAddr(LEADER_HOSTNAME).String() //leader unchanged
+	conn, err := grpc.Dial(leader_ip+":6543", grpc.WithInsecure())
+	if err != nil {
+		fmt.Println("GRPCS CONNECTION DID NOT GO THROUGH")
+		utility.LogMessage("CONNECTION DID NOT GO THROUGH")
+		return
+	}
+	defer conn.Close()
+
+	client := stormgrpc.NewEchoServiceClient(conn)
+
+	// Create a CheckpointRequest
+	request := &stormgrpc.EchoRequest{
+		Message: value,
+	}
+
+	// Call the Checkpoint RPC
+	// Call the Checkpoint RPC
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err = client.Echo(ctx, request)
+	if err != nil {
+		utility.LogMessage("Echo call failed")
+	}
+}
