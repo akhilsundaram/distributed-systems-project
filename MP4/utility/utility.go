@@ -366,6 +366,6 @@ func StopServerStormVer(node string) {
 	defer cancel()
 	_, err = client.StopServer(ctx, req)
 	if err != nil {
-		log.Fatalf("Failed to perform operation: %v", err)
+		LogMessage(fmt.Sprintf("Failed to perform operation: %v", err))
 	}
 }
