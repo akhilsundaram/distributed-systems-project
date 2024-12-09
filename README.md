@@ -154,17 +154,17 @@ Created a group membership system which detects failures and maintains a real-ti
 > This contains code for the caching mechanism for the files which have been previously fetched to the local file system of the node.
 
 
-**Machine Problem 4** - ** RainStorm - Streaming Processing Framework (built upon Machine Problem 2, Machine problem 3 - distributed group membership, failure detection and Persistent HYDFS file storage system) ** 
+**Machine Problem 4** - **RainStorm - Streaming Processing Framework (built upon Machine Problem 2, Machine problem 3 - distributed group membership, failure detection and Persistent HYDFS file storage system)** 
 
 **Code Instructions**
 
-- **Start the Scheduler/Leader node **: On VM Node 1, (machine that is chosen to be the Scheduler), perform following commands on that : 
+- **Start the Scheduler/Leader node**: On VM Node 1, (machine that is chosen to be the Scheduler), perform following commands on that : 
 
 >`>$ cd MP4/`
 >
 >`>$ go run main.go`
 
-** There are 2 applicable commands for MP4, the rest of the commands are from the previous MP. Firstly, upload the input file for which we shall perform stream processing to the HYDFS : **
+**There are 2 applicable commands for MP4, the rest of the commands are from the previous MP. Firstly, upload the input file for which we shall perform stream processing to the HYDFS :**
 
 > `$ Enter command : create`
 
@@ -172,14 +172,14 @@ Created a group membership system which detects failures and maintains a real-ti
 
 > `$ Usage - localfilename HyDFSfilename : /home/hydfs/Traffic_Signs_1000.csv test_data`
 
-** Once this is done, trigger the rainstorm command and follow the prompts. Enter the input in the same format as it is expected : **
+**Once this is done, trigger the rainstorm command and follow the prompts. Enter the input in the same format as it is expected :**
 
 > `$ Enter command: rainstorm`
 
 > `$ RainStorm Stream Processing. Usage: <op1_exe>,<op2_exe>,<hydfs_src_file>,<hydfs_dest_filename>,<num_tasks>,<filter1_optional>,<filter2_optional>`
 > `$ Enter command: filterapp2,count,test_data,output,3,Streetlight`
 
-** While the stream processing framework is running, use the following command to get information on which node is running which task : **
+**While the stream processing framework is running, use the following command to get information on which node is running which task :**
 
 > `$ Enter command: cluster_availibility`
 
