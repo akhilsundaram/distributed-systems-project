@@ -77,6 +77,7 @@ func UpdateSchedulerMemeberList(node string, action string) error {
 			utility.LogMessage(fmt.Sprintf("Saved %d tasks for reassignment", len(NodeInUse.nodes[node])))
 			delete(NodeInUse.nodes, node)
 			NodeInUse.mutex.Unlock()
+			DecrementNodeTaskCount(node)
 			utility.LogMessage("Node removed from NodeInUse")
 
 			// and also equal to CheckpointStats data structure
