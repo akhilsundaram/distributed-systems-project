@@ -153,6 +153,8 @@ func RestartFailedTasks(tasksToRestart []NodeInUseInfo) error {
 				// Update AvailableNodes
 				IncrementNodeTaskCount(node)
 
+				UpdateTaskNode(task.Stage, task.NodeId, node)
+
 				// Update NodesInUse
 				SetNodeInUse(node, task)
 

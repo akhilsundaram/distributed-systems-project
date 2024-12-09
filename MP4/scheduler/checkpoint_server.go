@@ -27,6 +27,7 @@ func (s *CheckpointServer) Checkpoint(ctx context.Context, req *stormgrpc.Checkp
 		TaskId:         req.TaskId,
 		VmName:         req.Vmname,
 		State:          req.State,
+		Completed:      req.Completed,
 	}
 
 	stage_taskid := strconv.FormatInt(int64(req.Stage), 10) + "_" + strconv.FormatInt(int64(req.TaskId), 10)
@@ -44,11 +45,34 @@ func (s *CheckpointServer) Checkpoint(ctx context.Context, req *stormgrpc.Checkp
 	// update the checkpoint stats of that node, using the stage value as key
 	UpdateNodeCheckpointStats(req.Vmname, stage_taskid, tempStats)
 
+	response_prev_stage_over := false
+	if req.Completed {
+		utility.LogMessage("Received completed message for VM: " + req.Vmname + ", Stage_TaskId: " + stage_taskid)
+		if req.Stage == 0 {
+			// stage 0 says completed
+			// cleanup data structures
+			CleanUpTaskCompletion(req.Vmname, req.Stage, req.TaskId, req.Operation)
+			response_prev_stage_over = true
+		} else if req.Stage == 1 || req.Stage == 2 {
+			// check if prev stage has any running tasks (stage 0, or stage 1)
+			if len(GetTasksForStage(int32(req.Stage-1))) == 0 {
+				// perform cleanup, set
+				CleanUpTaskCompletion(req.Vmname, req.Stage, req.TaskId, req.Operation)
+				response_prev_stage_over = true
+			} else {
+				response_prev_stage_over = false
+			}
+		}
+
+	}
+
 	utility.LogMessage("updated checkpoint stats for VM: " + req.Vmname + ", Stage_TaskId: " + stage_taskid + ", Lines Processed: " + strconv.FormatInt(int64(req.LineRangeProcessed), 10) + ", Filename: " + req.Filename)
 
 	// send ack as the line number saved for that node[stage]
+	// prev stage completed
 	response := &stormgrpc.AckCheckpoint{
-		LineAcked: req.LineRangeProcessed,
+		LineAcked:          req.LineRangeProcessed,
+		PrevStageCompleted: response_prev_stage_over,
 	}
 
 	utility.LogMessage("sent checkpoint ack for VM: " + req.Vmname + ", Stage_TaskId: " + stage_taskid + ", Lines Processed: " + strconv.FormatInt(int64(req.LineRangeProcessed), 10))

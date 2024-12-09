@@ -16,10 +16,12 @@ message CheckpointRequest {
   int32 task_id = 5;          // task sending the checkpoint
   string operation = 6;        // operation: "src", "op1exe", "op2exe"
   string state = 7;            //state of op
+  bool completed = 8;          // true if the task has completed the operation
 }
 // Name of the VM where task is running : string vmname = 4;
 
 
 message AckCheckpoint {
   int32 line_acked = 2;    // line number saved in checkpoint ds at scheduler
+  bool prev_stage_completed = 3; // true if the previous stage has completed
 }

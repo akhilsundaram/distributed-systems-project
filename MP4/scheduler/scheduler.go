@@ -29,6 +29,16 @@ type AvailableNodesStruct struct {
 	mutex sync.RWMutex
 }
 
+type RunningTaskInfo struct {
+	TaskID int32
+	Node   string
+}
+
+type StageTasksStruct struct {
+	stages map[int32][]RunningTaskInfo
+	mutex  sync.RWMutex
+}
+
 type NodeInUseInfo struct {
 	Operation       string
 	InputFileName   string
@@ -57,6 +67,7 @@ type CheckpointStats struct {
 	TaskId         int32
 	Operation      string
 	State          string
+	Completed      bool
 	// other fields to add in Checkpointing struct to save in memory
 }
 
@@ -69,6 +80,7 @@ var (
 	AvailableNodes      AvailableNodesStruct
 	NodeInUse           NodeInUseStruct
 	NodeCheckpointStats NodeCheckpointStatsStruct
+	StageTasks          StageTasksStruct
 )
 
 func InitializeScheduler() {
@@ -85,6 +97,10 @@ func InitializeScheduler() {
 
 	NodeCheckpointStats = NodeCheckpointStatsStruct{
 		stats: make(map[string]map[string]CheckpointStats),
+	}
+
+	StageTasks = StageTasksStruct{
+		stages: make(map[int32][]RunningTaskInfo),
 	}
 
 	// scheduler sender
@@ -243,8 +259,13 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 				TaskId:         int32(taskIndex),
 				Operation:      operation,
 				State:          "",
+				Completed:      false,
 			}
 			stageTaskId := strconv.FormatInt(int64(stageIndex), 10) + "_" + strconv.FormatInt(int64(taskIndex), 10)
+
+			// Update stage tasks
+			AddTask(int32(stageIndex), int32(taskIndex), node)
+			// Add code to update StageTasks on -- failure, completion
 
 			// Update node usage information
 			IncrementNodeTaskCount(node)

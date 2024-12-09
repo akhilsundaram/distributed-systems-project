@@ -78,6 +78,52 @@ func UpdateNodeCheckpointStats(nodeName string, stageTaskid string, stats Checkp
 	NodeCheckpointStats.stats[nodeName][stageTaskid] = stats
 }
 
+/* ------------------- StageTask helper methods ------------------- */
+func AddTask(stageID int32, taskID int32, node string) {
+	StageTasks.mutex.Lock()
+	defer StageTasks.mutex.Unlock()
+	StageTasks.stages[stageID] = append(StageTasks.stages[stageID], RunningTaskInfo{TaskID: taskID, Node: node})
+}
+
+func GetTasksForStage(stageID int32) []RunningTaskInfo {
+	StageTasks.mutex.RLock()
+	defer StageTasks.mutex.RUnlock()
+	return StageTasks.stages[stageID]
+}
+
+func RemoveTask(stageID int32, taskID int32, node string) {
+	StageTasks.mutex.Lock()
+	defer StageTasks.mutex.Unlock()
+	tasks := StageTasks.stages[stageID]
+	for i, task := range tasks {
+		if (taskID != 0 && task.TaskID == taskID) || (node != "" && task.Node == node) {
+			StageTasks.stages[stageID] = append(tasks[:i], tasks[i+1:]...)
+			break
+		}
+	}
+}
+
+func UpdateTaskNode(stageID int32, taskID int32, newNodeID string) bool {
+	StageTasks.mutex.Lock()
+	defer StageTasks.mutex.Unlock()
+
+	tasks, exists := StageTasks.stages[stageID]
+	if !exists {
+		utility.LogMessage(fmt.Sprintf("Stage %d does not exist", stageID))
+		return false
+	}
+
+	for i, task := range tasks {
+		if taskID != 0 && task.TaskID == taskID {
+			StageTasks.stages[stageID][i].Node = newNodeID
+			utility.LogMessage(fmt.Sprintf("Stage %d Task %d updated to node %s", stageID, taskID, newNodeID))
+			return true
+		}
+	}
+
+	return false
+}
+
 /* ------------------- Printing lists of each - helpers ------------------*/
 func PrintAvailableNodes() {
 	fmt.Println("=== Available Nodes ===")
@@ -138,4 +184,17 @@ func PrintNodeCheckpointStats() {
 		}
 	}
 	utility.LogMessage("=== End of Node Checkpoint Stats ===")
+}
+
+// Cleanup Tasks
+func CleanUpTaskCompletion(nodeName string, stage int32, taskId int32, operation string) {
+	utility.LogMessage(fmt.Sprintf("Cleaning up Stage %d task %d on node %s", stage, taskId, nodeName))
+	RemoveNodeTask(nodeName, operation, int(taskId))
+	RemoveTask(stage, taskId, nodeName)
+	DecrementNodeTaskCount(nodeName)
+	// remove the checkpoint stats
+	stageTaskId := fmt.Sprintf("%d_%d", stage, taskId)
+	NodeCheckpointStats.mutex.Lock()
+	defer NodeCheckpointStats.mutex.Unlock()
+	delete(NodeCheckpointStats.stats[nodeName], stageTaskId)
 }
