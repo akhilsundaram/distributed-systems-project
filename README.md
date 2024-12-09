@@ -154,6 +154,53 @@ Created a group membership system which detects failures and maintains a real-ti
 > This contains code for the caching mechanism for the files which have been previously fetched to the local file system of the node.
 
 
+**Machine Problem 4** - ** RainStorm - Streaming Processing Framework (built upon Machine Problem 2, Machine problem 3 - distributed group membership, failure detection and Persistent HYDFS file storage system) ** 
+
+**Code Instructions**
+
+- **Start the Scheduler/Leader node **: On VM Node 1, (machine that is chosen to be the Scheduler), perform following commands on that : 
+
+>`>$ cd MP4/`
+>
+>`>$ go run main.go`
+
+** There are 2 applicable commands for MP4, the rest of the commands are from the previous MP. Firstly, upload the input file for which we shall perform stream processing to the HYDFS : **
+
+> `$ Enter command : create`
+
+> `$ Enter local filename  to upload to HyDFS file.`
+
+> `$ Usage - localfilename HyDFSfilename : /home/hydfs/Traffic_Signs_1000.csv test_data`
+
+** Once this is done, trigger the rainstorm command and follow the prompts. Enter the input in the same format as it is expected : **
+
+> `$ Enter command: rainstorm`
+
+> `$ RainStorm Stream Processing. Usage: <op1_exe>,<op2_exe>,<hydfs_src_file>,<hydfs_dest_filename>,<num_tasks>,<filter1_optional>,<filter2_optional>`
+> `$ Enter command: filterapp2,count,test_data,output,3,Streetlight`
+
+** While the stream processing framework is running, use the following command to get information on which node is running which task : **
+
+> `$ Enter command: cluster_availibility`
+
+
+**Project Structure**
+
+
+>**Scheduler Package** :
+> This contains the all code related to scheduler logic, for VM 1.
+
+
+>**StormWorker Package** : 
+> This contains the code for the worker logic, to perform streaming tasks.
+
+
+>**Stormgrpc** : 
+> This contains the grpc, proto and corresponding generated protobuf wrappers for bringing up grpcs in golang. This is used for communication between services of the scheduler and the workers on different nodes.
+
+
+
+
 
 
 
