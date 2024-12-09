@@ -82,6 +82,7 @@ var (
 	NodeCheckpointStats NodeCheckpointStatsStruct
 	StageTasks          StageTasksStruct
 	TimerStart          time.Time
+	DestinationFile     string
 )
 
 func InitializeScheduler() {
@@ -154,6 +155,7 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 	TimerStart = time.Now()
 	fmt.Printf("Start time: %v\n", TimerStart)
 
+	DestinationFile = destFilePath
 	op0Exe := "source"
 	ops := []string{op0Exe, op1Exe, op2Exe}
 
