@@ -41,12 +41,6 @@ func (s *StormworkerServer) PerformOperation(ctx context.Context, req *stormgrpc
 	status := "success"
 	message := "Operation started successfully"
 
-	// Handle an invalid range
-	if req.RangeStart > req.RangeEnd {
-		status = "failure"
-		message = "Invalid range: range_start cannot be greater than range_end"
-	}
-
 	return &stormgrpc.StormworkerResponse{
 		Status:  status,
 		Message: message,
