@@ -34,7 +34,7 @@ func SelectNodesWithLeastTasks(numNodes int) ([]string, error) {
 	for i := 0; i < numNodes; i++ {
 		selectedNodes[i] = nodeLoads[i].name
 	}
-
+	utility.LogMessage(fmt.Sprintf("Selected nodes with least tasks: %v", selectedNodes))
 	return selectedNodes, nil
 }
 
@@ -81,7 +81,8 @@ func UpdateSchedulerMemeberList(node string, action string) error {
 			AvailableNodes.mutex.Lock()
 			delete(AvailableNodes.nodes, node)
 			AvailableNodes.mutex.Unlock()
-			utility.LogMessage("Node removed from NodeInUse")
+			utility.LogMessage("Node removed from AvailableNodes " + node)
+			utility.LogMessage("Node removed from NodeInUse " + node)
 
 			// and also equal to CheckpointStats data structure
 
