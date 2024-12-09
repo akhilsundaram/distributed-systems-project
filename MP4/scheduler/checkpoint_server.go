@@ -60,6 +60,11 @@ func (s *CheckpointServer) Checkpoint(ctx context.Context, req *stormgrpc.Checkp
 				CleanUpTaskCompletion(req.Vmname, req.Stage, req.TaskId, req.Operation)
 				response_prev_stage_over = true
 			} else {
+				prev_stage_len := len(GetTasksForStage(int32(req.Stage - 1)))
+				utility.LogMessage(fmt.Sprintf("Prev stage not over, waiting for completion - %d\n", prev_stage_len))
+				for _, task := range GetTasksForStage(int32(req.Stage - 1)) {
+					utility.LogMessage(fmt.Sprintf("Task: %d, %d\n", task.TaskID, task.Node))
+				}
 				response_prev_stage_over = false
 			}
 		}
