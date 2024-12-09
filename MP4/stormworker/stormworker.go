@@ -26,6 +26,7 @@ type Task struct {
 	Completed            bool
 	Running              bool
 	Failed               bool
+	Stalled              bool
 	Message              string
 	Stage                int
 	TASK_ID              int
@@ -111,6 +112,7 @@ func AddTask(stage int, task_id int, operation string, startRange, endRange int,
 		Completed:            false,
 		Running:              false,
 		Failed:               false,
+		Stalled:              false,
 		Stage:                stage,
 		TASK_ID:              task_id,
 		aggregate_output:     aggregate_output,
@@ -227,6 +229,30 @@ func getState(stage, task_id int) string {
 	return task.state
 }
 
+func setStalled(stage, task_id int, stall bool) {
+	if tasks == nil {
+		utility.LogMessage(fmt.Sprintf("NO TASKS EXIST, but Task of %d stage's Run status was requested to be changed!!", stage))
+		return
+	}
+	tkey := taskKey{stage: stage, task: task_id}
+	task, exists := tasks[tkey]
+	if !exists {
+		utility.LogMessage(fmt.Sprintf("Task with the given stage- %d and task id - %d - does not exist", stage, task_id))
+	}
+	//update
+	task.Stalled = stall
+	tasks[tkey] = task
+}
+
+func getStalled(stage, task_id int) bool {
+	tkey := taskKey{stage: stage, task: task_id}
+	task, exists := tasks[tkey]
+	if !exists {
+		utility.LogMessage(fmt.Sprintf("Task with the given stage- %d and task id - %d - does not exist", stage, task_id))
+	}
+	return task.Stalled
+}
+
 func setTaskCompletion(stage, task_id int, status bool, message string) {
 	if tasks == nil {
 		utility.LogMessage(fmt.Sprintf("NO TASKS EXIST, but Task of %d tasks's Run status was requested to be changed!!", stage))
@@ -327,8 +353,18 @@ func RunTask(task Task) {
 
 		if task.Failed {
 			// Send signal to leader on stall issue => task.Message
-			deleteTask(task.Stage, task.TASK_ID)
-			return // change behaviour to retry later, for now fail
+			utility.LogMessage("Check Task Deletion with leader ..........")
+			ok := sendCheckpointStatus(task.Stage, task.TASK_ID, task.CurrentProcessedLine, task.OutputHydfsFile, task.Operation, task.state, true)
+			if ok {
+				deleteTask(task.Stage, task.TASK_ID)
+				utility.LogMessage(fmt.Sprintf("TASK DELETED! - %d:%d -- %v", task.Stage, task.TASK_ID, task.Operation))
+				return // change behaviour to retry later, for now fail
+			}
+
+			setTaskFailure(task.Stage, task.TASK_ID, false, "Cannot block, leader's order")
+			setStalled(task.Stage, task.TASK_ID, false)
+			utility.LogMessage("RESET Stall and set to not failed by leader")
+
 		}
 
 		if task.StartRange == task.EndRange {

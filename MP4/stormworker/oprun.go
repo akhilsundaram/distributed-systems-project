@@ -65,6 +65,7 @@ func RunOperation(task Task) {
 	scanner := bufio.NewScanner(inputFile)
 	lineNumber := 0
 	bufferSize := 0
+	stallFlag := true
 	outputFilename := task.OutputHydfsFile
 	for scanner.Scan() {
 		lineNumber++
@@ -75,6 +76,7 @@ func RunOperation(task Task) {
 			break
 		}
 
+		stallFlag = false
 		line := scanner.Text()
 		inputLine := line
 		pkey := taskKey{}
@@ -274,7 +276,7 @@ func RunOperation(task Task) {
 					if err != nil {
 						utility.LogMessage("batch write errored - err:>>>> " + err.Error())
 					}
-					sendCheckpointStatus(task.Stage, task.TASK_ID, lineNumber, outfile, task.Operation, getState(task.Stage, task.TASK_ID))
+					sendCheckpointStatus(task.Stage, task.TASK_ID, lineNumber, outfile, task.Operation, getState(task.Stage, task.TASK_ID), false)
 				}
 				setLinesout(task.Stage, task.TASK_ID, bufferSize)
 				bufferSize = 0
@@ -298,7 +300,7 @@ func RunOperation(task Task) {
 			if err != nil {
 				utility.LogMessage("batch write errored - err:>>>> " + err.Error())
 			}
-			sendCheckpointStatus(task.Stage, task.TASK_ID, lineNumber, outfile, task.Operation, getState(task.Stage, task.TASK_ID))
+			sendCheckpointStatus(task.Stage, task.TASK_ID, lineNumber, outfile, task.Operation, getState(task.Stage, task.TASK_ID), false)
 		}
 		setLinesout(task.Stage, task.TASK_ID, bufferSize)
 		bufferSize = 0
@@ -307,6 +309,18 @@ func RunOperation(task Task) {
 		}
 	}
 	updateCurrentProcessedLine(task.Stage, task.TASK_ID, lineNumber+1)
+	if stallFlag && getStalled(task.Stage, task.TASK_ID) {
+		setTaskFailure(task.Stage, task.TASK_ID, true, "Task set to Stalled, No new progress")
+		utility.LogMessage(fmt.Sprintf("SIGNAL TO KILL TASK :%d, TaskId: %d, operation:%v - Stalled Twice", task.Stage, task.TASK_ID, task.Operation))
+
+	}
+	if stallFlag {
+		setStalled(task.Stage, task.TASK_ID, true)
+		utility.LogMessage(fmt.Sprintf("Setting stalled status for Stage:%d, TaskId: %d, operation:%v - because no new input received.", task.Stage, task.TASK_ID, task.Operation))
+	} else {
+		setStalled(task.Stage, task.TASK_ID, false)
+		utility.LogMessage(fmt.Sprintf("NOT STALLED, Will check again for Stage:%d, TaskId: %d, operation:%v - new input processed.", task.Stage, task.TASK_ID, task.Operation))
+	}
 
 }
 
