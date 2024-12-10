@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	StormWorker_PerformOperation_FullMethodName = "/stormgrpc.StormWorker/PerformOperation"
+	StormWorker_StopServer_FullMethodName       = "/stormgrpc.StormWorker/StopServer"
 )
 
 // StormWorkerClient is the client API for StormWorker service.
@@ -29,6 +30,7 @@ const (
 // The StormWorker service definition.
 type StormWorkerClient interface {
 	PerformOperation(ctx context.Context, in *StormworkerRequest, opts ...grpc.CallOption) (*StormworkerResponse, error)
+	StopServer(ctx context.Context, in *StopStormRequest, opts ...grpc.CallOption) (*StopStormResponse, error)
 }
 
 type stormWorkerClient struct {
@@ -49,6 +51,16 @@ func (c *stormWorkerClient) PerformOperation(ctx context.Context, in *Stormworke
 	return out, nil
 }
 
+func (c *stormWorkerClient) StopServer(ctx context.Context, in *StopStormRequest, opts ...grpc.CallOption) (*StopStormResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StopStormResponse)
+	err := c.cc.Invoke(ctx, StormWorker_StopServer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // StormWorkerServer is the server API for StormWorker service.
 // All implementations must embed UnimplementedStormWorkerServer
 // for forward compatibility.
@@ -56,6 +68,7 @@ func (c *stormWorkerClient) PerformOperation(ctx context.Context, in *Stormworke
 // The StormWorker service definition.
 type StormWorkerServer interface {
 	PerformOperation(context.Context, *StormworkerRequest) (*StormworkerResponse, error)
+	StopServer(context.Context, *StopStormRequest) (*StopStormResponse, error)
 	mustEmbedUnimplementedStormWorkerServer()
 }
 
@@ -68,6 +81,9 @@ type UnimplementedStormWorkerServer struct{}
 
 func (UnimplementedStormWorkerServer) PerformOperation(context.Context, *StormworkerRequest) (*StormworkerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PerformOperation not implemented")
+}
+func (UnimplementedStormWorkerServer) StopServer(context.Context, *StopStormRequest) (*StopStormResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StopServer not implemented")
 }
 func (UnimplementedStormWorkerServer) mustEmbedUnimplementedStormWorkerServer() {}
 func (UnimplementedStormWorkerServer) testEmbeddedByValue()                     {}
@@ -108,6 +124,24 @@ func _StormWorker_PerformOperation_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _StormWorker_StopServer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StopStormRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StormWorkerServer).StopServer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StormWorker_StopServer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StormWorkerServer).StopServer(ctx, req.(*StopStormRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // StormWorker_ServiceDesc is the grpc.ServiceDesc for StormWorker service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -118,6 +152,10 @@ var StormWorker_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PerformOperation",
 			Handler:    _StormWorker_PerformOperation_Handler,
+		},
+		{
+			MethodName: "StopServer",
+			Handler:    _StormWorker_StopServer_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

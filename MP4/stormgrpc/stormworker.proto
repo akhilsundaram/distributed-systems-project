@@ -7,6 +7,7 @@ option go_package = "../stormgrpc/";
 // The StormWorker service definition.
 service StormWorker {
   rpc PerformOperation (StormworkerRequest) returns (StormworkerResponse);
+  rpc StopServer (StopStormRequest) returns (StopStormResponse); 
 }
 
 // The request message containing operation details.
@@ -29,4 +30,13 @@ message StormworkerRequest {
 message StormworkerResponse {
   string status = 1;            // The status of the operation (e.g., "success", "failure").
   string message = 2;           // A detailed message about the operation result.
+}
+
+message StopStormRequest{
+  string node = 1;
+}
+
+message StopStormResponse{
+  string message = 1;
+  string status = 2;
 }

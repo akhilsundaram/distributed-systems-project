@@ -20,9 +20,12 @@ import (
 const (
 	scheduler_port  = "4001"
 	checkpoint_port = "6542"
+	echo_port       = "6543"
 	timeout         = 10 * time.Millisecond
 	SCHEDULER_HOST  = "fa24-cs425-5901.cs.illinois.edu"
 )
+
+var Echo_toggle = false
 
 type AvailableNodesStruct struct {
 	nodes map[string]int
@@ -82,6 +85,7 @@ var (
 	NodeCheckpointStats NodeCheckpointStatsStruct
 	StageTasks          StageTasksStruct
 	TimerStart          time.Time
+	DestinationFile     string
 )
 
 func InitializeScheduler() {
@@ -122,6 +126,21 @@ func InitializeScheduler() {
 		}
 	}()
 
+	// Echo server
+	listenerEcho, err := net.Listen("tcp", ":"+echo_port)
+	if err != nil {
+		utility.LogMessage("Init Echo server -  start echo")
+		log.Fatalf("Failed to echo listen on port: %v", err)
+	}
+	echoServer := grpc.NewServer()
+	stormgrpc.RegisterEchoServiceServer(echoServer, &EchoServer{})
+	go func() {
+		if err := echoServer.Serve(listenerEcho); err != nil {
+			utility.LogMessage("echo server failure")
+		}
+
+	}()
+
 	go MonitorMembershipList()
 }
 
@@ -154,6 +173,7 @@ func StartScheduler(srcFilePath string, numTasks int, destFilePath string, op1Ex
 	TimerStart = time.Now()
 	fmt.Printf("Start time: %v\n", TimerStart)
 
+	DestinationFile = destFilePath
 	op0Exe := "source"
 	ops := []string{op0Exe, op1Exe, op2Exe}
 
@@ -292,7 +312,7 @@ func SendSchedulerRequest(node string, nodeInstr NodeInUseInfo) error {
 	serverIP := utility.GetIPAddr(node)
 	conn, err := grpc.Dial(serverIP.String()+":"+scheduler_port, grpc.WithInsecure())
 	if err != nil {
-		utility.LogMessage("Unable to connect to server - ring rpc fserver - " + err.Error())
+		utility.LogMessage("Unable to connect to server - scheduler server - " + err.Error())
 		return err
 	}
 	defer conn.Close()
