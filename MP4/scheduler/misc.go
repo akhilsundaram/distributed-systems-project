@@ -1,8 +1,12 @@
 package scheduler
 
 import (
+	"bufio"
+	"encoding/json"
 	"fmt"
+	"os"
 	"rainstorm/utility"
+	"strings"
 	"time"
 )
 
@@ -107,15 +111,15 @@ func RemoveTask(stageID int32, taskID int32, node string) {
 func UpdateTaskNode(stageID int32, taskID int32, newNodeID string) bool {
 	StageTasks.mutex.Lock()
 	defer StageTasks.mutex.Unlock()
-
+	utility.LogMessage("INSIDE UPDATE TASK NODE, trying to reasign node value")
 	tasks, exists := StageTasks.stages[stageID]
 	if !exists {
 		utility.LogMessage(fmt.Sprintf("Stage %d does not exist", stageID))
 		return false
 	}
-
+	utility.LogMessage(fmt.Sprintf(" Tasks for  stage %d are %v", stageID, tasks))
 	for i, task := range tasks {
-		if taskID != 0 && task.TaskID == taskID {
+		if task.TaskID == taskID {
 			StageTasks.stages[stageID][i].Node = newNodeID
 			utility.LogMessage(fmt.Sprintf("Stage %d Task %d updated to node %s", stageID, taskID, newNodeID))
 			return true
@@ -199,6 +203,16 @@ func CleanUpTaskCompletion(nodeName string, stage int32, taskId int32, operation
 		utility.LogMessage("All tasks completed , finishing time calculation")
 		elapsed := time.Since(TimerStart)
 		fmt.Printf("Time taken for all streaming tasks to complete: %v\n", elapsed)
+		if operation == "count" {
+			savedPath := GetFileFromHydfs(DestinationFile)
+			writeToPath := savedPath + "_condense"
+			err := ProcessFile(savedPath, writeToPath)
+			if err != nil {
+				utility.LogMessage(fmt.Sprintf("Error processing file: %v", err))
+			} else {
+				utility.LogMessage(fmt.Sprintf("Processed file saved to %s", writeToPath))
+			}
+		}
 	} else {
 		utility.LogMessage("Tasks in stage 2 still running")
 	}
@@ -206,4 +220,70 @@ func CleanUpTaskCompletion(nodeName string, stage int32, taskId int32, operation
 	NodeCheckpointStats.mutex.Lock()
 	defer NodeCheckpointStats.mutex.Unlock()
 	delete(NodeCheckpointStats.stats[nodeName], stageTaskId)
+}
+
+// process output data for aggregate tasks
+
+type MetaData struct {
+	LineProcessed int `json:"lineProcessed"`
+	Stage         int `json:"stage"`
+	Task          int `json:"task"`
+}
+
+type JsonLine struct {
+	Meta MetaData `json:"meta"`
+	Data string   `json:"data"`
+}
+
+func ProcessFile(inputPath, outputPath string) error {
+	inputFile, err := os.Open(inputPath)
+	if err != nil {
+		return fmt.Errorf("error opening input file: %w", err)
+	}
+	defer inputFile.Close()
+
+	lastLines := make(map[string]string)
+	scanner := bufio.NewScanner(inputFile)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		var jsonLine JsonLine
+		err := json.Unmarshal([]byte(line), &jsonLine)
+		if err != nil {
+			continue // Skip invalid JSON lines
+		}
+
+		if jsonLine.Meta.Stage == 2 && (jsonLine.Meta.Task == 0 || jsonLine.Meta.Task == 1 || jsonLine.Meta.Task == 2) {
+			key := fmt.Sprintf("stage:%d,task:%d", jsonLine.Meta.Stage, jsonLine.Meta.Task)
+			lastLines[key] = line
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("error reading input file: %w", err)
+	}
+
+	outputFile, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("error creating output file: %w", err)
+	}
+	defer outputFile.Close()
+
+	writer := bufio.NewWriter(outputFile)
+	for key, line := range lastLines {
+		parts := strings.Split(key, ",")
+		writer.WriteString(fmt.Sprintf("%s\n%s\n", strings.Join(parts, ", "), line))
+		writer.WriteString("\n")
+	}
+
+	if err := writer.Flush(); err != nil {
+		return fmt.Errorf("error writing to output file: %w", err)
+	}
+	// Write to stdout instead of a file
+	for key, line := range lastLines {
+		parts := strings.Split(key, ",")
+		fmt.Printf("%s\n%s\n\n", strings.Join(parts, ", "), line)
+	}
+
+	return nil
 }

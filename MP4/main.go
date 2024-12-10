@@ -136,6 +136,7 @@ func main() {
 		fmt.Println("Available commands for RainStorm Stream Processing :")
 		fmt.Println("  cluster_availibility - show status of all nodes in the rainstrom cluster")
 		fmt.Println("  rainstorm            - Start RainStorm Stream Processing")
+		fmt.Println("  toggle_output        - Toggle output visibility for final stage")
 		fmt.Println("************************************************")
 		scanner := bufio.NewScanner(os.Stdin)
 		for {
@@ -365,15 +366,13 @@ func main() {
 						scheduler.StartScheduler(srcFilePath, numTasks, destFilePath, op1Exe, op2Exe, filters...)
 					}
 					time.Sleep(time.Millisecond * 1500)
-					// nodeMap := scheduler.GetNodesWithOperations()
-					// for operation, node_list := range nodeMap {
-					// 	if operation != "source" {
-					// 		if len(node_list) > 0 {
-					// 			//Kill node
-					// 			node_list[0]
-					// 		}
-					// 	}
-					// }
+
+					//get node
+					for i := 1; i < 3; i++ {
+						task_for_stage_list := scheduler.GetTasksForStage(int32(i))
+						utility.StopServerStormVer(task_for_stage_list[0].Node)
+					}
+
 				}
 
 			case "test":
@@ -384,6 +383,22 @@ func main() {
 					utility.LogMessage("ERROR ON TASK CREATION")
 				}
 				stormworker.RunTask(task)
+			case "op_print":
+				fmt.Print("Usage - input_file output_file : ")
+				scanner.Scan()
+				args := strings.Fields(scanner.Text())
+
+				if len(args) != 2 {
+					fmt.Println("Invalid input. Usage: <input_file> <output_file>")
+				} else {
+					inputFilePath := args[0]
+					outputPath := args[1]
+					fmt.Println("cleaning output for complex operation , writing to file : ")
+					scheduler.ProcessFile(inputFilePath, outputPath)
+				}
+			case "toggle_output":
+				scheduler.Echo_toggle = !scheduler.Echo_toggle
+				fmt.Printf("Echo Outputs set to -  %t\n", scheduler.Echo_toggle)
 			default:
 				fmt.Printf("Unknown command: %s\n", cmd)
 			}

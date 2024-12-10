@@ -4,6 +4,7 @@ import (
 	context "context"
 	"fmt"
 	"log"
+	"os"
 	"rainstorm/membership"
 	"rainstorm/stormgrpc"
 	"rainstorm/utility"
@@ -40,15 +41,22 @@ func (s *StormworkerServer) PerformOperation(ctx context.Context, req *stormgrpc
 	status := "success"
 	message := "Operation started successfully"
 
-	// Handle an invalid range
-	if req.RangeStart > req.RangeEnd {
-		status = "failure"
-		message = "Invalid range: range_start cannot be greater than range_end"
-	}
-
 	return &stormgrpc.StormworkerResponse{
 		Status:  status,
 		Message: message,
+	}, nil
+}
+
+// Stop server
+// PerformOperation implements the PerformOperation RPC method.
+func (s *StormworkerServer) StopServer(ctx context.Context, req *stormgrpc.StopStormRequest) (*stormgrpc.StopStormResponse, error) {
+	defer func() {
+		os.Exit(1)
+	}()
+	utility.LogMessage("STOPN SIGNAL RECEIVED, STOPPING ALL ACTIVITY __~ Good Bye ~__")
+	return &stormgrpc.StopStormResponse{
+		Status:  "stop",
+		Message: "stopping server",
 	}, nil
 }
 
@@ -92,4 +100,32 @@ func sendCheckpointStatus(stage, task_id, lineProcessed int, intermediate_file, 
 		return true
 	}
 	return false
+}
+
+func sendEcho(value string) {
+	leader_ip := utility.GetIPAddr(LEADER_HOSTNAME).String() //leader unchanged
+	conn, err := grpc.Dial(leader_ip+":6543", grpc.WithInsecure())
+	if err != nil {
+		fmt.Println("GRPCS CONNECTION DID NOT GO THROUGH")
+		utility.LogMessage("CONNECTION DID NOT GO THROUGH")
+		return
+	}
+	defer conn.Close()
+
+	client := stormgrpc.NewEchoServiceClient(conn)
+
+	// Create a CheckpointRequest
+	request := &stormgrpc.EchoRequest{
+		Message: value,
+	}
+
+	// Call the Checkpoint RPC
+	// Call the Checkpoint RPC
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err = client.Echo(ctx, request)
+	if err != nil {
+		utility.LogMessage("Echo call failed")
+	}
 }
