@@ -1,6 +1,6 @@
-# G59
+# Distributed Systems Project
 
-**CS425 Project** 
+**@ UIUC** 
 
 | Akhil Sundaram  | Anurag Choudhary  |
 | ------ | ------ |
